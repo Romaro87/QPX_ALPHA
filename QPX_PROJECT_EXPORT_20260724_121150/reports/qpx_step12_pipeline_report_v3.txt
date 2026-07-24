@@ -1,0 +1,14 @@
+=================================
+QPX STEP 12 PIPELINE SMOKE TEST V3
+2026-07-24T11:49:59.946150
+=================================
+[PASS] Market Data (3 rows)
+[PASS] Feature Engine
+[PASS] Signal Engine
+[FAIL] Backtesting Engine: 'str' object has no attribute 'get'
+[PASS] trades
+[PASS] portfolio_snapshots
+
+=================================
+QPX PIPELINE STATUS: NEEDS REVIEW
+=================================

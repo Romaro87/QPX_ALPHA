@@ -1,0 +1,10 @@
+{
+    "timestamp": "2026-07-24T11:59:43.614709",
+    "config_file": "/storage/emulated/0/QPX_ALPHA/qpx_provider.json",
+    "exists": true,
+    "valid_json": true,
+    "provider": "alpha_vantage",
+    "api_key_status": "PRESENT",
+    "api_key_masked": "YOUR********_KEY",
+    "warnings": []
+}

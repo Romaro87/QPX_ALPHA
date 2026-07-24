@@ -1,0 +1,7 @@
+==============================
+QPX HISTORICAL DATA IMPORT
+2026-07-24T10:54:55.087796
+==============================
+CSV FILE NOT FOUND
+Place file here:
+/storage/emulated/0/QPX_ALPHA/historical_data.csv

@@ -1,0 +1,33 @@
+========================================
+QPX HEALTH CHECK
+2026-07-24T11:36:11.538017
+========================================
+
+QPX_CONFIG_MIGRATION_MANAGER.py
+  Status : adapter_needed
+  Detail : main() found
+
+QPX_STRATEGY_CONFIG_MANAGER.py
+  Status : missing
+  Detail : File not found
+
+QPX_PROVIDER_MANAGER.py
+  Status : adapter_needed
+  Detail : main() found
+
+feature_engine.py
+  Status : manual_review
+  Detail : No run() or main()
+
+swing_strategy_v3.py
+  Status : manual_review
+  Detail : No run() or main()
+
+========================================
+SUMMARY
+========================================
+compatible: 0
+adapter_needed: 2
+manual_review: 2
+missing: 1
+import_error: 0

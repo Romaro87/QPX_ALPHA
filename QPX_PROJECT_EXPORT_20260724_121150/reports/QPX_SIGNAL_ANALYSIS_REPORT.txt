@@ -1,0 +1,13 @@
+==============================
+QPX SIGNAL ANALYSIS
+2026-07-24T10:42:04.398960
+==============================
+Modules loaded
+Features analyzed: 3
+Total signals: 3
+BUY signals: 0
+SELL signals: 0
+HOLD signals: 3
+Executable trades: 0
+Recommendation: Review signal thresholds
+STATUS: ANALYSIS COMPLETE

@@ -1,0 +1,30 @@
+=================================
+QPX STEP 11 RUNTIME HEALTH CHECK V2
+2026-07-24T11:40:37.601377
+=================================
+
+CORE FILE CHECK
+[PASS] main.py
+[PASS] database.py
+[PASS] query_engine.py
+[PASS] feature_engine.py
+[PASS] signal_engine.py
+[PASS] backtesting_engine.py
+[PASS] trade_event_schema_v2.py
+
+[PASS] DATABASE qpx_alpha.db
+Tables: ['market_data', 'sqlite_sequence', 'trades', 'portfolio_snapshots']
+Market rows: 3
+
+[PASS] DATABASE qpx_mobile.db
+Tables: ['market_data', 'sqlite_sequence', 'trades', 'portfolio_snapshots']
+Market rows: 6
+
+MODULE CHECK
+[PASS] MODULE feature_engine
+[PASS] MODULE signal_engine
+[PASS] MODULE backtesting_engine
+
+=================================
+QPX SYSTEM STATUS: READY
+=================================

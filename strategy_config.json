@@ -1,0 +1,17 @@
+{
+    "version": 2,
+    "active_strategy": "QPX Swing Strategy V3",
+    "strategies": {
+        "QPX Swing Strategy V3": {
+            "enabled": true,
+            "ema_fast": 20,
+            "ema_slow": 50,
+            "rsi_period": 14,
+            "rsi_buy": 35,
+            "rsi_sell": 65,
+            "atr_period": 14,
+            "atr_stop_multiplier": 2.0,
+            "atr_target_multiplier": 3.0
+        }
+    }
+}

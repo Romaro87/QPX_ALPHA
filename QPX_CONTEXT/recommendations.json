@@ -1,0 +1,68 @@
+{
+    "generated": "2026-07-24T12:44:38.390971",
+    "project_health": {
+        "python_modules": 195,
+        "duplicate_modules": 64,
+        "backup_files": 21,
+        "reports": 96
+    },
+    "recommendations": [
+        {
+            "category": "Architecture",
+            "priority": "High",
+            "confidence": 0.99,
+            "title": "Large Duplicate Module Count",
+            "evidence": [
+                "64 duplicate filenames detected."
+            ],
+            "recommendation": "Identify canonical implementations and archive obsolete duplicates."
+        },
+        {
+            "category": "Maintenance",
+            "priority": "Medium",
+            "confidence": 0.97,
+            "title": "Large Backup Inventory",
+            "evidence": [
+                "21 backup files discovered."
+            ],
+            "recommendation": "Move historical backups into a dedicated archive folder."
+        },
+        {
+            "category": "Architecture",
+            "priority": "Medium",
+            "confidence": 0.96,
+            "title": "Repair Framework Opportunity",
+            "evidence": [
+                "29 repair utilities found."
+            ],
+            "recommendation": "Create a reusable repair framework shared by all repair scripts."
+        },
+        {
+            "category": "Architecture",
+            "priority": "Medium",
+            "confidence": 0.92,
+            "title": "High Entry Point Count",
+            "evidence": [
+                "96 executable modules."
+            ],
+            "recommendation": "Separate user-facing entry points from developer utilities."
+        },
+        {
+            "category": "Project Status",
+            "priority": "Info",
+            "confidence": 0.99,
+            "title": "Current Health",
+            "evidence": [
+                "Overall health: Excellent"
+            ],
+            "recommendation": "Continue maintaining automated validation after major changes."
+        }
+    ],
+    "ai_guidance": [
+        "Prefer extending existing modules.",
+        "Avoid duplicate functionality.",
+        "Preserve backward compatibility.",
+        "Validate every repair.",
+        "Regenerate qpx_context.py after major milestones."
+    ]
+}

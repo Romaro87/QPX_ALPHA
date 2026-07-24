@@ -1,0 +1,11 @@
+==============================
+QPX DATA READINESS REPORT
+2026-07-24T10:58:16.086353
+==============================
+Rows: 3
+Minimum Recommended: 100
+OHLC Data: PASS
+Volume Data: PASS
+Swing Testing: NOT READY
+Reason: Insufficient historical candles
+STATUS: CHECK COMPLETE

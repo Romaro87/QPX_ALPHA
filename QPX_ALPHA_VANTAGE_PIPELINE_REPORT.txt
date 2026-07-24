@@ -1,0 +1,7 @@
+==============================
+QPX ALPHA VANTAGE PIPELINE
+2026-07-24T11:51:40.838645
+==============================
+Provider: Alpha Vantage
+ERROR
+Downloaded CSV failed validation

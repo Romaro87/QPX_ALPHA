@@ -1,0 +1,7 @@
+==============================
+QPX PROVIDER VALIDATION
+2026-07-24T11:50:40.083732
+==============================
+VALIDATION: FAIL
+API rate limit reached
+STATUS: COMPLETE

@@ -1,0 +1,133 @@
+QPX STEP 11 CONSOLIDATION
+
+Backup created: /storage/emulated/0/QPX_ALPHA/QPX_STEP11_BACKUP_20260724_115000
+
+ARCHIVED REPAIR FILES
+
+DUPLICATE ENGINE CHECK
+
+backtesting_engine.py
+  /storage/emulated/0/QPX_ALPHA/backtesting_engine.py
+  /storage/emulated/0/QPX_ALPHA/step10_repair_backup/backtesting_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/backtesting_engine.py
+  /storage/emulated/0/QPX_ALPHA/step10_auto_backup/backtesting_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/backtesting_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/backtesting_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/backtesting_engine.py
+
+database.py
+  /storage/emulated/0/QPX_ALPHA/database.py
+  /storage/emulated/0/QPX_ALPHA/quant_platform/data/sqlite/database.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/database.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/database.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/database.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/database.py
+
+query_engine.py
+  /storage/emulated/0/QPX_ALPHA/query_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/query_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/query_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/query_engine.py
+  /storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/query_engine.py
+
+CORE FILE CHECK
+[OK] main.py
+[OK] database.py
+[OK] query_engine.py
+[OK] feature_engine.py
+[OK] signal_engine.py
+[OK] backtesting_engine.py
+[OK] trade_event_schema_v2.py
+
+VALIDATOR RESULTS
+
+Running validate_step8_feature_engine.py
+
+
+========================================
+QPX Alpha Step 8 Feature Engine Validation
+========================================
+[PASS] Feature engine files detected
+        /storage/emulated/0/QPX_ALPHA/feature_engine.py
+[PASS] Database integration successful
+        market_data table available
+[PASS] Feature engine import successful
+[PASS] Feature calculations execute
+        ['FeatureEngine', 'run_feature_engine']
+[PASS] OHLCV features validated
+        OHLCV columns present
+[PASS] Output schema validated
+        Feature output module available
+
+
+STEP 8 STATUS: PASS
+========================================
+
+STATUS: PASS
+
+Running validate_step9_signal_engine.py
+========================================
+QPX Alpha Step 9 Signal Engine Validation
+========================================
+[PASS] Signal engine components detected
+        /storage/emulated/0/QPX_ALPHA/signal_engine.py
+[PASS] Signal engine import successful
+[PASS] Signal generation components available
+        ['SignalEngine']
+[PASS] Feature engine integration available
+        feature_engine module connected
+[FAIL] Signal generation executes
+        None
+[FAIL] Signal schema validated
+        Dictionary/DataFrame compatible output
+[PASS] Database/query integration confirmed
+        Existing database connection available
+[PASS] Step 8 analytics layer regression check
+        FeatureEngine remains available
+
+========================================
+STEP 9 STATUS: CONDITIONAL PASS
+========================================
+
+PASS COUNT: 6
+FAIL COUNT: 2
+========================================
+
+STATUS: PASS
+[SKIP] validate_step10_runtime.py
+
+Running validate_step11_runtime.py
+=======================================================
+QPX Alpha Step 11 Automated Portfolio Validation
+=======================================================
+
+Searching QPX modules...
+
+Portfolio candidates:
+ - /storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/position_manager.py
+ - /storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/persistent_position_manager.py
+
+Analytics candidates:
+ - /storage/emulated/0/QPX_ALPHA/verify_step7_market_analytics_foundation.py
+PASS: Portfolio module import /storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/position_manager.py
+PASS: Portfolio module import /storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/persistent_position_manager.py
+PASS: Analytics module import /storage/emulated/0/QPX_ALPHA/verify_step7_market_analytics_foundation.py
+PASS: Portfolio construction component discovery ['PositionManager', 'PersistentPositionManager']
+PASS: Analytics component discovery ['detect_analytics_files']
+PASS: signal_engine regression available
+PASS: backtesting_engine regression available
+
+
+=======================================================
+STEP 11 AUTOMATED VALIDATION SUMMARY
+=======================================================
+Checks: 7
+Failures: 0
+
+STEP 11 STATUS: PASS
+
+Validation Complete
+
+STATUS: PASS
+
+CONSOLIDATION COMPLETE

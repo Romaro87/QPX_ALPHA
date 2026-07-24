@@ -1,0 +1,11 @@
+{
+    "timestamp": "2026-07-24T12:23:07.048065",
+    "status": "FAIL",
+    "rows": 0,
+    "columns": [
+        "{"
+    ],
+    "errors": [
+        "Missing columns: close, high, low, open, timestamp"
+    ]
+}

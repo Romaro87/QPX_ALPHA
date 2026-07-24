@@ -1,0 +1,17 @@
+QPX STEP 12 OPERATIONAL BACKUP
+2026-07-24T11:40:38.939042
+
+main.py
+database.py
+query_engine.py
+feature_engine.py
+signal_engine.py
+backtesting_engine.py
+trade_event_schema_v2.py
+qpx_alpha.db
+qpx_mobile.db
+qpx_step12_auto_fix.py
+qpx_step12_pipeline_smoke_test_v3.py
+qpx_step12_pipeline_smoke_test_v4.py
+qpx_step12_auto_fix_report.txt
+qpx_runtime_healthcheck_v2_report.txt

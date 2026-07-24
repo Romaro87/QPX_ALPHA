@@ -1,0 +1,23 @@
+=================================
+QPX STEP 13 PREPARATION
+2026-07-24T11:50:00.803649
+=================================
+
+[COPIED] main.py
+[COPIED] database.py
+[COPIED] query_engine.py
+[COPIED] feature_engine.py
+[COPIED] signal_engine.py
+[COPIED] backtesting_engine.py
+[COPIED] trade_event_schema_v2.py
+[COPIED] qpx_alpha.db
+[COPIED] qpx_mobile.db
+
+[PASS] qpx_alpha.db: ['market_data', 'sqlite_sequence', 'trades', 'portfolio_snapshots']
+[PASS] qpx_mobile.db: ['market_data', 'sqlite_sequence', 'trades', 'portfolio_snapshots']
+
+=================================
+STEP 13 PREPARATION COMPLETE
+Workspace:
+/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION
+=================================

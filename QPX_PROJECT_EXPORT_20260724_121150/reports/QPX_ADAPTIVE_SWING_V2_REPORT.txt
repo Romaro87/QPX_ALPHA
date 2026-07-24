@@ -1,0 +1,20 @@
+==============================
+QPX ADAPTIVE SWING V2 PIPELINE
+2026-07-24T11:50:09.099044
+==============================
+Modules loaded
+Features: 3
+Calibration complete
+Momentum threshold: 0
+Volume threshold: 0
+V2 Signals: 3
+BUY: 0
+SELL: 0
+HOLD: 3
+Lifecycle complete
+Trades: 0
+Wins: 0
+Losses: 0
+Win Rate: 0%
+Return: 0
+STATUS: OPERATIONAL

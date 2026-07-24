@@ -1,0 +1,625 @@
+{
+    "generated": "2026-07-24T12:41:54.974465",
+    "reports": [
+        {
+            "file": "qpx_runtime_healthcheck_report.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "qpx_step12_pipeline_report.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "qpx_runtime_healthcheck_v2_report.txt",
+            "status": "READY",
+            "step": null
+        },
+        {
+            "file": "qpx_step12_pipeline_report_v2.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "qpx_step12_pipeline_report_v3.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "qpx_step12_auto_fix_report.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "qpx_step12_pipeline_report_v4.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "step11_consolidation_report.txt",
+            "status": "PASS",
+            "step": 11
+        },
+        {
+            "file": "qpx_step13_preparation_report.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STATUS_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_STATUS_DASHBOARD.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_SWING_TEST_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_SWING_PERFORMANCE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_SWING_LIFECYCLE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_ADAPTIVE_SWING_V2_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_DATA_EXPANSION_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_MASTER_DATA_PIPELINE_REPORT.txt",
+            "status": "COMPLETE",
+            "step": null
+        },
+        {
+            "file": "QPX_ALPHA_VANTAGE_PIPELINE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROVIDER_VALIDATION_REPORT.txt",
+            "status": "COMPLETE",
+            "step": null
+        },
+        {
+            "file": "QPX_PROVIDER_RETRY_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "qpx_manifest.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_HEALTH_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_HEALTH_REPORT_V2.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "qpx_module_manifest.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROVIDER_SCAN_REPORT.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_REQUEST_BUILDER_REPORT.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROVIDER_RUNTIME_TRACE.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_DATA_PIPELINE_REPORT.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_SIGNAL_ANALYSIS_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_ADAPTIVE_SWING_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_HISTORICAL_VALIDATION_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_DATA_READINESS_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_HISTORICAL_IMPORT_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "qpx_provider.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "strategy_config.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROVIDER_DEEP_REPORT.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROVIDER_CONFIG_REPORT.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_HISTORICAL_DATA_VALIDATION.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "REPORT_ARCHIVE/STEP14_1_20260724_101402.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "REPORT_ARCHIVE/STEP14_1_20260724_101614.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "REPORT_ARCHIVE/STEP14_1_BACKUP.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_auto_fix_report.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_runtime_healthcheck_v2_report.txt",
+            "status": "READY",
+            "step": null
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/BACKUP_MANIFEST.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_CHECKLIST.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_MODULE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_INTEGRATION_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_PERSISTENCE_REPORT.txt",
+            "status": "READY",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_PERSISTENCE_TEST_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_4_LIFECYCLE_REPORT.txt",
+            "status": "READY",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_4_LIFECYCLE_TEST_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_5_PERFORMANCE_REPORT.txt",
+            "status": "READY",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_6_RISK_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP13_7_ORCHESTRATOR_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP14_SIMULATION_RUNNER_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_STEP13_LIVE_SIMULATION/STEP14_1_MONITOR_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "archive_repairs/step10_repair_results.json",
+            "status": "UNKNOWN",
+            "step": 10
+        },
+        {
+            "file": "archive_repairs/step10_schema_contract.json",
+            "status": "UNKNOWN",
+            "step": 10
+        },
+        {
+            "file": "archive_repairs/step10_schema_migration_results.json",
+            "status": "UNKNOWN",
+            "step": 10
+        },
+        {
+            "file": "archive_repairs/STEP10_REPAIR_REPORT.json",
+            "status": "UNKNOWN",
+            "step": 10
+        },
+        {
+            "file": "archive_repairs/STEP10_AUTO_REPAIR_REPORT.json",
+            "status": "UNKNOWN",
+            "step": 10
+        },
+        {
+            "file": "QPX_STEP14_2/STEP14_2_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "CONFIG_BACKUPS/strategy_config_20260724_112928.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/manifest.json",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_runtime_healthcheck_report.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_step12_pipeline_report.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_runtime_healthcheck_v2_report.txt",
+            "status": "READY",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_step12_pipeline_report_v2.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_step12_pipeline_report_v3.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_step12_auto_fix_report.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_step12_pipeline_report_v4.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/step11_consolidation_report.txt",
+            "status": "PASS",
+            "step": 11
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/qpx_step13_preparation_report.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_STATUS_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_STATUS_DASHBOARD.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_SWING_TEST_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_SWING_PERFORMANCE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_SWING_LIFECYCLE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_ADAPTIVE_SWING_V2_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_DATA_EXPANSION_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_MASTER_DATA_PIPELINE_REPORT.txt",
+            "status": "COMPLETE",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_ALPHA_VANTAGE_PIPELINE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_PROVIDER_VALIDATION_REPORT.txt",
+            "status": "COMPLETE",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_PROVIDER_RETRY_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_HEALTH_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_HEALTH_REPORT_V2.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_SIGNAL_ANALYSIS_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_ADAPTIVE_SWING_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_HISTORICAL_VALIDATION_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_DATA_READINESS_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/QPX_HISTORICAL_IMPORT_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP14_1_20260724_101402.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP14_1_20260724_101614.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP14_1_BACKUP.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/BACKUP_MANIFEST.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_CHECKLIST.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_MODULE_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_INTEGRATION_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_PERSISTENCE_REPORT.txt",
+            "status": "READY",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_PERSISTENCE_TEST_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_4_LIFECYCLE_REPORT.txt",
+            "status": "READY",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_4_LIFECYCLE_TEST_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_5_PERFORMANCE_REPORT.txt",
+            "status": "READY",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_6_RISK_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP13_7_ORCHESTRATOR_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 13
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP14_SIMULATION_RUNNER_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP14_1_MONITOR_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_PROJECT_EXPORT_20260724_121150/reports/STEP14_2_REPORT.txt",
+            "status": "UNKNOWN",
+            "step": 14
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_auto_fix_report.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_runtime_healthcheck_v2_report.txt",
+            "status": "READY",
+            "step": null
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/BACKUP_MANIFEST.txt",
+            "status": "UNKNOWN",
+            "step": null
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_auto_fix_report.txt",
+            "status": "UNKNOWN",
+            "step": 12
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_runtime_healthcheck_v2_report.txt",
+            "status": "READY",
+            "step": null
+        },
+        {
+            "file": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/BACKUP_MANIFEST.txt",
+            "status": "UNKNOWN",
+            "step": null
+        }
+    ],
+    "timeline": [
+        {
+            "step": 10,
+            "status": "Observed"
+        },
+        {
+            "step": 11,
+            "status": "Observed"
+        },
+        {
+            "step": 12,
+            "status": "Observed"
+        },
+        {
+            "step": 13,
+            "status": "Observed"
+        },
+        {
+            "step": 14,
+            "status": "Observed"
+        }
+    ],
+    "completed_steps": [
+        10,
+        11,
+        12,
+        13,
+        14
+    ],
+    "failed_reports": [],
+    "project_health": {
+        "overall": "Excellent",
+        "reports_scanned": 114,
+        "failed_reports": 0,
+        "duplicate_modules": 64,
+        "backups": 21
+    },
+    "statistics": {
+        "python": 195,
+        "json": 18,
+        "csv": 2,
+        "reports": 96,
+        "backups": 21
+    },
+    "architecture_summary": {
+        "entry_points": 96,
+        "engines": 36,
+        "pipelines": 30,
+        "repair_modules": 29
+    }
+}

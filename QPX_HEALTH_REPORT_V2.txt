@@ -1,0 +1,28 @@
+QPX_CONFIG_MIGRATION_MANAGER.py
+Status : EXECUTABLE
+Detail : main() available
+
+QPX_STRATEGY_CONFIG_MANAGER.py
+Status : MISSING
+Detail : File not found
+
+QPX_PROVIDER_MANAGER.py
+Status : EXECUTABLE
+Detail : main() available
+
+feature_engine.py
+Status : LIBRARY
+Detail : Classes: FeatureEngine
+
+swing_strategy_v3.py
+Status : LIBRARY
+Detail : Classes: SwingStrategyV3
+
+===================================
+SUMMARY
+===================================
+EXECUTABLE: 2
+LIBRARY: 2
+MISSING: 1
+IMPORT ERROR: 0
+UNKNOWN: 0

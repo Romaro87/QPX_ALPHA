@@ -1,0 +1,19 @@
+=================================
+QPX STEP 11 RUNTIME HEALTH CHECK
+2026-07-24T11:49:58.782447
+=================================
+[PASS] FILE main.py
+[PASS] FILE database.py
+[PASS] FILE query_engine.py
+[PASS] FILE feature_engine.py
+[PASS] FILE signal_engine.py
+[PASS] FILE backtesting_engine.py
+[PASS] FILE trade_event_schema_v2.py
+[WARN] No database file detected
+[PASS] MODULE feature_engine
+[PASS] MODULE signal_engine
+[PASS] MODULE backtesting_engine
+
+=================================
+QPX SYSTEM STATUS: NEEDS REVIEW
+=================================

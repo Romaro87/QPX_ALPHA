@@ -1,0 +1,94 @@
+
+import csv
+import os
+
+
+def import_market_csv(csv_file, connection):
+
+    imported = 0
+
+    with open(csv_file, "r") as file:
+
+        reader = csv.DictReader(file)
+
+        for row in reader:
+
+            symbol = (
+                row.get("symbol")
+                or row.get("Symbol")
+                or row.get("ticker")
+                or row.get("Ticker")
+                or "UNKNOWN"
+            )
+
+            date = (
+                row.get("date")
+                or row.get("Date")
+                or row.get("timestamp")
+                or ""
+            )
+
+            open_price = (
+                row.get("open")
+                or row.get("Open")
+                or 0
+            )
+
+            high = (
+                row.get("high")
+                or row.get("High")
+                or 0
+            )
+
+            low = (
+                row.get("low")
+                or row.get("Low")
+                or 0
+            )
+
+            close = (
+                row.get("close")
+                or row.get("Close")
+                or 0
+            )
+
+            volume = (
+                row.get("volume")
+                or row.get("Volume")
+                or 0
+            )
+
+
+            connection.execute(
+                """
+                INSERT INTO market_data
+                (
+                symbol,
+                timestamp,
+                open,
+                high,
+                low,
+                close,
+                volume
+                )
+                VALUES (?,?,?,?,?,?,?)
+                """,
+                (
+                symbol,
+                date,
+                open_price,
+                high,
+                low,
+                close,
+                volume
+                )
+            )
+
+            imported += 1
+
+
+    connection.commit()
+
+    print(f"[OK] Imported {imported} market records")
+
+    return imported

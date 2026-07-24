@@ -1,0 +1,18 @@
+=================================
+QPX STEP 13.3 PERSISTENCE TEST
+2026-07-24T11:50:02.355782
+=================================
+[SIGNAL]
+{'timestamp': '2026-07-24T11:50:02.355833', 'signal': 'HOLD', 'score': 0.0, 'confidence': 0.0}
+[PASS] Trade Stored ID: 3
+[PASS] Position Stored
+[PASS] Journal Stored
+
+Restart Simulation...
+[PASS] paper_trades records: 3
+[PASS] positions records: 3
+[PASS] trade_journal records: 3
+
+=================================
+QPX STEP 13.3 STATUS: OPERATIONAL
+=================================

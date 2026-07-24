@@ -1,0 +1,17 @@
+=================================
+QPX STEP 13 INTEGRATION TEST
+2026-07-24T11:50:02.219674
+=================================
+[PASS] Signal Engine
+{'timestamp': '2026-07-24T16:50:02.219837', 'signal': 'HOLD', 'score': 0.0, 'confidence': 0.0, 'source': 'QPX_STEP_9_SIGNAL_ENGINE'}
+[PASS] Paper Trading Engine
+{'signal': {'timestamp': '2026-07-24T16:50:02.219837', 'signal': 'HOLD', 'score': 0.0, 'confidence': 0.0, 'source': 'QPX_STEP_9_SIGNAL_ENGINE'}, 'status': 'SIMULATED'}
+[PASS] Position Manager
+{'signal': {'timestamp': '2026-07-24T16:50:02.219837', 'signal': 'HOLD', 'score': 0.0, 'confidence': 0.0, 'source': 'QPX_STEP_9_SIGNAL_ENGINE'}, 'status': 'SIMULATED'}
+[PASS] Risk Controller
+[PASS] Live Trade Journal
+[{'time': '2026-07-24T11:50:02.322455', 'event': {'signal': {'timestamp': '2026-07-24T16:50:02.219837', 'signal': 'HOLD', 'score': 0.0, 'confidence': 0.0, 'source': 'QPX_STEP_9_SIGNAL_ENGINE'}, 'status': 'SIMULATED'}}]
+
+=================================
+QPX STEP 13 STATUS: OPERATIONAL
+=================================

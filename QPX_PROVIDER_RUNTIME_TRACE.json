@@ -1,0 +1,812 @@
+{
+    "time": "2026-07-24T11:58:33.379089",
+    "configs": [
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_runtime_healthcheck_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_runtime_healthcheck_v2_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_report_v2.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_report_v3.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_auto_fix_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_report_v4.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step11_consolidation_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_preparation_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STATUS_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STATUS_DASHBOARD.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_TEST_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_PERFORMANCE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_LIFECYCLE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ADAPTIVE_SWING_V2_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DATA_EXPANSION_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_MASTER_DATA_PIPELINE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ALPHA_VANTAGE_PIPELINE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_VALIDATION_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_RETRY_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_manifest.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_HEALTH_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_HEALTH_REPORT_V2.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_module_manifest.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_SCAN_REPORT.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_REQUEST_BUILDER_REPORT.json",
+            "contains_api_key": true,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SIGNAL_ANALYSIS_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ADAPTIVE_SWING_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_HISTORICAL_VALIDATION_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DATA_READINESS_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_HISTORICAL_IMPORT_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_provider.json",
+            "contains_api_key": true,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/strategy_config.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_DEEP_REPORT.json",
+            "contains_api_key": true,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/REPORT_ARCHIVE/STEP14_1_20260724_101402.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/REPORT_ARCHIVE/STEP14_1_20260724_101614.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/REPORT_ARCHIVE/STEP14_1_BACKUP.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_auto_fix_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_runtime_healthcheck_v2_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/BACKUP_MANIFEST.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_CHECKLIST.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_MODULE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_INTEGRATION_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_PERSISTENCE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_PERSISTENCE_TEST_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_4_LIFECYCLE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_4_LIFECYCLE_TEST_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_5_PERFORMANCE_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_6_RISK_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP13_7_ORCHESTRATOR_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP14_SIMULATION_RUNNER_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/STEP14_1_MONITOR_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10_repair_results.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10_schema_contract.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10_schema_migration_results.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/STEP10_REPAIR_REPORT.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/STEP10_AUTO_REPAIR_REPORT.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP14_2/STEP14_2_REPORT.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/CONFIG_BACKUPS/strategy_config_20260724_112928.json",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_auto_fix_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_runtime_healthcheck_v2_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/BACKUP_MANIFEST.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_auto_fix_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_runtime_healthcheck_v2_report.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/BACKUP_MANIFEST.txt",
+            "contains_api_key": false,
+            "empty_api_key": false
+        }
+    ],
+    "python_files": [
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DOWNLOAD_HISTORICAL_CSV.py",
+            "matches": [
+                {
+                    "line": 63,
+                    "code": "with urllib.request.urlopen("
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_MANAGER.py",
+            "matches": [
+                {
+                    "line": 6,
+                    "code": "Chooses the configured data provider."
+                },
+                {
+                    "line": 7,
+                    "code": "Falls back safely if no provider is configured."
+                },
+                {
+                    "line": 16,
+                    "code": "CONFIG_FILE = os.path.join(ROOT, \"qpx_provider.json\")"
+                },
+                {
+                    "line": 19,
+                    "code": "DEFAULT_CONFIG = {"
+                },
+                {
+                    "line": 21,
+                    "code": "\"api_key\": \"\","
+                },
+                {
+                    "line": 31,
+                    "code": "def load_config():"
+                },
+                {
+                    "line": 33,
+                    "code": "if not os.path.exists(CONFIG_FILE):"
+                },
+                {
+                    "line": 35,
+                    "code": "with open(CONFIG_FILE, \"w\") as f:"
+                },
+                {
+                    "line": 36,
+                    "code": "json.dump(DEFAULT_CONFIG, f, indent=4)"
+                },
+                {
+                    "line": 38,
+                    "code": "return DEFAULT_CONFIG"
+                },
+                {
+                    "line": 40,
+                    "code": "with open(CONFIG_FILE, \"r\") as f:"
+                },
+                {
+                    "line": 41,
+                    "code": "return json.load(f)"
+                },
+                {
+                    "line": 48,
+                    "code": "cfg = load_config()"
+                },
+                {
+                    "line": 50,
+                    "code": "provider = cfg.get(\"provider\", \"placeholder\")"
+                },
+                {
+                    "line": 52,
+                    "code": "log(\"Configured Provider: {}\".format(provider))"
+                },
+                {
+                    "line": 56,
+                    "code": "log(\"No live provider configured.\")"
+                },
+                {
+                    "line": 60,
+                    "code": "if not cfg.get(\"api_key\"):"
+                },
+                {
+                    "line": 66,
+                    "code": "log(\"Provider configuration looks valid.\")"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_RETRY_MANAGER.py",
+            "matches": [
+                {
+                    "line": 67,
+                    "code": "return \"api_key\""
+                },
+                {
+                    "line": 105,
+                    "code": "if status == \"api_key\":"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_FAILOVER_MANAGER.py",
+            "matches": [
+                {
+                    "line": 16,
+                    "code": "CONFIG = os.path.join(ROOT, \"qpx_provider.json\")"
+                },
+                {
+                    "line": 32,
+                    "code": "with open(CONFIG, \"r\") as f:"
+                },
+                {
+                    "line": 33,
+                    "code": "return json.load(f)"
+                },
+                {
+                    "line": 52,
+                    "code": "cfg = load()"
+                },
+                {
+                    "line": 54,
+                    "code": "providers = cfg.get("
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_START.py",
+            "matches": [
+                {
+                    "line": 19,
+                    "code": "(\"Config Migration\", \"QPX_CONFIG_MIGRATION_MANAGER\"),"
+                },
+                {
+                    "line": 20,
+                    "code": "(\"Strategy Config\", \"QPX_STRATEGY_CONFIG_MANAGER\"),"
+                },
+                {
+                    "line": 30,
+                    "code": "return json.load(f)"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_HEALTH_CHECK.py",
+            "matches": [
+                {
+                    "line": 24,
+                    "code": "\"QPX_CONFIG_MIGRATION_MANAGER.py\","
+                },
+                {
+                    "line": 25,
+                    "code": "\"QPX_STRATEGY_CONFIG_MANAGER.py\","
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_AUTO_START.py",
+            "matches": [
+                {
+                    "line": 76,
+                    "code": "manifest = json.load(f)"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ALPHA_VANTAGE_PIPELINE.py",
+            "matches": [
+                {
+                    "line": 14,
+                    "code": "CONFIG = os.path.join(ROOT, \"qpx_provider.json\")"
+                },
+                {
+                    "line": 24,
+                    "code": "def load_config():"
+                },
+                {
+                    "line": 25,
+                    "code": "if not os.path.exists(CONFIG):"
+                },
+                {
+                    "line": 30,
+                    "code": "with open(CONFIG, \"r\") as f:"
+                },
+                {
+                    "line": 31,
+                    "code": "return json.load(f)"
+                },
+                {
+                    "line": 34,
+                    "code": "def download_history(cfg):"
+                },
+                {
+                    "line": 36,
+                    "code": "symbol = cfg.get(\"symbol\", \"SPY\")"
+                },
+                {
+                    "line": 37,
+                    "code": "api_key = cfg.get(\"api_key\", \"\")"
+                },
+                {
+                    "line": 39,
+                    "code": "if not api_key:"
+                },
+                {
+                    "line": 47,
+                    "code": "\"apikey\": api_key"
+                },
+                {
+                    "line": 55,
+                    "code": "urllib.request.urlretrieve("
+                },
+                {
+                    "line": 120,
+                    "code": "cfg = load_config()"
+                },
+                {
+                    "line": 127,
+                    "code": "download_history(cfg)"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STRATEGY_MANAGER.py",
+            "matches": [
+                {
+                    "line": 7,
+                    "code": "- Creates strategy_config.json if missing"
+                },
+                {
+                    "line": 8,
+                    "code": "- Backs up the configuration before changes"
+                },
+                {
+                    "line": 20,
+                    "code": "CONFIG = os.path.join(ROOT, \"strategy_config.json\")"
+                },
+                {
+                    "line": 22,
+                    "code": "BACKUP_DIR = os.path.join(ROOT, \"CONFIG_BACKUPS\")"
+                },
+                {
+                    "line": 25,
+                    "code": "DEFAULT_CONFIG = {"
+                },
+                {
+                    "line": 53,
+                    "code": "with open(CONFIG, \"w\", encoding=\"utf-8\") as f:"
+                },
+                {
+                    "line": 54,
+                    "code": "json.dump(DEFAULT_CONFIG, f, indent=4)"
+                },
+                {
+                    "line": 57,
+                    "code": "def backup_config():"
+                },
+                {
+                    "line": 58,
+                    "code": "if not os.path.exists(CONFIG):"
+                },
+                {
+                    "line": 67,
+                    "code": "f\"strategy_config_{timestamp}.json\""
+                },
+                {
+                    "line": 70,
+                    "code": "shutil.copy2(CONFIG, backup_file)"
+                },
+                {
+                    "line": 75,
+                    "code": "def load_config():"
+                },
+                {
+                    "line": 76,
+                    "code": "if not os.path.exists(CONFIG):"
+                },
+                {
+                    "line": 77,
+                    "code": "log(\"Configuration missing - creating default\")"
+                },
+                {
+                    "line": 80,
+                    "code": "with open(CONFIG, \"r\", encoding=\"utf-8\") as f:"
+                },
+                {
+                    "line": 81,
+                    "code": "return json.load(f)"
+                },
+                {
+                    "line": 84,
+                    "code": "def save_config(cfg):"
+                },
+                {
+                    "line": 85,
+                    "code": "backup_config()"
+                },
+                {
+                    "line": 87,
+                    "code": "with open(CONFIG, \"w\", encoding=\"utf-8\") as f:"
+                },
+                {
+                    "line": 88,
+                    "code": "json.dump(cfg, f, indent=4)"
+                },
+                {
+                    "line": 91,
+                    "code": "def get_active_strategy(cfg):"
+                },
+                {
+                    "line": 93,
+                    "code": "name = cfg.get(\"active_strategy\")"
+                },
+                {
+                    "line": 95,
+                    "code": "strategies = cfg.get(\"strategies\", {})"
+                },
+                {
+                    "line": 109,
+                    "code": "cfg = load_config()"
+                },
+                {
+                    "line": 111,
+                    "code": "name, strategy = get_active_strategy(cfg)"
+                },
+                {
+                    "line": 113,
+                    "code": "save_config(cfg)"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_CONFIG_MIGRATION_MANAGER.py",
+            "matches": [
+                {
+                    "line": 4,
+                    "code": "QPX Configuration Migration Manager"
+                },
+                {
+                    "line": 6,
+                    "code": "Automatically upgrades older strategy_config.json"
+                },
+                {
+                    "line": 19,
+                    "code": "CONFIG = os.path.join("
+                },
+                {
+                    "line": 21,
+                    "code": "\"strategy_config.json\""
+                },
+                {
+                    "line": 26,
+                    "code": "\"CONFIG_BACKUPS\""
+                },
+                {
+                    "line": 40,
+                    "code": "if not os.path.exists(CONFIG):"
+                },
+                {
+                    "line": 46,
+                    "code": "CONFIG,"
+                },
+                {
+                    "line": 49,
+                    "code": "f\"strategy_config_{ts}.json\""
+                },
+                {
+                    "line": 54,
+                    "code": "def migrate_v0_to_v2(cfg):"
+                },
+                {
+                    "line": 60,
+                    "code": "\"active_strategy\": cfg.get("
+                },
+                {
+                    "line": 67,
+                    "code": "cfg.get("
+                },
+                {
+                    "line": 74,
+                    "code": "\"ema_fast\": cfg.get("
+                },
+                {
+                    "line": 79,
+                    "code": "\"ema_slow\": cfg.get("
+                },
+                {
+                    "line": 84,
+                    "code": "\"rsi_period\": cfg.get("
+                },
+                {
+                    "line": 89,
+                    "code": "\"rsi_buy\": cfg.get("
+                },
+                {
+                    "line": 94,
+                    "code": "\"rsi_sell\": cfg.get("
+                },
+                {
+                    "line": 99,
+                    "code": "\"atr_period\": cfg.get("
+                },
+                {
+                    "line": 104,
+                    "code": "\"atr_stop_multiplier\": cfg.get("
+                },
+                {
+                    "line": 109,
+                    "code": "\"atr_target_multiplier\": cfg.get("
+                },
+                {
+                    "line": 121,
+                    "code": "def migrate(cfg):"
+                },
+                {
+                    "line": 123,
+                    "code": "version = cfg.get("
+                },
+                {
+                    "line": 134,
+                    "code": "cfg = migrate_v0_to_v2(cfg)"
+                },
+                {
+                    "line": 136,
+                    "code": "return cfg"
+                },
+                {
+                    "line": 142,
+                    "code": "\"QPX CONFIG MIGRATION START\""
+                },
+                {
+                    "line": 145,
+                    "code": "if not os.path.exists(CONFIG):"
+                },
+                {
+                    "line": 148,
+                    "code": "\"Configuration not found\""
+                },
+                {
+                    "line": 156,
+                    "code": "CONFIG,"
+                },
+                {
+                    "line": 161,
+                    "code": "cfg = json.load(f)"
+                },
+                {
+                    "line": 163,
+                    "code": "cfg = migrate(cfg)"
+                },
+                {
+                    "line": 166,
+                    "code": "CONFIG,"
+                },
+                {
+                    "line": 172,
+                    "code": "cfg,"
+                },
+                {
+                    "line": 178,
+                    "code": "\"Configuration upgraded\""
+                },
+                {
+                    "line": 183,
+                    "code": "+ str(cfg[\"version\"])"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10continued repairs.py",
+            "matches": [
+                {
+                    "line": 65,
+                    "code": "data = json.load(f)"
+                }
+            ]
+        }
+    ],
+    "possible_api_keys": [
+        "cfg.*et(\\",
+        "YOUR********_KEY"
+    ],
+    "warnings": []
+}

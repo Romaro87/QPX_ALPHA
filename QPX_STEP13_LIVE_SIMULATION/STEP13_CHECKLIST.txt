@@ -1,0 +1,10 @@
+
+QPX STEP 13 LIVE SIMULATION CHECKLIST
+
+[ ] Paper trading engine
+[ ] Live signal feed
+[ ] Position manager
+[ ] Risk controls
+[ ] Performance tracking
+[ ] Trade journal integration
+[ ] Mobile dashboard

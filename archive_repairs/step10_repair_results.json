@@ -1,0 +1,33 @@
+{
+    "trade_schema": {
+        "status": "PASS",
+        "required_fields": [
+            "symbol",
+            "timestamp",
+            "side",
+            "entry_price",
+            "quantity"
+        ],
+        "template": {
+            "symbol": "UNKNOWN",
+            "timestamp": "2026-07-24T04:17:23.845041+00:00",
+            "side": "BUY",
+            "entry_price": 0.0,
+            "quantity": 0
+        }
+    },
+    "performance_metrics": {
+        "status": "PASS",
+        "metrics_template": {
+            "total_trades": 0,
+            "winning_trades": 0,
+            "losing_trades": 0,
+            "return": 0.0,
+            "drawdown": 0.0
+        }
+    },
+    "query_layer": {
+        "status": "EXISTS",
+        "file": "/storage/emulated/0/QPX_ALPHA/query_engine.py"
+    }
+}

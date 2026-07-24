@@ -1,0 +1,1146 @@
+{
+    "generated": "2026-07-24T11:47:00.362708",
+    "modules": [
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "main.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "start"
+            ],
+            "file": "mobile_runner.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "setup_mobile_folder"
+            ],
+            "file": "QPX_MOBILE_SETUP_STEP2.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "QPX_MOBILE_SETUP_STEP3.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "QPX_FIX_STEP3_IMPORTER.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "QPX_FIX_STEP3_IMPORTER_V2.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "QPX_FIX_STEP3_IMPORTER_V3.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "create_backup",
+                "repair_file"
+            ],
+            "file": "QPX_FIX_STEP4_IMPORTER_CONNECTION.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "QPX_FIX_STEP4_IMPORTER_SCOPE.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_runtime_healthcheck.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_database_locator.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "newfile.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "start"
+            ],
+            "file": "mobile_runner_step4_backup_20260723_201717.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_runtime_healthcheck_v2.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "verify_step4_importer.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "check_file",
+                "validate_importer_syntax",
+                "validate_database",
+                "validate_market_data",
+                "run_step5_validation"
+            ],
+            "file": "verify_step5_import_pipeline.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_runtime_api_inspector.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test_v2.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test_v3.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "verify_step6_market_query_layer.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "verify_step7_market_analytics_foundation.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "verify_remaining_qpx_steps.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_payload_inspector.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "file": "feature_engine.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "validate_step8_feature_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "check"
+            ],
+            "file": "validate_step9_signal_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SignalEngine"
+            ],
+            "file": "signal_engine.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_auto_fix.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_backtest_deep_scan.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "Database"
+            ],
+            "file": "database.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "file": "query_engine.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test_v4.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "create_trade_event",
+                "calculate_metrics",
+                "repair_step10_backtest_output"
+            ],
+            "file": "repair step 10.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_backtest_adapter_fix.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine_step12_backup.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine_before_deep_fix.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "file": "trade_event_schema_v2.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_apply_backtest_fix.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_operational_backup.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine_step12_final_backup.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_prepare.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "report",
+                "discover_modules",
+                "path_to_module",
+                "inspect_module"
+            ],
+            "file": "validate_step11_runtime.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "inventory_qpx_modules.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step11_consolidation.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_module_builder.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_integration_test.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_persistence_builder.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_persistence_test.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_lifecycle_test.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_performance_builder.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step13_risk_builder.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step14_simulation_runner.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step14_monitor.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_MASTER_RUNNER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step14_controller.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_AUTO_MANAGER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_STATUS_DASHBOARD.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_SWING_ENGINE_SETUP.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SwingSignalEngine"
+            ],
+            "file": "swing_signal_engine.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_SWING_PIPELINE_RUNNER.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "log",
+                "create"
+            ],
+            "file": "QPX_SWING_EVALUATOR_SETUP.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SwingStrategyEvaluator"
+            ],
+            "file": "swing_strategy_evaluator.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_FULL_SWING_RUNNER.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SwingTradeLifecycle"
+            ],
+            "file": "swing_trade_lifecycle.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_SWING_CALIBRATION_SETUP.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SwingSignalCalibrator"
+            ],
+            "file": "swing_signal_calibrator.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_ADAPTIVE_SWING_RUNNER.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SwingSignalEngineV2"
+            ],
+            "file": "swing_signal_engine_v2.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_ADAPTIVE_SWING_V2_RUNNER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_CREATE_DATA_TEMPLATE.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_DOWNLOAD_HISTORICAL_CSV.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_PROVIDER_MANAGER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_PROVIDER_VALIDATOR.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_PROVIDER_RETRY_MANAGER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "run",
+            "file": "QPX_PROVIDER_FAILOVER_MANAGER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_START.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_HEALTH_CHECK.py"
+        },
+        {
+            "type": "executable",
+            "entry": "run",
+            "file": "QPX_AUTO_START.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "log",
+                "create"
+            ],
+            "file": "QPX_SWING_LIFECYCLE_SETUP.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_SWING_LIFECYCLE_RUNNER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_SIGNAL_ANALYZER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_SWING_SIGNAL_UPGRADE.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_HISTORICAL_VALIDATION_RUNNER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_DATA_READINESS_CHECKER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_DATA_EXPANSION_MANAGER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_MASTER_DATA_PIPELINE.py"
+        },
+        {
+            "type": "executable",
+            "entry": "run",
+            "file": "QPX_ALPHA_VANTAGE_PIPELINE.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SwingStrategyV3"
+            ],
+            "file": "swing_strategy_v3.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_STRATEGY_MANAGER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_CONFIG_MIGRATION_MANAGER.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_MODULE_SCANNER.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SQLiteStore"
+            ],
+            "file": "sqlite_store.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "MarketCache"
+            ],
+            "file": "cache_manager.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SQLiteDatabase"
+            ],
+            "file": "database.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "create_tables"
+            ],
+            "file": "schema.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PortfolioSnapshotManager"
+            ],
+            "file": "snapshots.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PortfolioSnapshot"
+            ],
+            "file": "snapshot.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "MobileReport"
+            ],
+            "file": "mobile_reports.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "TradeJournal"
+            ],
+            "file": "trade_journal.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "TradeJournal"
+            ],
+            "file": "trade_journal.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "_resolve_db",
+                "import_csv",
+                "import_market_data",
+                "import_market_csv"
+            ],
+            "file": "csv_importer.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "__init__.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "QPX_STEP13_LIVE_SIMULATION.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step14_controller.py.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "report"
+            ],
+            "file": "validate_step10_backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "repair_trade_event_schema",
+                "repair_performance_metrics",
+                "repair_query_compatibility",
+                "run_repair"
+            ],
+            "file": "repair_step10_backtesting_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "create_trade_event",
+                "validate_trade_schema",
+                "generate_performance_metrics",
+                "repair_backtest_output"
+            ],
+            "file": "repair_step10_backtesting_engine_validation.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "main.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "Database"
+            ],
+            "file": "database.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "file": "query_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "file": "feature_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SignalEngine"
+            ],
+            "file": "signal_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "file": "trade_event_schema_v2.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_auto_fix.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test_v3.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test_v4.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "repair_trade_event_schema",
+                "repair_performance_metrics",
+                "repair_query_compatibility",
+                "run_repair"
+            ],
+            "file": "repair_step10_backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "main.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "Database"
+            ],
+            "file": "database.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "file": "query_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "file": "feature_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SignalEngine"
+            ],
+            "file": "signal_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "file": "trade_event_schema_v2.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PaperTradingEngine"
+            ],
+            "file": "paper_trading_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PositionManager"
+            ],
+            "file": "position_manager.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "RiskController"
+            ],
+            "file": "risk_controller.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "LiveTradeJournal"
+            ],
+            "file": "live_trade_journal.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "step13_runtime_check.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PersistentPaperTrader"
+            ],
+            "file": "persistent_paper_trader.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PersistentPositionManager"
+            ],
+            "file": "persistent_position_manager.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PersistentJournal"
+            ],
+            "file": "persistent_journal.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "PaperTradingLifecycle"
+            ],
+            "file": "paper_trading_lifecycle.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "backup",
+                "repair"
+            ],
+            "file": "qpx_step4_repair_v3.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "make_backup",
+                "repair"
+            ],
+            "file": "qpx_step4_repair_v4.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "backup_file",
+                "repair"
+            ],
+            "file": "qpx_step4_repair_v5.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "repair_mobile_runner_step4.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "start"
+            ],
+            "file": "mobile_runner_step4_repair_precheck_backup.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "repair_csv_importer_schema.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "repair_step5_runner_import.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "repair_step5_validator_database.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "repair_step5_validator_database_v2.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "backup_database",
+                "get_tables",
+                "restore_schema"
+            ],
+            "file": "repair_step5_schema_restore_v1.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "repair_step5_import_pipeline_v1.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "repair_step5_import_pipeline_v2.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "repair_step5_import_pipeline_v3.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "create_feature_engine",
+                "validate_database",
+                "test_feature_engine",
+                "run_step8_validation"
+            ],
+            "file": "repair_step8_feature_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "report"
+            ],
+            "file": "validate_step10_backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "repair_trade_event_schema",
+                "repair_performance_metrics",
+                "repair_query_compatibility",
+                "run_repair"
+            ],
+            "file": "repair_step10_backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "create_trade_event",
+                "validate_trade_schema",
+                "generate_performance_metrics",
+                "repair_backtest_output"
+            ],
+            "file": "repair_step10_backtesting_engine_validation.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "normalize_trade_event",
+                "validate_trade_schema",
+                "validate_closed_trade_lifecycle",
+                "regenerate_metrics",
+                "repair_step10_backtest_output"
+            ],
+            "file": "step10_backtesting_engine_repair.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "Step10ValidationError"
+            ],
+            "file": "step10 repsir i hope.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "normalize_trade_event",
+                "validate_trade_schema_v2",
+                "normalize_closed_trades",
+                "regenerate_metrics",
+                "finalize_step10_payload"
+            ],
+            "file": "step10_maximum_repair.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step10_auto_repair.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "step10_encoding_repair_resume.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "step10continued repairs.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "find_step10_files",
+                "scan_for_trade_bug",
+                "validate_trade_schema",
+                "test_trade_event",
+                "create_backup",
+                "generate_report"
+            ],
+            "file": "step10_repair_assistant.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "log",
+                "backup_file",
+                "remove_bad_trade_patch",
+                "create_step10_validator",
+                "scan_files",
+                "run_repair"
+            ],
+            "file": "auto_repair_step10.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "validate_step10_runtime.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "step14_2.py"
+        },
+        {
+            "type": "utility",
+            "functions": [],
+            "file": "main.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "Database"
+            ],
+            "file": "database.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "file": "query_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "file": "feature_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "SignalEngine"
+            ],
+            "file": "signal_engine.py"
+        },
+        {
+            "type": "library",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "file": "backtesting_engine.py"
+        },
+        {
+            "type": "utility",
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "file": "trade_event_schema_v2.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_auto_fix.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test_v3.py"
+        },
+        {
+            "type": "executable",
+            "entry": "main",
+            "file": "qpx_step12_pipeline_smoke_test_v4.py"
+        }
+    ]
+}

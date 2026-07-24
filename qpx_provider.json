@@ -1,0 +1,7 @@
+{
+    "provider": "alpha_vantage",
+    "api_key": "KBLKJ3PE694RS5AS",
+    "symbol": "SPY",
+    "interval": "daily",
+    "outputsize": "full"
+}

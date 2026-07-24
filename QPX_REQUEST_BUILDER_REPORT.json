@@ -1,0 +1,335 @@
+{
+    "scan_time": "2026-07-24T11:56:29.378404",
+    "files": [
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/query_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 7,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 14,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DOWNLOAD_HISTORICAL_CSV.py",
+            "requests": false,
+            "urllib": true,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": false,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 7,
+                    "code": "import urllib.request"
+                },
+                {
+                    "line": 47,
+                    "code": "request = urllib.request.Request("
+                },
+                {
+                    "line": 63,
+                    "code": "with urllib.request.urlopen("
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_MANAGER.py",
+            "requests": true,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": true,
+            "urlencode": false,
+            "params_dict": false,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 21,
+                    "code": "\"api_key\": \"\","
+                },
+                {
+                    "line": 60,
+                    "code": "if not cfg.get(\"api_key\"):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_RETRY_MANAGER.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": true,
+            "urlencode": false,
+            "params_dict": false,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 19,
+                    "code": "\"QPX_ALPHA_VANTAGE_PIPELINE.py\""
+                },
+                {
+                    "line": 67,
+                    "code": "return \"api_key\""
+                },
+                {
+                    "line": 105,
+                    "code": "if status == \"api_key\":"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_FAILOVER_MANAGER.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": false,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 73,
+                    "code": "if name == \"alpha_vantage\":"
+                },
+                {
+                    "line": 76,
+                    "code": "\"QPX_ALPHA_VANTAGE_PIPELINE.py\""
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ALPHA_VANTAGE_PIPELINE.py",
+            "requests": false,
+            "urllib": true,
+            "apikey_literal": false,
+            "apikey_variable": true,
+            "urlencode": true,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 8,
+                    "code": "import urllib.request"
+                },
+                {
+                    "line": 16,
+                    "code": "REPORT = os.path.join(ROOT, \"QPX_ALPHA_VANTAGE_PIPELINE_REPORT.txt\")"
+                },
+                {
+                    "line": 37,
+                    "code": "api_key = cfg.get(\"api_key\", \"\")"
+                },
+                {
+                    "line": 39,
+                    "code": "if not api_key:"
+                },
+                {
+                    "line": 42,
+                    "code": "params = urllib.parse.urlencode({"
+                },
+                {
+                    "line": 47,
+                    "code": "\"apikey\": api_key"
+                },
+                {
+                    "line": 52,
+                    "code": "+ params"
+                },
+                {
+                    "line": 55,
+                    "code": "urllib.request.urlretrieve("
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/data/sqlite/database.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 20,
+                    "code": "def execute(self, query, params=None):"
+                },
+                {
+                    "line": 24,
+                    "code": "if params:"
+                },
+                {
+                    "line": 25,
+                    "code": "cursor.execute(query, params)"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_repair_backup/repair_step10_backtesting_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 102,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 109,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/query_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 7,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 14,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_auto_backup/repair_step10_backtesting_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 102,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 109,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/query_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 7,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 14,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step10_backtesting_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 102,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 109,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/query_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 7,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 14,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/query_engine.py",
+            "requests": false,
+            "urllib": false,
+            "apikey_literal": false,
+            "apikey_variable": false,
+            "urlencode": false,
+            "params_dict": true,
+            "http401": false,
+            "http429": false,
+            "matches": [
+                {
+                    "line": 7,
+                    "code": "def execute_query(query, params=None):"
+                },
+                {
+                    "line": 14,
+                    "code": "def fetch_data(query, params=None):"
+                }
+            ]
+        }
+    ]
+}

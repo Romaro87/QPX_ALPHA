@@ -1,0 +1,176 @@
+{
+    "generated": "2026-07-24T12:46:31.008481",
+    "core_modules": [
+        {
+            "module": "feature_engine.py",
+            "times_imported": 23
+        },
+        {
+            "module": "signal_engine.py",
+            "times_imported": 17
+        },
+        {
+            "module": "backtesting_engine.py",
+            "times_imported": 17
+        },
+        {
+            "module": "trade_event_schema_v2.py",
+            "times_imported": 13
+        },
+        {
+            "module": "swing_signal_engine.py",
+            "times_imported": 5
+        }
+    ],
+    "highest_dependency_modules": [
+        {
+            "module": "validate_step10_backtesting_engine.py",
+            "imports": 10
+        },
+        {
+            "module": "validate_step10_backtesting_engine.py",
+            "imports": 9
+        },
+        {
+            "module": "qpx_step13_integration_test.py",
+            "imports": 8
+        },
+        {
+            "module": "QPX_ALPHA_VANTAGE_PIPELINE.py",
+            "imports": 8
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test.py",
+            "imports": 7
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v2.py",
+            "imports": 7
+        },
+        {
+            "module": "validate_step9_signal_engine.py",
+            "imports": 7
+        },
+        {
+            "module": "qpx_step14_simulation_runner.py",
+            "imports": 7
+        },
+        {
+            "module": "QPX_DOWNLOAD_HISTORICAL_CSV.py",
+            "imports": 7
+        },
+        {
+            "module": "repair_step5_import_pipeline_v3.py",
+            "imports": 7
+        },
+        {
+            "module": "mobile_runner_step4_backup_20260723_201717.py",
+            "imports": 6
+        },
+        {
+            "module": "verify_step4_importer.py",
+            "imports": 6
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v3.py",
+            "imports": 6
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v4.py",
+            "imports": 6
+        },
+        {
+            "module": "QPX_FULL_SWING_RUNNER.py",
+            "imports": 6
+        },
+        {
+            "module": "QPX_ADAPTIVE_SWING_RUNNER.py",
+            "imports": 6
+        },
+        {
+            "module": "QPX_ADAPTIVE_SWING_V2_RUNNER.py",
+            "imports": 6
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v3.py",
+            "imports": 6
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v4.py",
+            "imports": 6
+        },
+        {
+            "module": "mobile_runner_step4_repair_precheck_backup.py",
+            "imports": 6
+        }
+    ],
+    "possible_orphans": [
+        "QPX_FIX_STEP4_IMPORTER_SCOPE.py",
+        "__init__.py",
+        "__init__.py",
+        "__init__.py",
+        "__init__.py",
+        "__init__.py",
+        "__init__.py",
+        "__init__.py",
+        "__init__.py",
+        "__init__.py",
+        "backtesting_engine.py",
+        "database.py",
+        "database.py",
+        "database.py",
+        "database.py",
+        "database.py",
+        "mobile_reports.py",
+        "paper_trading_engine.py",
+        "position_manager.py",
+        "query_engine.py",
+        "query_engine.py",
+        "query_engine.py",
+        "query_engine.py",
+        "query_engine.py",
+        "risk_controller.py",
+        "schema.py",
+        "swing_signal_calibrator.py",
+        "swing_signal_engine.py",
+        "swing_signal_engine_v2.py",
+        "swing_strategy_evaluator.py",
+        "swing_trade_lifecycle.py"
+    ],
+    "missing_imports": {
+        "datetime": 113,
+        "os": 103,
+        "sqlite3": 51,
+        "shutil": 32,
+        "quant_platform": 24,
+        "sys": 23,
+        "json": 20,
+        "traceback": 17,
+        "subprocess": 16,
+        "importlib": 11,
+        "uuid": 11,
+        "pathlib": 9,
+        "pandas": 7,
+        "time": 7,
+        "csv": 6,
+        "urllib": 5,
+        "re": 3,
+        "ast": 2,
+        "tempfile": 1,
+        "inspect": 1,
+        "pprint": 1,
+        "glob": 1
+    },
+    "summary": {
+        "python_modules": 195,
+        "unique_imports": 40,
+        "core_modules": 5,
+        "possible_orphans": 31,
+        "missing_import_groups": 22
+    },
+    "observations": [
+        "Many modules have no detected imports. Review whether they are standalone utilities or candidates for consolidation.",
+        "Some imports do not correspond to project modules. They may be standard library modules, third-party packages, or unresolved references.",
+        "Large number of executable entry points suggests separating user workflows from developer tooling."
+    ]
+}

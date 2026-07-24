@@ -1,0 +1,90 @@
+
+import csv
+from quant_platform.database.database import get_connection
+
+
+def import_market_csv(filepath):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    count = 0
+
+    with open(filepath, "r") as file:
+
+        reader = csv.DictReader(file)
+
+        for row in reader:
+
+            symbol = (
+                row.get("symbol")
+                or row.get("Symbol")
+                or row.get("ticker")
+                or row.get("Ticker")
+                or "UNKNOWN"
+            )
+
+            date = (
+                row.get("date")
+                or row.get("Date")
+            )
+
+            open_price = (
+                row.get("open")
+                or row.get("Open")
+            )
+
+            high_price = (
+                row.get("high")
+                or row.get("High")
+            )
+
+            low_price = (
+                row.get("low")
+                or row.get("Low")
+            )
+
+            close_price = (
+                row.get("close")
+                or row.get("Close")
+            )
+
+            volume = (
+                row.get("volume")
+                or row.get("Volume")
+                or 0
+            )
+
+
+            cursor.execute(
+                """
+                INSERT INTO market_data
+                (
+                symbol,
+                date,
+                open,
+                high,
+                low,
+                close,
+                volume
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                symbol,
+                date,
+                open_price,
+                high_price,
+                low_price,
+                close_price,
+                volume
+                )
+            )
+
+            count += 1
+
+
+    conn.commit()
+    conn.close()
+
+    return count

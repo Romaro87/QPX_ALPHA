@@ -1,0 +1,32 @@
+=================================
+QPX STEP 14.1 LIVE MONITOR
+2026-07-24T10:04:55.403671
+=================================
+
+HEARTBEAT 1
+Time: 2026-07-24T10:04:55.410167
+Trades: 7
+Wins: 7
+Losses: 0
+P/L: 35.0
+Equity: 10035.0
+
+HEARTBEAT 2
+Time: 2026-07-24T10:04:57.416930
+Trades: 7
+Wins: 7
+Losses: 0
+P/L: 35.0
+Equity: 10035.0
+
+HEARTBEAT 3
+Time: 2026-07-24T10:04:59.425699
+Trades: 7
+Wins: 7
+Losses: 0
+P/L: 35.0
+Equity: 10035.0
+
+=================================
+QPX STEP 14.1 STATUS: OPERATIONAL
+=================================

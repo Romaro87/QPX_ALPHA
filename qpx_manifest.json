@@ -1,0 +1,19 @@
+{
+    "qpx_version": "2.0.0",
+    "last_run_status": "failed",
+    "last_start": "2026-07-24T11:33:16.317978",
+    "last_end": "2026-07-24T11:33:16.350611",
+    "results": [
+        {
+            "status": "success",
+            "message": "Completed",
+            "module": "Config Migration"
+        },
+        {
+            "status": "failed",
+            "message": "No module named 'QPX_STRATEGY_CONFIG_MANAGER'",
+            "traceback": "Traceback (most recent call last):\n  File \"<string>\", line 50, in run_module\n  File \"/data/user/0/ru.iiec.pydroid3/files/aarch64-linux-android/lib/python3.13/importlib/__init__.py\", line 88, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1395, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked\nModuleNotFoundError: No module named 'QPX_STRATEGY_CONFIG_MANAGER'\n",
+            "module": "Strategy Config"
+        }
+    ]
+}

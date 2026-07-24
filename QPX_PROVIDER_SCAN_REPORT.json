@@ -1,0 +1,1839 @@
+{
+    "scan_time": "2026-07-24T11:53:53.416093",
+    "root": "/storage/emulated/0/QPX_ALPHA",
+    "files": [
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/main.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "Instit******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/mobile_runner.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_MOBILE_SETUP_STEP2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_MOBILE_SETUP_STEP3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_FIX_STEP3_IMPORTER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_FIX_STEP3_IMPORTER_V2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_FIX_STEP3_IMPORTER_V3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_FIX_STEP4_IMPORTER_CONNECTION.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_FIX_STEP4_IMPORTER_SCOPE.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_runtime_healthcheck.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_database_locator.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/newfile.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/mobile_runner_step4_backup_20260723_201717.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_runtime_healthcheck_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/verify_step4_importer.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/verify_step5_import_pipeline.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_runtime_api_inspector.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_smoke_test.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_smoke_test_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_smoke_test_v3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/verify_step6_market_query_layer.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/verify_step7_market_analytics_foundation.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/verify_remaining_qpx_steps.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_payload_inspector.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/feature_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/validate_step8_feature_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/validate_step9_signal_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "Signal******",
+                "Featur******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/signal_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******",
+                "confid******",
+                "volati******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_auto_fix.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_backtest_deep_scan.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/database.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/query_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_pipeline_smoke_test_v4.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/repair step 10.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_backtest_adapter_fix.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/backtesting_engine_step12_backup.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/backtesting_engine_before_deep_fix.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/trade_event_schema_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_apply_backtest_fix.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step12_operational_backup.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/backtesting_engine_step12_final_backup.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_prepare.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/validate_step11_runtime.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "alloca******",
+                "alloca******",
+                "constr******",
+                "perfor******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/inventory_qpx_modules.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step11_consolidation.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_module_builder.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_integration_test.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_persistence_builder.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_persistence_test.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******",
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_lifecycle_test.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "OPERAT******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_performance_builder.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step13_risk_builder.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step14_simulation_runner.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step14_monitor.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_MASTER_RUNNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "OPERAT******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/qpx_step14_controller.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "OPERAT******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_AUTO_MANAGER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STATUS_DASHBOARD.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "OPERAT******",
+                "OPERAT******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_ENGINE_SETUP.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/swing_signal_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_PIPELINE_RUNNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_EVALUATOR_SETUP.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/swing_strategy_evaluator.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_FULL_SWING_RUNNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/swing_trade_lifecycle.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_CALIBRATION_SETUP.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/swing_signal_calibrator.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ADAPTIVE_SWING_RUNNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/swing_signal_engine_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ADAPTIVE_SWING_V2_RUNNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_CREATE_DATA_TEMPLATE.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DOWNLOAD_HISTORICAL_CSV.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": true,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_MANAGER.py",
+            "exists": true,
+            "api_mentions": 4,
+            "possible_keys": [
+                "placeh******",
+                "placeh******",
+                "placeh******"
+            ],
+            "uses_requests": true,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_VALIDATOR.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_RETRY_MANAGER.py",
+            "exists": true,
+            "api_mentions": 6,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_FAILOVER_MANAGER.py",
+            "exists": true,
+            "api_mentions": 4,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_START.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_HEALTH_CHECK.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "compat******",
+                "compat******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_AUTO_START.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "execut******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_LIFECYCLE_SETUP.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_LIFECYCLE_RUNNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SIGNAL_ANALYZER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_SWING_SIGNAL_UPGRADE.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_HISTORICAL_VALIDATION_RUNNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DATA_READINESS_CHECKER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DATA_EXPANSION_MANAGER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_MASTER_DATA_PIPELINE.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ALPHA_VANTAGE_PIPELINE.py",
+            "exists": true,
+            "api_mentions": 11,
+            "possible_keys": [
+                "output******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": true,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/swing_strategy_v3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STRATEGY_MANAGER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "strate******",
+                "strate******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_CONFIG_MIGRATION_MANAGER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "strate******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_MODULE_SCANNER.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "execut******",
+                "execut******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/data/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/data/sqlite_store.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/data/cache_manager.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/data/sqlite/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/data/sqlite/database.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/data/sqlite/schema.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/portfolio/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/portfolio/snapshots.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/portfolio/snapshots/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/portfolio/snapshots/snapshot.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/analytics/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/analytics/mobile_reports.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/live/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/live/trade_journal.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/live/journal/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/live/journal/trade_journal.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/mobile/csv_importer.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/quant_platform/mobile/__init__.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/storage/emulated/0/QPX_ALPHA/qpx_step14_controller.py.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_repair_backup/validate_step10_backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_repair_backup/repair_step10_backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_repair_backup/backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_repair_backup/repair_step10_backtesting_engine_validation.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/main.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "Instit******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/database.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/query_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/feature_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/signal_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******",
+                "confid******",
+                "volati******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/trade_event_schema_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_auto_fix.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_pipeline_smoke_test_v3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_pipeline_smoke_test_v4.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_auto_backup/backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/step10_auto_backup/repair_step10_backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/main.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "Instit******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/database.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/query_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/feature_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/signal_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******",
+                "confid******",
+                "volati******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/trade_event_schema_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/paper_trading_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/position_manager.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/risk_controller.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/live_trade_journal.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/step13_runtime_check.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/persistent_paper_trader.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/persistent_position_manager.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/persistent_journal.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION/paper_trading_lifecycle.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/qpx_step4_repair_v3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/qpx_step4_repair_v4.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/qpx_step4_repair_v5.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_mobile_runner_step4.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/mobile_runner_step4_repair_precheck_backup.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_csv_importer_schema.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step5_runner_import.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step5_validator_database.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step5_validator_database_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step5_schema_restore_v1.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step5_import_pipeline_v1.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step5_import_pipeline_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step5_import_pipeline_v3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step8_feature_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/validate_step10_backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step10_backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/repair_step10_backtesting_engine_validation.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10_backtesting_engine_repair.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10 repsir i hope.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10_maximum_repair.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/qpx_step10_auto_repair.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10_encoding_repair_resume.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10continued repairs.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/step10_repair_assistant.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "perfor******",
+                "sugges******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/auto_repair_step10.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/archive_repairs/validate_step10_runtime.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP14_2/step14_2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/main.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "Instit******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/database.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/query_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/feature_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/signal_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******",
+                "confid******",
+                "volati******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/trade_event_schema_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_auto_fix.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_pipeline_smoke_test_v3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_pipeline_smoke_test_v4.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/main.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "Instit******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/database.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/query_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/feature_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/signal_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [
+                "confid******",
+                "confid******",
+                "volati******"
+            ],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/backtesting_engine.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/trade_event_schema_v2.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_auto_fix.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_pipeline_smoke_test_v3.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_pipeline_smoke_test_v4.py",
+            "exists": true,
+            "api_mentions": 0,
+            "possible_keys": [],
+            "uses_requests": false,
+            "uses_urllib": false,
+            "status": "OK"
+        }
+    ],
+    "issues": [
+        "QPX_PROVIDER_VALIDATOR.py: rate-limit logic detected.",
+        "QPX_PROVIDER_RETRY_MANAGER.py: rate-limit logic detected."
+    ]
+}

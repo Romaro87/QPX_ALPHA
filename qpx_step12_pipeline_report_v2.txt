@@ -1,0 +1,14 @@
+=================================
+QPX STEP 12 PIPELINE SMOKE TEST V2
+2026-07-24T11:49:59.939183
+=================================
+[PASS] Market Data (3 rows)
+[FAIL] Feature Engine: 'FeatureEngine' object has no attribute 'run_feature_engine'
+[FAIL] Signal Engine: Feature input unavailable
+[FAIL] Backtesting Engine: 'BacktestEngine' object has no attribute 'run_backtest'
+[PASS] trades
+[PASS] portfolio_snapshots
+
+=================================
+QPX PIPELINE STATUS: NEEDS REVIEW
+=================================

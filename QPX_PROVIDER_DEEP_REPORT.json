@@ -1,0 +1,119 @@
+{
+    "scan_time": "2026-07-24T11:55:10.485433",
+    "provider_files": [
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_DOWNLOAD_HISTORICAL_CSV.py",
+            "api_key_loaded": false,
+            "api_key_placeholder": false,
+            "requests": false,
+            "urllib": true,
+            "download_url_found": true,
+            "contains_apikey_parameter": false,
+            "handles_401": false,
+            "handles_429": false,
+            "handles_rate_limit": false,
+            "handles_note": false,
+            "handles_error_message": false,
+            "warnings": [
+                "apikey parameter not detected"
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_MANAGER.py",
+            "api_key_loaded": true,
+            "api_key_placeholder": false,
+            "requests": false,
+            "urllib": false,
+            "download_url_found": false,
+            "contains_apikey_parameter": false,
+            "handles_401": false,
+            "handles_429": false,
+            "handles_rate_limit": false,
+            "handles_note": false,
+            "handles_error_message": false,
+            "warnings": [
+                "No HTTP client detected",
+                "apikey parameter not detected"
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_VALIDATOR.py",
+            "api_key_loaded": false,
+            "api_key_placeholder": false,
+            "requests": false,
+            "urllib": false,
+            "download_url_found": false,
+            "contains_apikey_parameter": false,
+            "handles_401": false,
+            "handles_429": false,
+            "handles_rate_limit": true,
+            "handles_note": false,
+            "handles_error_message": false,
+            "warnings": [
+                "No HTTP client detected",
+                "apikey parameter not detected",
+                "Rate-limit handled but authentication not."
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_RETRY_MANAGER.py",
+            "api_key_loaded": true,
+            "api_key_placeholder": false,
+            "requests": false,
+            "urllib": false,
+            "download_url_found": false,
+            "contains_apikey_parameter": false,
+            "handles_401": false,
+            "handles_429": false,
+            "handles_rate_limit": true,
+            "handles_note": false,
+            "handles_error_message": false,
+            "warnings": [
+                "No HTTP client detected",
+                "apikey parameter not detected",
+                "Rate-limit handled but authentication not."
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_PROVIDER_FAILOVER_MANAGER.py",
+            "api_key_loaded": false,
+            "api_key_placeholder": false,
+            "requests": false,
+            "urllib": false,
+            "download_url_found": false,
+            "contains_apikey_parameter": false,
+            "handles_401": false,
+            "handles_429": false,
+            "handles_rate_limit": false,
+            "handles_note": false,
+            "handles_error_message": false,
+            "warnings": [
+                "No HTTP client detected",
+                "apikey parameter not detected"
+            ]
+        },
+        {
+            "file": "/storage/emulated/0/QPX_ALPHA/QPX_ALPHA_VANTAGE_PIPELINE.py",
+            "api_key_loaded": true,
+            "api_key_placeholder": false,
+            "requests": false,
+            "urllib": true,
+            "download_url_found": true,
+            "contains_apikey_parameter": false,
+            "handles_401": false,
+            "handles_429": false,
+            "handles_rate_limit": false,
+            "handles_note": false,
+            "handles_error_message": false,
+            "warnings": [
+                "apikey parameter not detected"
+            ]
+        }
+    ],
+    "warnings": [],
+    "summary": {
+        "python_files": 193,
+        "provider_modules": 6,
+        "warnings": 12
+    }
+}

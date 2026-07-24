@@ -1,0 +1,14 @@
+=================================
+QPX STEP 12 PIPELINE SMOKE TEST
+2026-07-24T11:49:59.918657
+=================================
+[PASS] Market Data (3 rows)
+[FAIL] Feature Engine: FeatureEngine.__init__() missing 1 required positional argument: 'db_path'
+[FAIL] Signal Engine: Feature input unavailable
+[PASS] Backtesting Engine
+[PASS] Trade Event Storage
+[PASS] Portfolio Snapshot Layer
+
+=================================
+QPX PIPELINE STATUS: NEEDS REVIEW
+=================================

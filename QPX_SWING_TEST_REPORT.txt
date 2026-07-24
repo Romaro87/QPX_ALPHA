@@ -1,0 +1,14 @@
+==============================
+QPX SWING PIPELINE TEST
+2026-07-24T11:50:09.048851
+==============================
+Feature Engine loaded
+Swing Signal Engine loaded
+Backtesting Engine loaded
+Features generated: 3
+Signals generated: 3
+Backtest complete
+Trades: 3
+Return: 0.0
+Drawdown: 0.0
+STATUS: OPERATIONAL

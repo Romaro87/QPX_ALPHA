@@ -1,0 +1,46 @@
+{
+    "trade_schema": {
+        "status": "PASS",
+        "schema_version": "2.0",
+        "required_fields": [
+            "trade_id",
+            "symbol",
+            "timestamp",
+            "side",
+            "entry_price",
+            "quantity"
+        ],
+        "template": {
+            "trade_id": "uuid",
+            "symbol": "UNKNOWN",
+            "timestamp": "2026-07-24T03:37:13.878995+00:00",
+            "signal": null,
+            "side": "BUY",
+            "entry_price": 0.0,
+            "exit_price": null,
+            "quantity": 0,
+            "position_status": "OPEN",
+            "realized_pnl": 0.0,
+            "return_pct": 0.0,
+            "strategy": "UNKNOWN"
+        }
+    },
+    "performance_metrics": {
+        "status": "PASS",
+        "schema_version": "2.0",
+        "metrics_template": {
+            "total_trades": 0,
+            "winning_trades": 0,
+            "losing_trades": 0,
+            "win_rate": 0.0,
+            "gross_return": 0.0,
+            "net_return": 0.0,
+            "max_drawdown": 0.0,
+            "average_trade_return": 0.0
+        }
+    },
+    "schema_contract": {
+        "status": "CREATED",
+        "file": "/storage/emulated/0/QPX_ALPHA/step10_schema_contract.json"
+    }
+}

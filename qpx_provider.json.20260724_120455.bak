@@ -1,0 +1,7 @@
+{
+    "provider": "alpha_vantage",
+    "api_key": "YOUR_NEW_API_KEY",
+    "symbol": "SPY",
+    "interval": "daily",
+    "outputsize": "full"
+}

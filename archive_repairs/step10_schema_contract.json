@@ -1,0 +1,13 @@
+{
+    "trade_schema": "2.0",
+    "metrics_schema": "2.0",
+    "protected_layers": [
+        "importer_pipeline",
+        "csv_pipeline",
+        "database_lifecycle",
+        "validated_query_layer",
+        "analytics_foundation",
+        "step8_feature_engine",
+        "step9_signal_engine"
+    ]
+}
