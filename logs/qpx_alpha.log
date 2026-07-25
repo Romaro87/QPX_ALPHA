@@ -1,0 +1,3 @@
+2026-07-25 14:54:17,580 | INFO     | __main__ | Logging service initialized successfully.
+2026-07-25 14:54:17,580 | WARNING  | __main__ | Example warning.
+2026-07-25 14:54:17,580 | ERROR    | __main__ | Example error.
