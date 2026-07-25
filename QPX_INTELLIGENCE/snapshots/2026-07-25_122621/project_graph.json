@@ -1,0 +1,1238 @@
+{
+    "nodes": [
+        {
+            "module": "QPX_ADAPTIVE_SWING_RUNNER",
+            "imports": [
+                "datetime",
+                "feature_engine",
+                "os",
+                "swing_signal_calibrator",
+                "swing_signal_engine",
+                "swing_trade_lifecycle"
+            ]
+        },
+        {
+            "module": "QPX_ADAPTIVE_SWING_V2_RUNNER",
+            "imports": [
+                "datetime",
+                "feature_engine",
+                "os",
+                "swing_signal_calibrator",
+                "swing_signal_engine_v2",
+                "swing_trade_lifecycle"
+            ]
+        },
+        {
+            "module": "QPX_AI_RECOMMENDATION_ENGINE.py",
+            "imports": [
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_ALPHA_VANTAGE_PIPELINE",
+            "imports": [
+                "csv",
+                "datetime",
+                "json",
+                "os",
+                "sqlite3",
+                "subprocess",
+                "urllib"
+            ]
+        },
+        {
+            "module": "QPX_ARCHITECTURE_ANALYZER",
+            "imports": [
+                "collections",
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_AUTO_MANAGER",
+            "imports": [
+                "datetime",
+                "os",
+                "subprocess",
+                "time"
+            ]
+        },
+        {
+            "module": "QPX_AUTO_START",
+            "imports": [
+                "importlib",
+                "json",
+                "os",
+                "traceback"
+            ]
+        },
+        {
+            "module": "QPX_COMPILER_UPGRADER.py",
+            "imports": [
+                "datetime",
+                "os",
+                "py_compile",
+                "shutil"
+            ]
+        },
+        {
+            "module": "QPX_CONFIG_MIGRATION_MANAGER",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "QPX_CONTEXT_COMPILER.py",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "pprint"
+            ]
+        },
+        {
+            "module": "QPX_CONTEXT_EXPORTER",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "traceback",
+                "zipfile"
+            ]
+        },
+        {
+            "module": "QPX_CONTEXT_GENERATOR",
+            "imports": []
+        },
+        {
+            "module": "QPX_CONTEXT_WRITER.py",
+            "imports": [
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_CREATE_DATA_TEMPLATE",
+            "imports": [
+                "csv",
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_DATA_EXPANSION_MANAGER",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "QPX_DATA_PIPELINE_CONTROLLER",
+            "imports": [
+                "QPX_DOWNLOAD_HISTORICAL_CSV",
+                "QPX_VALIDATE_HISTORICAL_DATA",
+                "datetime",
+                "json",
+                "traceback"
+            ]
+        },
+        {
+            "module": "QPX_DATA_READINESS_CHECKER",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "QPX_DEPENDENCY_ANALYZER.py",
+            "imports": [
+                "collections",
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_DOWNLOAD_HISTORICAL_CSV",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "time",
+                "urllib"
+            ]
+        },
+        {
+            "module": "QPX_FIX_STEP3_IMPORTER",
+            "imports": [
+                "pathlib"
+            ]
+        },
+        {
+            "module": "QPX_FIX_STEP3_IMPORTER_V2",
+            "imports": [
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "QPX_FIX_STEP3_IMPORTER_V3",
+            "imports": [
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "QPX_FIX_STEP4_IMPORTER_CONNECTION",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "QPX_FIX_STEP4_IMPORTER_SCOPE",
+            "imports": []
+        },
+        {
+            "module": "QPX_FULL_SWING_RUNNER",
+            "imports": [
+                "backtesting_engine",
+                "datetime",
+                "feature_engine",
+                "os",
+                "swing_signal_engine",
+                "swing_strategy_evaluator"
+            ]
+        },
+        {
+            "module": "QPX_HEALTH_CHECK",
+            "imports": [
+                "datetime",
+                "importlib",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_HISTORICAL_VALIDATION_RUNNER",
+            "imports": [
+                "datetime",
+                "feature_engine",
+                "os",
+                "swing_signal_engine_v2",
+                "swing_trade_lifecycle"
+            ]
+        },
+        {
+            "module": "QPX_HISTORY_ANALYZER.py",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "re"
+            ]
+        },
+        {
+            "module": "QPX_MASTER_DATA_PIPELINE",
+            "imports": [
+                "datetime",
+                "os",
+                "subprocess"
+            ]
+        },
+        {
+            "module": "QPX_MASTER_RUNNER",
+            "imports": [
+                "datetime",
+                "os",
+                "subprocess"
+            ]
+        },
+        {
+            "module": "QPX_MOBILE_SETUP_STEP2",
+            "imports": [
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_MOBILE_SETUP_STEP3",
+            "imports": [
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_MODULE_SCANNER",
+            "imports": [
+                "ast",
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_PROVIDER_FAILOVER_MANAGER",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "subprocess"
+            ]
+        },
+        {
+            "module": "QPX_PROVIDER_MANAGER",
+            "imports": [
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_PROVIDER_RETRY_MANAGER",
+            "imports": [
+                "datetime",
+                "os",
+                "subprocess",
+                "time"
+            ]
+        },
+        {
+            "module": "QPX_PROVIDER_VALIDATOR",
+            "imports": [
+                "csv",
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_SIGNAL_ANALYZER",
+            "imports": [
+                "datetime",
+                "feature_engine",
+                "os",
+                "swing_signal_engine"
+            ]
+        },
+        {
+            "module": "QPX_START",
+            "imports": [
+                "datetime",
+                "importlib",
+                "json",
+                "os",
+                "traceback"
+            ]
+        },
+        {
+            "module": "QPX_STATUS_DASHBOARD",
+            "imports": [
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_STEP13_LIVE_SIMULATION",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "QPX_STRATEGY_MANAGER",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "QPX_SWING_CALIBRATION_SETUP",
+            "imports": [
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_SWING_ENGINE_SETUP",
+            "imports": [
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_SWING_EVALUATOR_SETUP",
+            "imports": [
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_SWING_LIFECYCLE_RUNNER",
+            "imports": [
+                "datetime",
+                "feature_engine",
+                "os",
+                "swing_signal_engine",
+                "swing_trade_lifecycle"
+            ]
+        },
+        {
+            "module": "QPX_SWING_LIFECYCLE_SETUP",
+            "imports": [
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_SWING_PIPELINE_RUNNER",
+            "imports": [
+                "backtesting_engine",
+                "datetime",
+                "feature_engine",
+                "os",
+                "swing_signal_engine"
+            ]
+        },
+        {
+            "module": "QPX_SWING_SIGNAL_UPGRADE",
+            "imports": [
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "QPX_VALIDATE_HISTORICAL_DATA",
+            "imports": [
+                "csv",
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "__init__",
+            "imports": []
+        },
+        {
+            "module": "architecture",
+            "imports": [
+                "ast",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "auto_repair_step10",
+            "imports": [
+                "datetime",
+                "json",
+                "pathlib",
+                "shutil"
+            ]
+        },
+        {
+            "module": "backtesting_engine",
+            "imports": [
+                "trade_event_schema_v2"
+            ]
+        },
+        {
+            "module": "backtesting_engine_before_deep_fix",
+            "imports": [
+                "trade_event_schema_v2"
+            ]
+        },
+        {
+            "module": "backtesting_engine_step12_backup",
+            "imports": [
+                "trade_event_schema_v2"
+            ]
+        },
+        {
+            "module": "backtesting_engine_step12_final_backup",
+            "imports": [
+                "trade_event_schema_v2"
+            ]
+        },
+        {
+            "module": "cache_manager",
+            "imports": [
+                "pandas",
+                "pathlib"
+            ]
+        },
+        {
+            "module": "csv_importer",
+            "imports": [
+                "csv",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "database",
+            "imports": []
+        },
+        {
+            "module": "dependency",
+            "imports": [
+                "ast",
+                "collections",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "feature_engine",
+            "imports": [
+                "pandas",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "inventory_qpx_modules",
+            "imports": [
+                "ast",
+                "os"
+            ]
+        },
+        {
+            "module": "live_trade_journal",
+            "imports": [
+                "datetime"
+            ]
+        },
+        {
+            "module": "main",
+            "imports": [
+                "quant_platform"
+            ]
+        },
+        {
+            "module": "mobile_reports",
+            "imports": []
+        },
+        {
+            "module": "mobile_runner",
+            "imports": [
+                "quant_platform",
+                "sys"
+            ]
+        },
+        {
+            "module": "mobile_runner_step4_backup_20260723_201717",
+            "imports": [
+                "quant_platform",
+                "sys"
+            ]
+        },
+        {
+            "module": "mobile_runner_step4_repair_precheck_backup",
+            "imports": [
+                "quant_platform",
+                "sys"
+            ]
+        },
+        {
+            "module": "newfile",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "paper_trading_engine",
+            "imports": []
+        },
+        {
+            "module": "paper_trading_lifecycle",
+            "imports": [
+                "datetime",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "persistent_journal",
+            "imports": [
+                "datetime",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "persistent_paper_trader",
+            "imports": [
+                "datetime",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "persistent_position_manager",
+            "imports": [
+                "datetime",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "position_manager",
+            "imports": []
+        },
+        {
+            "module": "qpx_context",
+            "imports": []
+        },
+        {
+            "module": "qpx_database_locator",
+            "imports": [
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_runtime_api_inspector",
+            "imports": [
+                "importlib",
+                "inspect",
+                "os"
+            ]
+        },
+        {
+            "module": "qpx_runtime_healthcheck",
+            "imports": [
+                "datetime",
+                "importlib",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_runtime_healthcheck_v2",
+            "imports": [
+                "datetime",
+                "importlib",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_step10_auto_repair",
+            "imports": [
+                "datetime",
+                "os",
+                "pathlib",
+                "re",
+                "shutil",
+                "subprocess"
+            ]
+        },
+        {
+            "module": "qpx_step11_consolidation",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil",
+                "subprocess",
+                "sys"
+            ]
+        },
+        {
+            "module": "qpx_step12_apply_backtest_fix",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "qpx_step12_auto_fix",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil",
+                "subprocess",
+                "sys"
+            ]
+        },
+        {
+            "module": "qpx_step12_backtest_adapter_fix",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "qpx_step12_backtest_deep_scan",
+            "imports": [
+                "datetime",
+                "os",
+                "re",
+                "shutil"
+            ]
+        },
+        {
+            "module": "qpx_step12_operational_backup",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "qpx_step12_payload_inspector",
+            "imports": [
+                "feature_engine",
+                "os",
+                "pprint",
+                "signal_engine",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test",
+            "imports": [
+                "backtesting_engine",
+                "datetime",
+                "feature_engine",
+                "os",
+                "signal_engine",
+                "sqlite3",
+                "traceback"
+            ]
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v2",
+            "imports": [
+                "backtesting_engine",
+                "datetime",
+                "feature_engine",
+                "os",
+                "signal_engine",
+                "sqlite3",
+                "traceback"
+            ]
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v3",
+            "imports": [
+                "backtesting_engine",
+                "datetime",
+                "feature_engine",
+                "os",
+                "signal_engine",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_step12_pipeline_smoke_test_v4",
+            "imports": [
+                "backtesting_engine",
+                "datetime",
+                "feature_engine",
+                "os",
+                "signal_engine",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_step13_integration_test",
+            "imports": [
+                "datetime",
+                "live_trade_journal",
+                "os",
+                "paper_trading_engine",
+                "position_manager",
+                "risk_controller",
+                "signal_engine",
+                "sys"
+            ]
+        },
+        {
+            "module": "qpx_step13_lifecycle_test",
+            "imports": [
+                "datetime",
+                "os",
+                "paper_trading_lifecycle",
+                "sqlite3",
+                "sys"
+            ]
+        },
+        {
+            "module": "qpx_step13_module_builder",
+            "imports": [
+                "datetime",
+                "os"
+            ]
+        },
+        {
+            "module": "qpx_step13_performance_builder",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_step13_persistence_builder",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_step13_persistence_test",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3",
+                "sys"
+            ]
+        },
+        {
+            "module": "qpx_step13_prepare",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "qpx_step13_risk_builder",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "risk_controller",
+                "sys"
+            ]
+        },
+        {
+            "module": "qpx_step14_controller",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil",
+                "subprocess",
+                "time"
+            ]
+        },
+        {
+            "module": "qpx_step14_controller.py",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil",
+                "subprocess",
+                "time"
+            ]
+        },
+        {
+            "module": "qpx_step14_monitor",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3",
+                "time"
+            ]
+        },
+        {
+            "module": "qpx_step14_simulation_runner",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "paper_trading_lifecycle",
+                "risk_controller",
+                "sys",
+                "time"
+            ]
+        },
+        {
+            "module": "qpx_step4_repair_v3",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "qpx_step4_repair_v4",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "qpx_step4_repair_v5",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "query_engine",
+            "imports": []
+        },
+        {
+            "module": "repair step 10",
+            "imports": [
+                "datetime",
+                "uuid"
+            ]
+        },
+        {
+            "module": "repair_csv_importer_schema",
+            "imports": [
+                "pathlib",
+                "re",
+                "shutil",
+                "sys"
+            ]
+        },
+        {
+            "module": "repair_mobile_runner_step4",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "repair_step10_backtesting_engine",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "sys",
+                "trade_event_schema_v2"
+            ]
+        },
+        {
+            "module": "repair_step10_backtesting_engine_validation",
+            "imports": [
+                "datetime",
+                "trade_event_schema_v2",
+                "uuid"
+            ]
+        },
+        {
+            "module": "repair_step5_import_pipeline_v1",
+            "imports": [
+                "datetime",
+                "importlib",
+                "os",
+                "sqlite3",
+                "traceback"
+            ]
+        },
+        {
+            "module": "repair_step5_import_pipeline_v2",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "repair_step5_import_pipeline_v3",
+            "imports": [
+                "datetime",
+                "glob",
+                "os",
+                "quant_platform",
+                "shutil",
+                "sqlite3",
+                "traceback"
+            ]
+        },
+        {
+            "module": "repair_step5_runner_import",
+            "imports": [
+                "datetime",
+                "pathlib",
+                "shutil"
+            ]
+        },
+        {
+            "module": "repair_step5_schema_restore_v1",
+            "imports": [
+                "datetime",
+                "os",
+                "shutil",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "repair_step5_validator_database",
+            "imports": [
+                "os",
+                "shutil",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "repair_step5_validator_database_v2",
+            "imports": [
+                "os",
+                "shutil",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "repair_step8_feature_engine",
+            "imports": [
+                "feature_engine",
+                "os",
+                "sqlite3",
+                "traceback"
+            ]
+        },
+        {
+            "module": "risk_controller",
+            "imports": []
+        },
+        {
+            "module": "schema",
+            "imports": []
+        },
+        {
+            "module": "signal_engine",
+            "imports": [
+                "datetime"
+            ]
+        },
+        {
+            "module": "snapshot",
+            "imports": [
+                "datetime"
+            ]
+        },
+        {
+            "module": "snapshots",
+            "imports": [
+                "datetime"
+            ]
+        },
+        {
+            "module": "sqlite_store",
+            "imports": [
+                "json",
+                "pathlib",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "step10 repsir i hope",
+            "imports": [
+                "datetime",
+                "uuid"
+            ]
+        },
+        {
+            "module": "step10_backtesting_engine_repair",
+            "imports": [
+                "datetime",
+                "uuid"
+            ]
+        },
+        {
+            "module": "step10_encoding_repair_resume",
+            "imports": [
+                "pathlib",
+                "shutil",
+                "subprocess",
+                "sys"
+            ]
+        },
+        {
+            "module": "step10_maximum_repair",
+            "imports": [
+                "datetime",
+                "uuid"
+            ]
+        },
+        {
+            "module": "step10_repair_assistant",
+            "imports": [
+                "datetime",
+                "json",
+                "os",
+                "shutil"
+            ]
+        },
+        {
+            "module": "step10continued repairs",
+            "imports": [
+                "datetime",
+                "json",
+                "os"
+            ]
+        },
+        {
+            "module": "step13_runtime_check",
+            "imports": [
+                "live_trade_journal",
+                "paper_trading_engine",
+                "position_manager",
+                "risk_controller"
+            ]
+        },
+        {
+            "module": "step14_2",
+            "imports": [
+                "datetime",
+                "os",
+                "sqlite3"
+            ]
+        },
+        {
+            "module": "swing_signal_calibrator",
+            "imports": []
+        },
+        {
+            "module": "swing_signal_engine",
+            "imports": []
+        },
+        {
+            "module": "swing_signal_engine_v2",
+            "imports": []
+        },
+        {
+            "module": "swing_strategy_evaluator",
+            "imports": []
+        },
+        {
+            "module": "swing_strategy_v3",
+            "imports": [
+                "pandas"
+            ]
+        },
+        {
+            "module": "swing_trade_lifecycle",
+            "imports": []
+        },
+        {
+            "module": "trade_event_schema_v2",
+            "imports": [
+                "datetime",
+                "uuid"
+            ]
+        },
+        {
+            "module": "trade_journal",
+            "imports": [
+                "datetime"
+            ]
+        },
+        {
+            "module": "validate_step10_backtesting_engine",
+            "imports": [
+                "backtesting_engine",
+                "database",
+                "datetime",
+                "feature_engine",
+                "query_engine",
+                "signal_engine",
+                "traceback",
+                "trade_event_schema_v2"
+            ]
+        },
+        {
+            "module": "validate_step10_runtime",
+            "imports": [
+                "backtesting_engine"
+            ]
+        },
+        {
+            "module": "validate_step11_runtime",
+            "imports": [
+                "importlib",
+                "os",
+                "sys",
+                "traceback"
+            ]
+        },
+        {
+            "module": "validate_step8_feature_engine",
+            "imports": [
+                "importlib",
+                "os",
+                "sqlite3",
+                "sys",
+                "traceback"
+            ]
+        },
+        {
+            "module": "validate_step9_signal_engine",
+            "imports": [
+                "feature_engine",
+                "os",
+                "signal_engine",
+                "sqlite3",
+                "sys",
+                "traceback"
+            ]
+        },
+        {
+            "module": "verify_remaining_qpx_steps",
+            "imports": [
+                "datetime",
+                "importlib",
+                "os",
+                "sqlite3",
+                "traceback"
+            ]
+        },
+        {
+            "module": "verify_step4_importer",
+            "imports": [
+                "csv",
+                "os",
+                "sqlite3",
+                "subprocess",
+                "sys",
+                "tempfile"
+            ]
+        },
+        {
+            "module": "verify_step5_import_pipeline",
+            "imports": [
+                "os",
+                "sqlite3",
+                "sys",
+                "traceback"
+            ]
+        },
+        {
+            "module": "verify_step6_market_query_layer",
+            "imports": [
+                "importlib",
+                "os",
+                "sqlite3",
+                "traceback"
+            ]
+        },
+        {
+            "module": "verify_step7_market_analytics_foundation",
+            "imports": [
+                "os",
+                "sqlite3",
+                "traceback"
+            ]
+        }
+    ]
+}

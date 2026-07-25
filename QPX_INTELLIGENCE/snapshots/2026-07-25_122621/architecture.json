@@ -1,0 +1,3206 @@
+{
+    "files": [
+        {
+            "path": "main.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "quant_platform.data.sqlite_store",
+                "quant_platform.live.trade_journal"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "mobile_runner.py",
+            "classes": [],
+            "functions": [
+                "start"
+            ],
+            "imports": [
+                "sys",
+                "quant_platform.data.sqlite.database",
+                "quant_platform.data.sqlite.schema",
+                "quant_platform.mobile"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_MOBILE_SETUP_STEP2.py",
+            "classes": [],
+            "functions": [
+                "setup_mobile_folder"
+            ],
+            "imports": [
+                "os"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_MOBILE_SETUP_STEP3.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "os"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_FIX_STEP3_IMPORTER.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "pathlib"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_FIX_STEP3_IMPORTER_V2.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "os",
+                "shutil"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_FIX_STEP3_IMPORTER_V3.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "os",
+                "shutil"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_FIX_STEP4_IMPORTER_CONNECTION.py",
+            "classes": [],
+            "functions": [
+                "create_backup",
+                "repair_file"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_FIX_STEP4_IMPORTER_SCOPE.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_runtime_healthcheck.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "check_file",
+                "find_database",
+                "check_database",
+                "check_market_data",
+                "check_module",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "importlib",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_database_locator.py",
+            "classes": [],
+            "functions": [
+                "find_sqlite_files",
+                "inspect_database",
+                "inspect_python_database_references",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "newfile.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_database",
+                "create_modules",
+                "validate",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "mobile_runner_step4_backup_20260723_201717.py",
+            "classes": [],
+            "functions": [
+                "start"
+            ],
+            "imports": [
+                "sys",
+                "quant_platform.data.sqlite.database",
+                "quant_platform.data.sqlite.schema",
+                "quant_platform.data.sqlite.database",
+                "quant_platform.data.sqlite.schema",
+                "quant_platform.mobile"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_runtime_healthcheck_v2.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "check_files",
+                "find_databases",
+                "validate_database",
+                "check_modules",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "importlib",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "verify_step4_importer.py",
+            "classes": [],
+            "functions": [
+                "check_file",
+                "syntax_check",
+                "sqlite_lifecycle_test",
+                "importer_runtime_check",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "sqlite3",
+                "tempfile",
+                "subprocess",
+                "csv"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "verify_step5_import_pipeline.py",
+            "classes": [],
+            "functions": [
+                "check_file",
+                "validate_importer_syntax",
+                "validate_database",
+                "validate_market_data",
+                "run_step5_validation"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "sys",
+                "traceback"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_runtime_api_inspector.py",
+            "classes": [],
+            "functions": [
+                "inspect_module",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "inspect",
+                "importlib"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step12_pipeline_smoke_test.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "check_database",
+                "load_market_data",
+                "test_feature_engine",
+                "test_signal_engine",
+                "test_backtest",
+                "validate_trade_schema",
+                "validate_portfolio",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "traceback",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step12_pipeline_smoke_test_v2.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "check_database",
+                "load_market_data",
+                "test_feature_engine",
+                "test_signal_engine",
+                "test_backtesting",
+                "check_table",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "traceback",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step12_pipeline_smoke_test_v3.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "check_database",
+                "run_feature_engine",
+                "run_signal_engine",
+                "run_backtest",
+                "check_tables",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "verify_step6_market_query_layer.py",
+            "classes": [],
+            "functions": [
+                "ok",
+                "fail",
+                "section",
+                "find_python_files",
+                "validate_database",
+                "validate_market_table",
+                "validate_rows",
+                "validate_timestamp",
+                "validate_ordering",
+                "validate_symbol_query",
+                "detect_query_modules",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "importlib.util",
+                "traceback"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "verify_step7_market_analytics_foundation.py",
+            "classes": [],
+            "functions": [
+                "check",
+                "detect_analytics_files",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "traceback"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "verify_remaining_qpx_steps.py",
+            "classes": [],
+            "functions": [
+                "check",
+                "file_exists",
+                "database_check",
+                "import_check",
+                "run_sql_validation",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "traceback",
+                "importlib.util",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step12_payload_inspector.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "pprint",
+                "feature_engine",
+                "signal_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "feature_engine.py",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "functions": [
+                "run_feature_engine",
+                "__init__",
+                "load_market_data",
+                "calculate_features",
+                "run"
+            ],
+            "imports": [
+                "sqlite3",
+                "pandas"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "validate_step8_feature_engine.py",
+            "classes": [],
+            "functions": [
+                "record",
+                "validate_feature_file",
+                "validate_database",
+                "load_feature_engine",
+                "validate_calculations",
+                "validate_ohlcv",
+                "validate_schema",
+                "print_report",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "sqlite3",
+                "traceback",
+                "importlib.util"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "validate_step9_signal_engine.py",
+            "classes": [],
+            "functions": [
+                "check"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "traceback",
+                "signal_engine",
+                "feature_engine",
+                "sqlite3",
+                "feature_engine"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "signal_engine.py",
+            "classes": [
+                "SignalEngine"
+            ],
+            "functions": [
+                "generate_signal",
+                "validate_signal_schema",
+                "__init__",
+                "generate_signal",
+                "_calculate_score",
+                "_confidence"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step12_auto_fix.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_old",
+                "create_v4",
+                "run_test",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "subprocess",
+                "sys"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step12_backtest_deep_scan.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "re",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "backtesting_engine.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "database.py",
+            "classes": [
+                "Database"
+            ],
+            "functions": [
+                "get_database",
+                "__init__",
+                "save_trade",
+                "query"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "query_engine.py",
+            "classes": [],
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step12_pipeline_smoke_test_v4.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "repair step 10.py",
+            "classes": [],
+            "functions": [
+                "create_trade_event",
+                "calculate_metrics",
+                "repair_step10_backtest_output"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step12_backtest_adapter_fix.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "backtesting_engine_step12_backup.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "backtesting_engine_before_deep_fix.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "trade_event_schema_v2.py",
+            "classes": [],
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step12_apply_backtest_fix.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step12_operational_backup.py",
+            "classes": [],
+            "functions": [
+                "timestamp",
+                "copy_file",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "backtesting_engine_step12_final_backup.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step13_prepare.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_file",
+                "check_database",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "sqlite3"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "validate_step11_runtime.py",
+            "classes": [],
+            "functions": [
+                "report",
+                "discover_modules",
+                "path_to_module",
+                "inspect_module"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "importlib",
+                "traceback"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "inventory_qpx_modules.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "os",
+                "ast"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step11_consolidation.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup",
+                "archive_repairs",
+                "detect_duplicates",
+                "check_core",
+                "run_validators",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "subprocess",
+                "sys"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step13_module_builder.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step13_integration_test.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "sys",
+                "signal_engine",
+                "paper_trading_engine",
+                "position_manager",
+                "risk_controller",
+                "live_trade_journal"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step13_persistence_builder.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_database",
+                "create_modules",
+                "validate",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "qpx_step13_persistence_test.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "get_signal",
+                "insert_trade",
+                "insert_position",
+                "insert_journal",
+                "verify_database",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "sys"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step13_lifecycle_test.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "sys",
+                "paper_trading_lifecycle"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step13_performance_builder.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_metrics_table",
+                "calculate_metrics",
+                "save_metrics",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step13_risk_builder.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_risk_controller",
+                "test_controller",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "json",
+                "sys",
+                "risk_controller"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step14_simulation_runner.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "run_cycle",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "json",
+                "datetime",
+                "time",
+                "risk_controller",
+                "paper_trading_lifecycle"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step14_monitor.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "collect_metrics",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "time"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_MASTER_RUNNER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_controller",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "subprocess"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_step14_controller.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "time",
+                "datetime",
+                "subprocess",
+                "shutil"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_AUTO_MANAGER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "run_step14",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "subprocess",
+                "time"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STATUS_DASHBOARD.py",
+            "classes": [],
+            "functions": [
+                "extract_value",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_SWING_ENGINE_SETUP.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_swing_engine",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "swing_signal_engine.py",
+            "classes": [
+                "SwingSignalEngine"
+            ],
+            "functions": [
+                "run_signal_engine",
+                "__init__",
+                "generate"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_SWING_PIPELINE_RUNNER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "feature_engine",
+                "swing_signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_SWING_EVALUATOR_SETUP.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create"
+            ],
+            "imports": [
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "swing_strategy_evaluator.py",
+            "classes": [
+                "SwingStrategyEvaluator"
+            ],
+            "functions": [
+                "run_evaluation",
+                "__init__",
+                "evaluate",
+                "metrics"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_FULL_SWING_RUNNER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "feature_engine",
+                "swing_signal_engine",
+                "backtesting_engine",
+                "swing_strategy_evaluator"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "swing_trade_lifecycle.py",
+            "classes": [
+                "SwingTradeLifecycle"
+            ],
+            "functions": [
+                "__init__",
+                "process",
+                "metrics"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_SWING_CALIBRATION_SETUP.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_calibrator",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "swing_signal_calibrator.py",
+            "classes": [
+                "SwingSignalCalibrator"
+            ],
+            "functions": [
+                "run_calibration",
+                "__init__",
+                "analyze",
+                "suggest_thresholds"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_ADAPTIVE_SWING_RUNNER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "feature_engine",
+                "swing_signal_calibrator",
+                "swing_signal_engine",
+                "swing_trade_lifecycle"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "swing_signal_engine_v2.py",
+            "classes": [
+                "SwingSignalEngineV2"
+            ],
+            "functions": [
+                "run_signal_engine_v2",
+                "__init__",
+                "generate"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_ADAPTIVE_SWING_V2_RUNNER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "feature_engine",
+                "swing_signal_calibrator",
+                "swing_signal_engine_v2",
+                "swing_trade_lifecycle"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_CREATE_DATA_TEMPLATE.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "csv",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_DOWNLOAD_HISTORICAL_CSV.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "load_provider",
+                "download_alpha_vantage",
+                "download_yahoo",
+                "download",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "time",
+                "datetime",
+                "urllib.request",
+                "urllib.parse",
+                "urllib.error"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_PROVIDER_MANAGER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "load_config",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_PROVIDER_VALIDATOR.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "classify_response",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "csv",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_PROVIDER_RETRY_MANAGER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "validation_status",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "time",
+                "subprocess",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_PROVIDER_FAILOVER_MANAGER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "load",
+                "run",
+                "main"
+            ],
+            "imports": [
+                "json",
+                "os",
+                "subprocess",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_START.py",
+            "classes": [],
+            "functions": [
+                "load_manifest",
+                "save_manifest",
+                "run_module",
+                "main"
+            ],
+            "imports": [
+                "datetime",
+                "importlib",
+                "json",
+                "os",
+                "traceback"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_HEALTH_CHECK.py",
+            "classes": [],
+            "functions": [
+                "inspect_module",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "importlib.util",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_AUTO_START.py",
+            "classes": [],
+            "functions": [
+                "load_module",
+                "run",
+                "main"
+            ],
+            "imports": [
+                "json",
+                "os",
+                "importlib.util",
+                "traceback"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_VALIDATE_HISTORICAL_DATA.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "validate",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "csv",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_DATA_PIPELINE_CONTROLLER.py",
+            "classes": [],
+            "functions": [
+                "stage",
+                "main"
+            ],
+            "imports": [
+                "json",
+                "datetime",
+                "traceback",
+                "QPX_DOWNLOAD_HISTORICAL_CSV",
+                "QPX_VALIDATE_HISTORICAL_DATA"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_ARCHITECTURE_ANALYZER.py",
+            "classes": [],
+            "functions": [
+                "load",
+                "main"
+            ],
+            "imports": [
+                "json",
+                "os",
+                "datetime",
+                "collections"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_HISTORY_ANALYZER.py.py",
+            "classes": [],
+            "functions": [
+                "load",
+                "read_text",
+                "discover_reports",
+                "detect_status",
+                "detect_step",
+                "build_history",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "re",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_CONTEXT_WRITER.py.py",
+            "classes": [
+                "ContextWriter"
+            ],
+            "functions": [
+                "main",
+                "__init__",
+                "load",
+                "write",
+                "write_header",
+                "write_summary"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_COMPILER_UPGRADER.py.py",
+            "classes": [
+                "CompilerUpgrader"
+            ],
+            "functions": [
+                "main",
+                "__init__",
+                "backup",
+                "load",
+                "save",
+                "syntax_check",
+                "detect_version",
+                "report",
+                "run"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "py_compile"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_CONTEXT_GENERATOR.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_CONTEXT_EXPORTER.py",
+            "classes": [
+                "BaseModule",
+                "ProjectScanner",
+                "PlaceholderModule"
+            ],
+            "functions": [
+                "ensure_structure",
+                "log",
+                "new_context",
+                "write_json",
+                "write_summary",
+                "create_zip",
+                "main",
+                "run",
+                "run",
+                "__init__"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "datetime",
+                "traceback",
+                "zipfile"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_SWING_LIFECYCLE_SETUP.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create"
+            ],
+            "imports": [
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_SWING_LIFECYCLE_RUNNER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "feature_engine",
+                "swing_signal_engine",
+                "swing_trade_lifecycle"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_SIGNAL_ANALYZER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "feature_engine",
+                "swing_signal_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_SWING_SIGNAL_UPGRADE.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_HISTORICAL_VALIDATION_RUNNER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "feature_engine",
+                "swing_signal_engine_v2",
+                "swing_trade_lifecycle"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_DATA_READINESS_CHECKER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "check_database",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_DATA_EXPANSION_MANAGER.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "inspect_data",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_MASTER_DATA_PIPELINE.py",
+            "classes": [],
+            "functions": [
+                "write",
+                "run_script",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "subprocess",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_ALPHA_VANTAGE_PIPELINE.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "load_config",
+                "download_history",
+                "validate_csv",
+                "run",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "subprocess",
+                "sqlite3",
+                "datetime",
+                "urllib.request",
+                "urllib.parse",
+                "csv"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "swing_strategy_v3.py",
+            "classes": [
+                "SwingStrategyV3"
+            ],
+            "functions": [
+                "__init__",
+                "prepare",
+                "generate_signals"
+            ],
+            "imports": [
+                "pandas"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STRATEGY_MANAGER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "ensure_backup_dir",
+                "create_default",
+                "backup_config",
+                "load_config",
+                "save_config",
+                "get_active_strategy",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_CONFIG_MIGRATION_MANAGER.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup",
+                "migrate_v0_to_v2",
+                "migrate",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_MODULE_SCANNER.py",
+            "classes": [],
+            "functions": [
+                "classify",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "ast",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_AI_RECOMMENDATION_ENGINE.py.py",
+            "classes": [
+                "RecommendationEngine"
+            ],
+            "functions": [
+                "main",
+                "__init__",
+                "load",
+                "add",
+                "add_guidance",
+                "analyze_statistics",
+                "analyze_architecture",
+                "analyze_history",
+                "build_guidance",
+                "save",
+                "run"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_DEPENDENCY_ANALYZER.py.py",
+            "classes": [],
+            "functions": [
+                "load",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "datetime",
+                "collections"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "qpx_context.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_CONTEXT_COMPILER.py.py",
+            "classes": [
+                "ContextCompiler"
+            ],
+            "functions": [
+                "main",
+                "__init__",
+                "load_json",
+                "load_everything",
+                "validate",
+                "build_metadata",
+                "build_context",
+                "save",
+                "run"
+            ],
+            "imports": [
+                "os",
+                "json",
+                "pprint",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "quant_platform/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/data/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/data/sqlite_store.py",
+            "classes": [
+                "SQLiteStore"
+            ],
+            "functions": [
+                "__init__",
+                "initialize",
+                "insert_trade"
+            ],
+            "imports": [
+                "sqlite3",
+                "json",
+                "pathlib"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/data/cache_manager.py",
+            "classes": [
+                "MarketCache"
+            ],
+            "functions": [
+                "__init__",
+                "save",
+                "load"
+            ],
+            "imports": [
+                "pathlib",
+                "pandas"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/data/sqlite/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/data/sqlite/database.py",
+            "classes": [
+                "SQLiteDatabase"
+            ],
+            "functions": [
+                "__init__",
+                "connect",
+                "execute",
+                "fetch_all",
+                "close"
+            ],
+            "imports": [
+                "sqlite3",
+                "pathlib"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/data/sqlite/schema.py",
+            "classes": [],
+            "functions": [
+                "create_tables"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/portfolio/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/portfolio/snapshots.py",
+            "classes": [
+                "PortfolioSnapshotManager"
+            ],
+            "functions": [
+                "__init__",
+                "save"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/portfolio/snapshots/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/portfolio/snapshots/snapshot.py",
+            "classes": [
+                "PortfolioSnapshot"
+            ],
+            "functions": [
+                "__init__",
+                "save"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/analytics/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/analytics/mobile_reports.py",
+            "classes": [
+                "MobileReport"
+            ],
+            "functions": [
+                "summary"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/live/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/live/trade_journal.py",
+            "classes": [
+                "TradeJournal"
+            ],
+            "functions": [
+                "__init__",
+                "record"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/live/journal/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/live/journal/trade_journal.py",
+            "classes": [
+                "TradeJournal"
+            ],
+            "functions": [
+                "__init__",
+                "record_trade"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/mobile/csv_importer.py",
+            "classes": [],
+            "functions": [
+                "_resolve_db",
+                "import_csv",
+                "import_market_data",
+                "import_market_csv"
+            ],
+            "imports": [
+                "csv",
+                "sqlite3",
+                "os"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "quant_platform/mobile/__init__.py",
+            "classes": [],
+            "functions": [],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "storage/emulated/0/QPX_ALPHA/QPX_STEP13_LIVE_SIMULATION.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "create_schema",
+                "create_engine",
+                "validate",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "storage/emulated/0/QPX_ALPHA/qpx_step14_controller.py.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "validate_step14_1",
+                "archive_step14_1",
+                "create_step14_2",
+                "launch_step14_2",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "time",
+                "shutil",
+                "datetime",
+                "subprocess"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "step10_repair_backup/validate_step10_backtesting_engine.py",
+            "classes": [],
+            "functions": [
+                "report"
+            ],
+            "imports": [
+                "traceback",
+                "datetime",
+                "backtesting_engine",
+                "signal_engine",
+                "backtesting_engine",
+                "database",
+                "query_engine",
+                "feature_engine",
+                "signal_engine"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "step10_repair_backup/repair_step10_backtesting_engine.py",
+            "classes": [],
+            "functions": [
+                "repair_trade_event_schema",
+                "repair_performance_metrics",
+                "repair_query_compatibility",
+                "run_repair"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "step10_repair_backup/backtesting_engine.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "step10_repair_backup/repair_step10_backtesting_engine_validation.py",
+            "classes": [],
+            "functions": [
+                "create_trade_event",
+                "validate_trade_schema",
+                "generate_performance_metrics",
+                "repair_backtest_output"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/main.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "quant_platform.data.sqlite_store",
+                "quant_platform.live.trade_journal"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/database.py",
+            "classes": [
+                "Database"
+            ],
+            "functions": [
+                "get_database",
+                "__init__",
+                "save_trade",
+                "query"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/query_engine.py",
+            "classes": [],
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/feature_engine.py",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "functions": [
+                "run_feature_engine",
+                "__init__",
+                "load_market_data",
+                "calculate_features",
+                "run"
+            ],
+            "imports": [
+                "sqlite3",
+                "pandas"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/signal_engine.py",
+            "classes": [
+                "SignalEngine"
+            ],
+            "functions": [
+                "generate_signal",
+                "validate_signal_schema",
+                "__init__",
+                "generate_signal",
+                "_calculate_score",
+                "_confidence"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/backtesting_engine.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/trade_event_schema_v2.py",
+            "classes": [],
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_auto_fix.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_old",
+                "create_v4",
+                "run_test",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "subprocess",
+                "sys"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_pipeline_smoke_test_v3.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "check_database",
+                "run_feature_engine",
+                "run_signal_engine",
+                "run_backtest",
+                "check_tables",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_094103/qpx_step12_pipeline_smoke_test_v4.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "step10_auto_backup/backtesting_engine.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "step10_auto_backup/repair_step10_backtesting_engine.py",
+            "classes": [],
+            "functions": [
+                "repair_trade_event_schema",
+                "repair_performance_metrics",
+                "repair_query_compatibility",
+                "run_repair"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "json",
+                "datetime",
+                "trade_event_schema_v2"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/main.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "quant_platform.data.sqlite_store",
+                "quant_platform.live.trade_journal"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/database.py",
+            "classes": [
+                "Database"
+            ],
+            "functions": [
+                "get_database",
+                "__init__",
+                "save_trade",
+                "query"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/query_engine.py",
+            "classes": [],
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/feature_engine.py",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "functions": [
+                "run_feature_engine",
+                "__init__",
+                "load_market_data",
+                "calculate_features",
+                "run"
+            ],
+            "imports": [
+                "sqlite3",
+                "pandas"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/signal_engine.py",
+            "classes": [
+                "SignalEngine"
+            ],
+            "functions": [
+                "generate_signal",
+                "validate_signal_schema",
+                "__init__",
+                "generate_signal",
+                "_calculate_score",
+                "_confidence"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/backtesting_engine.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/trade_event_schema_v2.py",
+            "classes": [],
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/paper_trading_engine.py",
+            "classes": [
+                "PaperTradingEngine"
+            ],
+            "functions": [
+                "__init__",
+                "execute_signal",
+                "get_trades"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/position_manager.py",
+            "classes": [
+                "PositionManager"
+            ],
+            "functions": [
+                "__init__",
+                "open_position",
+                "get_positions"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/risk_controller.py",
+            "classes": [
+                "RiskController"
+            ],
+            "functions": [
+                "__init__",
+                "validate_trade"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/live_trade_journal.py",
+            "classes": [
+                "LiveTradeJournal"
+            ],
+            "functions": [
+                "__init__",
+                "record",
+                "get_entries"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/step13_runtime_check.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "paper_trading_engine",
+                "position_manager",
+                "risk_controller",
+                "live_trade_journal"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/persistent_paper_trader.py",
+            "classes": [
+                "PersistentPaperTrader"
+            ],
+            "functions": [
+                "__init__",
+                "execute"
+            ],
+            "imports": [
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/persistent_position_manager.py",
+            "classes": [
+                "PersistentPositionManager"
+            ],
+            "functions": [
+                "__init__",
+                "open"
+            ],
+            "imports": [
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/persistent_journal.py",
+            "classes": [
+                "PersistentJournal"
+            ],
+            "functions": [
+                "__init__",
+                "record"
+            ],
+            "imports": [
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP13_LIVE_SIMULATION/paper_trading_lifecycle.py",
+            "classes": [
+                "PaperTradingLifecycle"
+            ],
+            "functions": [
+                "__init__",
+                "open_trade",
+                "close_trade",
+                "hold"
+            ],
+            "imports": [
+                "sqlite3",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "archive_repairs/qpx_step4_repair_v3.py",
+            "classes": [],
+            "functions": [
+                "backup",
+                "repair"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/qpx_step4_repair_v4.py",
+            "classes": [],
+            "functions": [
+                "make_backup",
+                "repair"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/qpx_step4_repair_v5.py",
+            "classes": [],
+            "functions": [
+                "backup_file",
+                "repair"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_mobile_runner_step4.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "archive_repairs/mobile_runner_step4_repair_precheck_backup.py",
+            "classes": [],
+            "functions": [
+                "start"
+            ],
+            "imports": [
+                "sys",
+                "quant_platform.data.sqlite.database",
+                "quant_platform.data.sqlite.schema",
+                "quant_platform.data.sqlite.database",
+                "quant_platform.data.sqlite.schema",
+                "quant_platform.mobile"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_csv_importer_schema.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "pathlib",
+                "shutil",
+                "re",
+                "sys"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step5_runner_import.py",
+            "classes": [],
+            "functions": [
+                "create_backup",
+                "repair_import_reference",
+                "validate",
+                "main"
+            ],
+            "imports": [
+                "pathlib",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step5_validator_database.py",
+            "classes": [],
+            "functions": [
+                "backup_validator",
+                "validate_database",
+                "repair_validator_path",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "sqlite3"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step5_validator_database_v2.py",
+            "classes": [],
+            "functions": [
+                "check_database",
+                "backup_validator",
+                "repair_validator_path",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "sqlite3"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step5_schema_restore_v1.py",
+            "classes": [],
+            "functions": [
+                "backup_database",
+                "get_tables",
+                "restore_schema"
+            ],
+            "imports": [
+                "sqlite3",
+                "shutil",
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step5_import_pipeline_v1.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "find_csv",
+                "inspect_csv",
+                "load_importer",
+                "database_count",
+                "find_import_function",
+                "execute_import",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "importlib.util",
+                "traceback",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step5_import_pipeline_v2.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step5_import_pipeline_v3.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_database",
+                "repair_schema",
+                "locate_csv",
+                "run_import",
+                "verify",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "shutil",
+                "glob",
+                "datetime",
+                "traceback",
+                "quant_platform.mobile"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step8_feature_engine.py",
+            "classes": [],
+            "functions": [
+                "create_feature_engine",
+                "validate_database",
+                "test_feature_engine",
+                "run_step8_validation"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "traceback",
+                "feature_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/validate_step10_backtesting_engine.py",
+            "classes": [],
+            "functions": [
+                "report"
+            ],
+            "imports": [
+                "traceback",
+                "datetime",
+                "trade_event_schema_v2",
+                "backtesting_engine",
+                "signal_engine",
+                "backtesting_engine",
+                "database",
+                "query_engine",
+                "feature_engine",
+                "signal_engine"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "archive_repairs/repair_step10_backtesting_engine.py",
+            "classes": [],
+            "functions": [
+                "repair_trade_event_schema",
+                "repair_performance_metrics",
+                "repair_query_compatibility",
+                "run_repair"
+            ],
+            "imports": [
+                "os",
+                "sys",
+                "json",
+                "datetime",
+                "trade_event_schema_v2"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/repair_step10_backtesting_engine_validation.py",
+            "classes": [],
+            "functions": [
+                "create_trade_event",
+                "validate_trade_schema",
+                "generate_performance_metrics",
+                "repair_backtest_output"
+            ],
+            "imports": [
+                "datetime",
+                "uuid",
+                "trade_event_schema_v2"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/step10_backtesting_engine_repair.py",
+            "classes": [],
+            "functions": [
+                "normalize_trade_event",
+                "validate_trade_schema",
+                "validate_closed_trade_lifecycle",
+                "regenerate_metrics",
+                "repair_step10_backtest_output"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/step10 repsir i hope.py",
+            "classes": [
+                "Step10ValidationError"
+            ],
+            "functions": [
+                "generate_trade_id",
+                "normalize_trade_event",
+                "validate_trade_schema",
+                "calculate_drawdown",
+                "regenerate_metrics",
+                "finalize_step10_backtest"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/step10_maximum_repair.py",
+            "classes": [],
+            "functions": [
+                "normalize_trade_event",
+                "validate_trade_schema_v2",
+                "normalize_closed_trades",
+                "regenerate_metrics",
+                "finalize_step10_payload"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "archive_repairs/qpx_step10_auto_repair.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_file",
+                "find_files",
+                "create_trade_schema",
+                "patch_metrics_file",
+                "patch_backtest_file",
+                "locate_and_patch",
+                "run_validation",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "re",
+                "subprocess",
+                "pathlib",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/step10_encoding_repair_resume.py",
+            "classes": [],
+            "functions": [
+                "detect_encoding",
+                "convert_to_utf8",
+                "repair_encoding",
+                "resume_step10_repair",
+                "validate_files",
+                "main"
+            ],
+            "imports": [
+                "pathlib",
+                "shutil",
+                "subprocess",
+                "sys"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/step10continued repairs.py",
+            "classes": [],
+            "functions": [
+                "utc_timestamp",
+                "load_existing_trades",
+                "normalize_trade",
+                "validate_closed_trade",
+                "regenerate_metrics",
+                "validate_schema",
+                "main"
+            ],
+            "imports": [
+                "json",
+                "os",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/step10_repair_assistant.py",
+            "classes": [],
+            "functions": [
+                "find_step10_files",
+                "scan_for_trade_bug",
+                "validate_trade_schema",
+                "test_trade_event",
+                "create_backup",
+                "generate_report"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "json"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/auto_repair_step10.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_file",
+                "remove_bad_trade_patch",
+                "create_step10_validator",
+                "scan_files",
+                "run_repair"
+            ],
+            "imports": [
+                "pathlib",
+                "shutil",
+                "json",
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "archive_repairs/validate_step10_runtime.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "backtesting_engine"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP14_2/step14_2.py",
+            "classes": [],
+            "functions": [
+                "main"
+            ],
+            "imports": [
+                "os",
+                "datetime",
+                "sqlite3"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_INTELLIGENCE/modules/architecture.py",
+            "classes": [
+                "ArchitectureAnalyzer"
+            ],
+            "functions": [
+                "save",
+                "__init__",
+                "analyze",
+                "scan_file"
+            ],
+            "imports": [
+                "ast",
+                "os",
+                "json"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/main.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "quant_platform.data.sqlite_store",
+                "quant_platform.live.trade_journal"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/database.py",
+            "classes": [
+                "Database"
+            ],
+            "functions": [
+                "get_database",
+                "__init__",
+                "save_trade",
+                "query"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/query_engine.py",
+            "classes": [],
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/feature_engine.py",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "functions": [
+                "run_feature_engine",
+                "__init__",
+                "load_market_data",
+                "calculate_features",
+                "run"
+            ],
+            "imports": [
+                "sqlite3",
+                "pandas"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/signal_engine.py",
+            "classes": [
+                "SignalEngine"
+            ],
+            "functions": [
+                "generate_signal",
+                "validate_signal_schema",
+                "__init__",
+                "generate_signal",
+                "_calculate_score",
+                "_confidence"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/backtesting_engine.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/trade_event_schema_v2.py",
+            "classes": [],
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_auto_fix.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_old",
+                "create_v4",
+                "run_test",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "subprocess",
+                "sys"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_pipeline_smoke_test_v3.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "check_database",
+                "run_feature_engine",
+                "run_signal_engine",
+                "run_backtest",
+                "check_tables",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_114038/qpx_step12_pipeline_smoke_test_v4.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/main.py",
+            "classes": [],
+            "functions": [],
+            "imports": [
+                "quant_platform.data.sqlite_store",
+                "quant_platform.live.trade_journal"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/database.py",
+            "classes": [
+                "Database"
+            ],
+            "functions": [
+                "get_database",
+                "__init__",
+                "save_trade",
+                "query"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/query_engine.py",
+            "classes": [],
+            "functions": [
+                "execute_query",
+                "fetch_data"
+            ],
+            "imports": [],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/feature_engine.py",
+            "classes": [
+                "FeatureEngine"
+            ],
+            "functions": [
+                "run_feature_engine",
+                "__init__",
+                "load_market_data",
+                "calculate_features",
+                "run"
+            ],
+            "imports": [
+                "sqlite3",
+                "pandas"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/signal_engine.py",
+            "classes": [
+                "SignalEngine"
+            ],
+            "functions": [
+                "generate_signal",
+                "validate_signal_schema",
+                "__init__",
+                "generate_signal",
+                "_calculate_score",
+                "_confidence"
+            ],
+            "imports": [
+                "datetime"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/backtesting_engine.py",
+            "classes": [
+                "BacktestEngine"
+            ],
+            "functions": [
+                "run_backtest",
+                "__init__",
+                "run",
+                "generate_metrics"
+            ],
+            "imports": [
+                "trade_event_schema_v2"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/trade_event_schema_v2.py",
+            "classes": [],
+            "functions": [
+                "normalize_trade",
+                "validate_trade"
+            ],
+            "imports": [
+                "datetime",
+                "uuid"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_auto_fix.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "backup_old",
+                "create_v4",
+                "run_test",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "shutil",
+                "datetime",
+                "subprocess",
+                "sys"
+            ],
+            "entry_point": false
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_pipeline_smoke_test_v3.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "check_database",
+                "run_feature_engine",
+                "run_signal_engine",
+                "run_backtest",
+                "check_tables",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": true
+        },
+        {
+            "path": "QPX_STEP12_OPERATIONAL_BACKUP_20260724_115000/qpx_step12_pipeline_smoke_test_v4.py",
+            "classes": [],
+            "functions": [
+                "log",
+                "main"
+            ],
+            "imports": [
+                "os",
+                "sqlite3",
+                "datetime",
+                "feature_engine",
+                "signal_engine",
+                "backtesting_engine"
+            ],
+            "entry_point": false
+        }
+    ],
+    "summary": {
+        "python_files": 206,
+        "classes": 56,
+        "functions": 689,
+        "imports": 600,
+        "entry_points": 105
+    }
+}

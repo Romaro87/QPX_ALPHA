@@ -122,3 +122,4 @@ Required Trade Schema:
   "return_pct": 0,
   "strategy": ""
 }
+# QPX_ALPHA

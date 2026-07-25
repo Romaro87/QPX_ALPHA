@@ -1,0 +1,28 @@
+{
+    "timestamp": "2026-07-25_122621",
+    "created": "2026-07-25T12:26:21.176223",
+    "files": [
+        "PROJECT_SUMMARY.md",
+        "QPX_AI_BOOTSTRAP.md",
+        "README_CONTEXT.md",
+        "architecture.json",
+        "dependency_analysis.json",
+        "manifest.json",
+        "metrics.json",
+        "project_graph.json",
+        "qpx_context.py"
+    ],
+    "total_files": 9,
+    "total_size": 127193,
+    "sha256": {
+        "PROJECT_SUMMARY.md": "2bb2e357f286b67cfe1e067c98420167fcbd7de7b7a5c53c70e034721ba30209",
+        "QPX_AI_BOOTSTRAP.md": "c59c6937a1e0e777e6c4c0e36c2f6d796e350c5a11bb65dc17063d0f48c55251",
+        "README_CONTEXT.md": "97631f2ed4dfc34521491c9acd021011f63348be9c25b97dcc2cd08c335e8aec",
+        "architecture.json": "c58894db4343229d6f991aef10c6ab17222f266475f7c02958ba03e6d0989ea7",
+        "dependency_analysis.json": "eb0d87052e6f9e29c97f0dbaceb8f43d16b5446f187add6b14f4284c944a3642",
+        "manifest.json": "1abecc8fa107c59988d9ef09da252cfaad1426b38020d761f8a34b496f798e72",
+        "metrics.json": "54c37731d7d5e2ea52816e28d7be77ff824884fe491a1dd67bf3ebbf5f16f9c4",
+        "project_graph.json": "d6d91c07716a82fd2d66091be9d2f09e8c52ad031adf2ae7dfd12ce16f75622d",
+        "qpx_context.py": "114ef94df595e52516a08b9adbbfb1c8607a97215f3f5e3bb533ce0b99b501d3"
+    }
+}

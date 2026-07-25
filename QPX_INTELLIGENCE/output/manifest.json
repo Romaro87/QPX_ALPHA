@@ -1,0 +1,17 @@
+{
+    "project": "QPX Alpha",
+    "generated": "2026-07-25T12:23:40.912397",
+    "health": "Excellent",
+    "files": [
+        "architecture.json",
+        "dependency_analysis.json",
+        "history.json",
+        "recommendations.json",
+        "metrics.json",
+        "project_graph.json",
+        "qpx_context.py",
+        "QPX_AI_BOOTSTRAP.md",
+        "PROJECT_SUMMARY.md",
+        "README_CONTEXT.md"
+    ]
+}
