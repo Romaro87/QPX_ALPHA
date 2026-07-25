@@ -1,3 +1,10 @@
+from pathlib import Path
+import textwrap
+
+ROOT = Path("/storage/emulated/0/QPX_ALPHA")
+TOOLS = ROOT / "tools"
+
+doctor = textwrap.dedent("""
 import importlib
 import platform
 from pathlib import Path
@@ -88,3 +95,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+""").strip()
+
+(TOOLS / "doctor.py").write_text(
+    doctor + "\n",
+    encoding="utf-8"
+)
+
+print("=" * 60)
+print("Doctor v2 Created")
+print("=" * 60)
+print("Run:")
+print("python -m tools.doctor")
