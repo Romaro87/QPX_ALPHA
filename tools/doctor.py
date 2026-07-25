@@ -1,90 +1,125 @@
-import importlib
-import platform
 from pathlib import Path
+import subprocess
+import sys
 
-ROOT = Path(__file__).resolve().parent.parent
-
-CHECKS = [
-    ("Configuration", "core.config"),
-    ("Logger", "core.logger"),
-    ("Health Service", "core.health"),
-    ("Service Registry", "core.registry"),
-    ("Module Registry", "core.module_registry"),
-    ("Launcher", "app.launcher"),
-    ("Dashboard", "dashboard"),
-]
-
-DIRECTORIES = [
-    "data",
-    "logs",
-    "reports",
-    "cache",
-]
+ROOT = Path(__file__).resolve().parents[1]
 
 
-def check_import(module):
+def exists(path):
+    return (ROOT / path).exists()
+
+
+def check(title, condition):
+    status = "PASS" if condition else "FAIL"
+    print(f"{title:<30}{status}")
+    return condition
+
+
+def count(pattern):
+    return len(list(ROOT.glob(pattern)))
+
+
+def repository_clean():
     try:
-        importlib.import_module(module)
-        return True
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        return len(result.stdout.strip()) == 0
     except Exception:
         return False
 
 
-def status(label, ok):
-    print(f"{label:.<30}{'PASS' if ok else 'FAIL'}")
-    return ok
+def check_adr_sequence():
+    adr_dir = ROOT / "docs" / "adr"
+
+    if not adr_dir.exists():
+        return False
+
+    files = sorted(adr_dir.glob("ADR-*.md"))
+
+    numbers = []
+
+    for f in files:
+        try:
+            numbers.append(int(f.stem.split("-")[1]))
+        except Exception:
+            pass
+
+    if not numbers:
+        return False
+
+    expected = list(range(min(numbers), max(numbers) + 1))
+
+    return numbers == expected
 
 
-def main():
+def doctor():
 
-    print("=" * 50)
-    print("QPX_ALPHA Doctor")
-    print("=" * 50)
+    print("=" * 60)
+    print("QPX_ALPHA DOCTOR v3")
+    print("=" * 60)
+
+    checks = []
+
+    checks.append(check("Python", sys.version_info.major >= 3))
+
+    checks.append(check("Git Repository", exists(".git")))
+
+    checks.append(check("Git Ignore", exists(".gitignore")))
+
+    checks.append(check("README", exists("README.md") or exists("readme.md")))
+
+    checks.append(check("Constitution", exists("docs/CONSTITUTION.md")))
+
+    checks.append(check("Architecture", exists("docs/ARCHITECTURE.md")))
+
+    checks.append(check("Roadmap", exists("docs/ROADMAP.md")))
+
+    checks.append(check("Project Charter", exists("docs/PROJECT_CHARTER.md")))
+
+    checks.append(check("Changelog", exists("docs/CHANGELOG.md")))
+
+    checks.append(check("ADR Sequence", check_adr_sequence()))
+
+    checks.append(check("Module Registry", exists("core/module_registry.py")))
+
+    checks.append(check("Service Registry", exists("core/service_registry.py")))
+
+    checks.append(check("Templates", exists("tools/templates")))
+
     print()
 
-    overall = True
+    print("Statistics")
+    print("-" * 60)
 
-    overall &= status(
-        "Python Version",
-        platform.python_version() >= "3.10"
-    )
-
-    overall &= status(
-        "Project Structure",
-        ROOT.exists()
-    )
+    print(f"Modules       : {count('core/*.py')}")
+    print(f"Tests         : {count('tests/test_*.py')}")
+    print(f"Templates     : {count('tools/templates/*')}")
+    print(f"Documents     : {count('docs/**/*.md')}")
+    print(f"Legacy Files  : {count('legacy/**/*')}")
 
     print()
 
-    for label, module in CHECKS:
-        overall &= status(label, check_import(module))
+    clean = repository_clean()
 
-    print()
-    print("Directories")
-    print()
+    print("Repository")
+    print("-" * 60)
 
-    for directory in DIRECTORIES:
-        overall &= status(
-            directory.capitalize(),
-            (ROOT / directory).exists()
-        )
+    print("Status        :", "CLEAN" if clean else "DIRTY")
 
     print()
 
-    overall &= status(
-        "Git Repository",
-        (ROOT / ".git").exists()
-    )
+    overall = all(checks) and clean
 
-    print()
+    print("=" * 60)
 
-    print("=" * 50)
+    print("OVERALL :", "EXCELLENT" if overall else "ATTENTION REQUIRED")
 
-    print(
-        "Overall".ljust(30, "."),
-        "HEALTHY" if overall else "UNHEALTHY"
-    )
+    print("=" * 60)
 
 
 if __name__ == "__main__":
-    main()
+    doctor()
