@@ -1,1 +1,1 @@
-"""QPX_ALPHA Package"""
+from .settings import settings
