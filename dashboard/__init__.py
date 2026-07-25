@@ -1,1 +1,1 @@
-"""QPX_ALPHA Package"""
+from .dashboard import dashboard_module
