@@ -1,92 +1,83 @@
-from pathlib import Path
+"""
+QPX_ALPHA Scaffold Tool
+"""
+
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+from tools.command_router import router
+from tools.generator_engine import GeneratorEngine
+
+generator = GeneratorEngine()
 
 
-def snake(name):
-    out = ""
+router.register(
+    "module",
+    lambda name: generator.generate_module(name)
+)
 
-    for c in name:
-        if c.isupper() and out:
-            out += "_"
+router.register(
+    "service",
+    lambda name: generator.generate_service(name)
+)
 
-        out += c.lower()
+router.register(
+    "package",
+    lambda name: generator.generate_package(name)
+)
 
-    return out
+router.register(
+    "test",
+    lambda name: generator.generate_test(name)
+)
+
+router.register(
+    "readme",
+    lambda name: generator.generate_readme(name)
+)
+
+router.register(
+    "config",
+    lambda name: generator.generate_config(name)
+)
+
+router.register(
+    "plugin",
+    lambda name: generator.generate_plugin(name)
+)
+
+router.register(
+    "adr",
+    lambda name: generator.generate_adr(name)
+)
 
 
-def render(template, **kwargs):
+def usage():
 
-    text = template.read_text()
+    print("=" * 60)
+    print("QPX_ALPHA Scaffold")
+    print("=" * 60)
+    print()
 
-    for k, v in kwargs.items():
-        text = text.replace("{" + k + "}", v)
+    print("Available Commands:")
 
-    return text
+    for command in router.commands():
+        print(" ", command)
 
-
-def write(path, text):
-
-    if path.exists():
-        print("Exists:", path)
-        return
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    path.write_text(text)
-
-    print("Created:", path)
-
-
-def create_module(name):
-
-    module = snake(name)
-
-    tpl = ROOT / "tools/templates/module.tpl"
-
-    test = ROOT / "tools/templates/test.tpl"
-
-    readme = ROOT / "tools/templates/readme.tpl"
-
-    write(
-        ROOT / f"core/{module}.py",
-        render(tpl, class_name=name),
-    )
-
-    write(
-        ROOT / f"tests/test_{module}.py",
-        render(
-            test,
-            class_name=name,
-            module_name=module,
-        ),
-    )
-
-    write(
-        ROOT / f"docs/modules/{module.upper()}.md",
-        render(
-            readme,
-            class_name=name,
-        ),
-    )
+    print()
 
 
 def main():
 
     if len(sys.argv) < 3:
-        print("Usage:")
-        print("python -m tools.scaffold module ModuleName")
+        usage()
         return
 
     command = sys.argv[1]
+    argument = sys.argv[2]
 
-    name = sys.argv[2]
+    router.execute(command, argument)
 
-    if command == "module":
-        create_module(name)
-    else:
-        print("Unknown command")
+    print("Generation complete.")
 
 
 if __name__ == "__main__":
