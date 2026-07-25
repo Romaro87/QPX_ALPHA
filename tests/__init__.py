@@ -1,1 +1,1 @@
-"""QPX_ALPHA Package"""
+"""QPX_ALPHA Test Package"""
