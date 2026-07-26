@@ -1,204 +1,243 @@
-# QPX_ALPHA CONSTITUTION
-
-Version: 1.0
-
-Ratified: Sprint 1 – Foundation
+# QPX_ALPHA Constitution
+## Version 2.0
 
 ---
 
 # Purpose
 
-This Constitution is the highest governing document of the QPX_ALPHA project.
+QPX_ALPHA exists to build and maintain a professional,
+modular, explainable, and testable quantitative investment
+platform.
 
-Every architectural decision, feature request, refactor, and release shall be evaluated against this document.
+The platform shall enable users to:
 
-If any implementation conflicts with this Constitution, the Constitution takes precedence.
+- Design investment strategies
+- Backtest strategies
+- Paper trade strategies
+- Analyze portfolio performance
+- Execute approved strategies
+- Continuously improve through modular development
 
----
-
-# Article I – Mission
-
-QPX_ALPHA exists to become a professional quantitative trading platform built through disciplined engineering and continuous improvement.
-
-The objective is not simply to automate trading.
-
-The objective is to create a maintainable, extensible, intelligent software platform.
-
----
-
-# Article II – Core Values
-
-The project shall always value:
-
-• Simplicity
-
-• Reliability
-
-• Transparency
-
-• Testability
-
-• Documentation
-
-• Performance
-
-• Maintainability
-
-Short-term convenience shall never outweigh long-term quality.
+The platform itself shall remain strategy-agnostic.
 
 ---
 
-# Article III – Architecture
+# Mission
 
-Architecture is the foundation of the platform.
-
-Every new module must strengthen the architecture rather than bypass it.
-
-Temporary solutions must eventually become permanent engineering solutions or be removed.
+To create an open, maintainable investment operating system
+whose decisions are understandable, testable, reproducible,
+and governed by architecture rather than ad-hoc code.
 
 ---
 
-# Article IV – Engineering Standards
+# Vision
 
-Every new module should:
+QPX_ALPHA will become a complete quantitative investment
+platform supporting:
 
-- Have one responsibility.
-- Use descriptive names.
-- Include meaningful documentation.
-- Handle errors gracefully.
-- Produce useful logging where appropriate.
-- Be testable in isolation.
+• Portfolio Management
 
-Duplicated logic should be eliminated whenever practical.
+• Market Analysis
 
----
+• Strategy Development
 
-# Article V – Documentation
+• Strategy Research
 
-Documentation is part of the software.
+• Backtesting
 
-A feature is not considered complete until its documentation has been updated.
+• Paper Trading
 
-The following documents are considered mandatory:
+• Live Trading
 
-PROJECT_CHARTER.md
+• Analytics
 
-ARCHITECTURE.md
+• Artificial Intelligence
 
-ROADMAP.md
-
-CHANGELOG.md
-
-MODULE_INDEX.md
-
-SESSION_LOG.md
-
-DECISIONS.md
-
-ENGINEERING_HANDBOOK.md
-
-CONSTITUTION.md
+• Dividend Portfolio Management
 
 ---
 
-# Article VI – Git
+# Core Principles
 
-GitHub is the canonical source of truth.
+## 1. Architecture Before Implementation
 
-Every meaningful change shall:
+Architecture governs implementation.
 
-Design
+Implementation shall never redefine architecture.
 
-Implement
-
-Test
-
-Commit
-
-Push
-
-No work is considered complete until committed.
+Major architectural changes require an ADR.
 
 ---
 
-# Article VII – Sprint Definition of Done
+## 2. Builder First Development
 
-A sprint is complete only when:
+Whenever practical, new functionality shall be introduced
+through builder scripts.
 
-✓ Code works.
-
-✓ Tests pass.
-
-✓ Documentation updated.
-
-✓ Session log updated.
-
-✓ Changelog updated.
-
-✓ Commit completed.
-
-✓ Changes pushed.
+Builder scripts must generate consistent,
+repeatable project structure.
 
 ---
 
-# Article VIII – Architectural Decisions
+## 3. Modular Design
 
-Major architectural decisions shall be recorded in DECISIONS.md.
+Every subsystem shall have a clear responsibility.
 
-Future contributors should understand not only what changed, but why.
+Modules should be cohesive and loosely coupled.
+
+No orphan modules shall exist.
 
 ---
 
-# Article IX – AI Collaboration
+## 4. Explainability
 
-Artificial intelligence is an engineering collaborator.
+Every trading decision should be explainable.
 
-AI assists with:
+Every calculation should be reproducible.
+
+Every automated action should be traceable.
+
+---
+
+## 5. Testing
+
+Every significant feature should include tests.
+
+The platform should remain deployable at all times.
+
+Broken builds shall not become the project baseline.
+
+---
+
+## 6. Documentation
+
+Documentation is a required deliverable.
+
+Architecture documents remain synchronized
+with implementation.
+
+---
+
+## 7. Version Control
+
+Major milestones shall be committed independently.
+
+Architectural transitions shall be documented.
+
+---
+
+# Investment Platform Principles
+
+QPX_ALPHA is designed to support many investment styles.
+
+The platform shall never hardcode a single strategy.
+
+Strategies should be configurable.
+
+Risk models should be configurable.
+
+Portfolio allocation should be configurable.
+
+Execution rules should be configurable.
+
+---
+
+# Development Methodology
+
+Development follows this lifecycle:
 
 Architecture
 
-Design
+↓
 
-Implementation
+Builder Scripts
 
-Review
-
-Documentation
+↓
 
 Testing
 
-AI does not replace engineering judgment.
+↓
 
-Final approval always belongs to the repository owner.
+Doctor Validation
 
----
+↓
 
-# Article X – The Golden Rule
+Git Commit
 
-No code enters QPX_ALPHA unless it makes the platform:
+↓
 
-Simpler
+Git Push
 
-Stronger
-
-More Maintainable
-
-More Valuable
-
-If uncertain,
-
-choose the solution that improves the long-term health of the platform.
+No milestone is considered complete until all validation
+steps succeed.
 
 ---
 
-# Oath
+# Risk Philosophy
 
-Every contribution should leave QPX_ALPHA in a better state than it was found.
+The platform supports:
+
+Conservative Strategies
+
+Balanced Strategies
+
+Growth Strategies
+
+Aggressive Strategies
+
+Experimental Strategies
+
+Custom Strategies
+
+Risk preferences belong to the strategy,
+not the platform.
 
 ---
 
-"Engineer with purpose.
+# Quality Standards
 
-Trade with intelligence.
+The project shall emphasize:
 
-Build for tomorrow."
+Maintainability
+
+Reliability
+
+Modularity
+
+Consistency
+
+Reproducibility
+
+Transparency
+
+Professional software engineering practices.
+
+---
+
+# Governance
+
+The Constitution is the highest governing document.
+
+The order of authority is:
+
+1. Constitution
+
+2. Architecture Decision Records (ADRs)
+
+3. Project Charter
+
+4. Roadmap
+
+5. Architecture
+
+6. Module Registry
+
+7. Service Registry
+
+8. Implementation
+
+Any conflict shall be resolved by following this hierarchy.
+
+---
+
+End of Constitution
