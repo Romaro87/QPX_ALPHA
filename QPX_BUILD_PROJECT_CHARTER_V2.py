@@ -1,4 +1,24 @@
-# QPX_ALPHA Project Charter
+#!/usr/bin/env python3
+"""
+============================================================
+QPX_BUILD_PROJECT_CHARTER_V2.py
+
+QPX_ALPHA Version 2.0
+Release 2.0
+Platform Transition
+
+Creates:
+
+docs/PROJECT_CHARTER.md
+============================================================
+"""
+
+from pathlib import Path
+
+DOCS = Path("docs")
+DOCS.mkdir(exist_ok=True)
+
+charter = r"""# QPX_ALPHA Project Charter
 ## Version 2.0
 
 ---
@@ -258,3 +278,14 @@ the Constitution and ADRs.
 ---
 
 End of Project Charter
+"""
+
+output = DOCS / "PROJECT_CHARTER.md"
+
+with output.open("w", encoding="utf-8") as f:
+    f.write(charter)
+
+print("=" * 60)
+print("PROJECT CHARTER VERSION 2 INSTALLED")
+print("=" * 60)
+print(output.resolve())
