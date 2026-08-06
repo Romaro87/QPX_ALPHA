@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "market_timezone": "America/New_York",
+  "market_ready_time": "17:15",
+  "maximum_attempts": 2,
+  "retry_delay_seconds": 20,
+  "command_timeout_seconds": 1800,
+  "circuit_breaker_failures": 3,
+  "notify_with_termux_api": true
+}

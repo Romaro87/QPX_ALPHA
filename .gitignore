@@ -43,3 +43,7 @@ qpx_bot/paper_runtime/
 # QPX data-driven selection runtime and reports
 qpx_bot/selection_runtime/
 reports/qpx_symbol_selection/
+
+# QPX automated operations runtime and reports
+qpx_bot/operations_runtime/
+reports/qpx_operations/
