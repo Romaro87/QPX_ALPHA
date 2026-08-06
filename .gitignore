@@ -58,3 +58,7 @@ reports/qpx_session_execution/
 # QPX paper execution qualification runtime and reports
 qpx_bot/qualification_runtime/
 reports/qpx_qualification/
+
+# QPX actual five-year research data and reports
+research_data/qpx_actual_five_year/
+reports/qpx_actual_five_year/
