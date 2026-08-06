@@ -53,6 +53,11 @@ DEFAULT_REPORT_ROOT = (
     / "reports"
     / "qpx_actual_two_year_15m_six"
 )
+DEFAULT_VIX_CACHE = (
+    DEFAULT_DATA_ROOT
+    / "shared"
+    / "CBOE_VIX_DAILY.csv"
+)
 PROVIDER_HOSTS = (
     "https://api.massive.com",
     "https://api.polygon.io",
@@ -315,7 +320,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.23.3"
+                        "AppleWebKit/537.36 QPXBot/1.24.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -716,7 +721,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.23.3"
+                    "AppleWebKit/537.36 QPXBot/1.24.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -842,6 +847,186 @@ def fetch_cboe_vix_daily(
         closes,
         CBOE_VIX_HISTORY_URL,
     )
+
+
+
+
+def _write_vix_daily_cache(
+    path: Path,
+    closes: Mapping[date, float],
+) -> None:
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    temporary = path.with_suffix(
+        path.suffix + ".tmp"
+    )
+
+    with temporary.open(
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as file:
+        writer = csv.writer(file)
+        writer.writerow(
+            (
+                "Date",
+                "Close",
+                "Source",
+                "ObservationPolicy",
+            )
+        )
+
+        for day in sorted(closes):
+            writer.writerow(
+                (
+                    day.isoformat(),
+                    f"{float(closes[day]):.10f}",
+                    CBOE_VIX_HISTORY_URL,
+                    VIX_OBSERVATION_POLICY,
+                )
+            )
+
+    temporary.replace(path)
+
+
+def _read_vix_daily_cache(
+    path: Path,
+) -> dict[date, float]:
+    closes: dict[date, float] = {}
+
+    with path.open(
+        "r",
+        newline="",
+        encoding="utf-8-sig",
+    ) as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            try:
+                day = date.fromisoformat(
+                    str(row["Date"])
+                )
+                close = float(row["Close"])
+            except (
+                KeyError,
+                TypeError,
+                ValueError,
+            ):
+                continue
+
+            if (
+                math.isfinite(close)
+                and close >= 0
+            ):
+                closes[day] = close
+
+    return closes
+
+
+def _validate_vix_daily_coverage(
+    *,
+    closes: Mapping[date, float],
+    start: date,
+    end: date,
+) -> dict[date, float]:
+    earliest = start - timedelta(days=20)
+    filtered = {
+        day: float(value)
+        for day, value in closes.items()
+        if (
+            earliest <= day <= end
+            and math.isfinite(float(value))
+            and float(value) >= 0
+        )
+    }
+
+    if len(filtered) < 480:
+        raise ProviderError(
+            "Official Cboe VIX cache does not cover "
+            "the required two-year period."
+        )
+
+    ordered = sorted(filtered)
+
+    if ordered[0] > start:
+        raise ProviderError(
+            "Official Cboe VIX cache does not include "
+            "a pre-test observation."
+        )
+
+    if (
+        end - ordered[-1]
+    ).days > MAXIMUM_END_STALE_DAYS:
+        raise ProviderError(
+            "Official Cboe VIX cache is stale."
+        )
+
+    return filtered
+
+
+def prepare_cboe_vix_cache(
+    *,
+    start: date,
+    end: date,
+    cache_path: str | Path = DEFAULT_VIX_CACHE,
+    refresh: bool = False,
+) -> tuple[dict[date, float], str, Path]:
+    path = (
+        Path(cache_path)
+        .expanduser()
+        .resolve()
+    )
+
+    if path.exists() and not refresh:
+        try:
+            cached = _read_vix_daily_cache(
+                path
+            )
+            validated = (
+                _validate_vix_daily_coverage(
+                    closes=cached,
+                    start=start,
+                    end=end,
+                )
+            )
+            print(
+                "Reusing validated official Cboe "
+                f"VIX cache: {path}"
+            )
+            return (
+                validated,
+                "LOCAL_VALIDATED_CBOE_CACHE",
+                path,
+            )
+        except (
+            OSError,
+            ProviderError,
+        ):
+            print(
+                "Existing Cboe VIX cache is invalid "
+                "or stale; refreshing it."
+            )
+
+    closes, source = fetch_cboe_vix_daily(
+        start=start,
+        end=end,
+    )
+    validated = _validate_vix_daily_coverage(
+        closes=closes,
+        start=start,
+        end=end,
+    )
+    _write_vix_daily_cache(
+        path,
+        validated,
+    )
+    print(
+        "Official Cboe VIX cache ready: "
+        f"{path}"
+    )
+    return validated, source, path
 
 
 def expand_previous_session_vix(
@@ -1414,7 +1599,7 @@ def _format_report(
         (
             "=" * 78,
             (
-                "QPX BOT v1.23.3 — ACTUAL TWO-YEAR "
+                "QPX BOT v1.24.0 — ACTUAL TWO-YEAR "
                 "15-MINUTE SIX-POSITION BACKTEST"
             ),
             "=" * 78,
@@ -1639,6 +1824,20 @@ def run_backtest(
         requested_start
         - timedelta(days=WARMUP_DAYS)
     )
+
+    print(
+        "VIX preflight: validating official Cboe "
+        "history before any Massive/Polygon requests..."
+    )
+    (
+        vix_closes,
+        vix_source,
+        vix_cache_path,
+    ) = prepare_cboe_vix_cache(
+        start=warmup_start,
+        end=end_session,
+    )
+
     run_id = datetime.now().strftime(
         "%Y%m%d_%H%M%S"
     )
@@ -1663,6 +1862,19 @@ def run_backtest(
     histories: dict[str, list[IntradayBar]] = {}
     provider_hosts: set[str] = set()
     input_paths: dict[str, Path] = {}
+    vix_daily_path = (
+        data_directory
+        / "CBOE_VIX_DAILY.csv"
+    )
+    shutil.copy2(
+        vix_cache_path,
+        vix_daily_path,
+    )
+    input_paths[
+        "CBOE_VIX_DAILY"
+    ] = vix_daily_path
+    provider_hosts.add(vix_source)
+
     data_root_path = (
         Path(data_root)
         .expanduser()
@@ -1719,18 +1931,14 @@ def run_backtest(
         input_paths[logical_symbol] = path
 
     print(
-        "Downloading official Cboe VIX daily closing history..."
-    )
-    vix_closes, vix_source = fetch_cboe_vix_daily(
-        start=warmup_start,
-        end=end_session,
+        "Expanding the validated previous-session "
+        "Cboe VIX cache onto common 15-minute timestamps..."
     )
     vix_bars = expand_previous_session_vix(
         reference_bars=histories["SPY"],
         closes=vix_closes,
     )
     histories["^VIX"] = vix_bars
-    provider_hosts.add(vix_source)
     vix_path = (
         data_directory
         / "VIX_PREVIOUS_SESSION_DAILY_CLOSE_15M.csv"

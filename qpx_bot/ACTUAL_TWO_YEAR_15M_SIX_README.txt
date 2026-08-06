@@ -41,3 +41,33 @@ Production still requires 12,000 covered VIX timestamps. The small
 three-bar deterministic unit fixture passes an explicit three-bar test
 threshold so it can validate previous-session timing without weakening
 the real backtest coverage requirement.
+
+
+V5 split execution workflow
+---------------------------
+
+Installation and Git push are now independent from all slow market-data
+requests.
+
+The installer performs only these network-independent code actions:
+
+1. install the revised source;
+2. run the focused and complete test suites;
+3. commit and push the source;
+4. run the small official Cboe VIX-only preflight;
+5. stop.
+
+The VIX preflight runs before any Massive/Polygon aggregate request and
+writes a stable local cache:
+
+research_data/qpx_actual_two_year_15m_six/shared/CBOE_VIX_DAILY.csv
+
+The long backtest is launched later with:
+
+python QPX_RUN_ACTUAL_TWO_YEAR_15M_SIX.py
+
+That run validates or reuses the VIX cache first. Only after VIX passes
+does it request or reuse ETF and QDTE data.
+
+Market-data CSV files remain local and are excluded from Git. Reports
+record their paths, provenance, and SHA-256 hashes.

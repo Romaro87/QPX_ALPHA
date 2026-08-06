@@ -4,6 +4,7 @@ from pathlib import Path
 from qpx_bot.actual_two_year_15m_six import (
     CBOE_VIX_HISTORY_URL,
     CHUNK_DAYS,
+    DEFAULT_VIX_CACHE,
     INTERVAL_MINUTES,
     SWING_SYMBOLS,
     VIX_OBSERVATION_POLICY,
@@ -11,6 +12,7 @@ from qpx_bot.actual_two_year_15m_six import (
     IntradayBar,
     chunk_ranges,
     expand_previous_session_vix,
+    prepare_cboe_vix_cache,
     subtract_years,
 )
 from qpx_bot.config import BotConfig
@@ -40,6 +42,10 @@ assert VIX_OBSERVATION_POLICY == (
 assert CBOE_VIX_HISTORY_URL.endswith(
     "/VIX_History.csv"
 )
+assert DEFAULT_VIX_CACHE.name == (
+    "CBOE_VIX_DAILY.csv"
+)
+assert callable(prepare_cboe_vix_cache)
 
 assert subtract_years(
     date(2024, 2, 29),
@@ -122,6 +128,10 @@ for required in (
     "VIX_History.csv",
     "PREVIOUS_COMPLETED_SESSION_DAILY_CLOSE",
     "fetch_cboe_vix_daily(",
+    "prepare_cboe_vix_cache(",
+    "VIX preflight: validating official Cboe",
+    "LOCAL_VALIDATED_CBOE_CACHE",
+    "CBOE_VIX_DAILY.csv",
     "expand_previous_session_vix(",
     "minimum_bars: int = MINIMUM_TEST_BARS",
     "if len(expanded) < minimum_bars",
@@ -152,6 +162,20 @@ for prohibited in (
     "interpolate(",
 ):
     assert prohibited not in source, prohibited
+
+
+
+run_start = source.index("def run_backtest(")
+preflight_index = source.index(
+    "prepare_cboe_vix_cache(",
+    run_start,
+)
+provider_loop_index = source.index(
+    "for logical_symbol, provider_symbol "
+    "in provider_symbols.items():",
+    run_start,
+)
+assert preflight_index < provider_loop_index
 
 print(
     "QPX Bot Actual Two-Year 15-Minute "
