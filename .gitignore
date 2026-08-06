@@ -77,3 +77,7 @@ reports/qpx_actual_two_year_three_position/
 # QPX 15-minute six-position paper runtime
 qpx_bot/intraday_six_runtime/
 reports/qpx_intraday_six/
+
+# QPX actual two-year 15-minute six-position research
+research_data/qpx_actual_two_year_15m_six/
+reports/qpx_actual_two_year_15m_six/
