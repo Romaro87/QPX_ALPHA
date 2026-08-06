@@ -36,6 +36,7 @@ class MarketRow:
     high: float
     low: float
     close: float
+    adjusted_close: float
     volume: int
 
 
@@ -127,7 +128,7 @@ def _open_json(url: str, timeout_seconds: float) -> Mapping[str, Any]:
         headers={
             "User-Agent": (
                 "Mozilla/5.0 (Linux; Android 14) "
-                "AppleWebKit/537.36 QPXBot/1.7"
+                "AppleWebKit/537.36 QPXBot/1.8"
             ),
             "Accept": "application/json,text/plain,*/*",
             "Accept-Encoding": "identity",
@@ -339,6 +340,18 @@ def extract_market_rows(
     lows = _sequence(quote, "low")
     closes = _sequence(quote, "close")
     volumes = _sequence(quote, "volume")
+    adjusted_groups = indicators.get("adjclose")
+    adjusted_closes: Sequence[Any] = ()
+
+    if (
+        isinstance(adjusted_groups, list)
+        and adjusted_groups
+        and isinstance(adjusted_groups[0], Mapping)
+    ):
+        adjusted_closes = _sequence(
+            adjusted_groups[0],
+            "adjclose",
+        )
 
     rows: list[MarketRow] = []
 
@@ -369,6 +382,12 @@ def extract_market_rows(
             and volumes[index] is not None
             else 0
         )
+        adjusted_value = (
+            adjusted_closes[index]
+            if index < len(adjusted_closes)
+            and adjusted_closes[index] is not None
+            else close_price
+        )
 
         row = MarketRow(
             date=datetime.fromtimestamp(
@@ -379,10 +398,15 @@ def extract_market_rows(
             high=float(high_price),
             low=float(low_price),
             close=float(close_price),
+            adjusted_close=float(adjusted_value),
             volume=max(0, int(float(volume_value))),
         )
 
-        if row.open <= 0 or row.close <= 0:
+        if (
+            row.open <= 0
+            or row.close <= 0
+            or row.adjusted_close <= 0
+        ):
             continue
 
         if row.high < max(row.open, row.close, row.low):
@@ -483,7 +507,15 @@ def _atomic_csv(
 def _write_market(path: Path, rows: Sequence[MarketRow]) -> None:
     _atomic_csv(
         path,
-        ("Date", "Open", "High", "Low", "Close", "Volume"),
+        (
+            "Date",
+            "Open",
+            "High",
+            "Low",
+            "Close",
+            "AdjClose",
+            "Volume",
+        ),
         [
             (
                 row.date.isoformat(),
@@ -491,6 +523,7 @@ def _write_market(path: Path, rows: Sequence[MarketRow]) -> None:
                 f"{row.high:.8f}",
                 f"{row.low:.8f}",
                 f"{row.close:.8f}",
+                f"{row.adjusted_close:.8f}",
                 row.volume,
             )
             for row in rows

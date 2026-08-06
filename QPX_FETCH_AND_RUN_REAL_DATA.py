@@ -67,7 +67,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     print("=" * 76)
-    print("QPX BOT v1.7 — MARKET DATA ACQUISITION + REAL BACKTEST")
+    print("QPX BOT v1.8 — MARKET DATA ACQUISITION + REAL BACKTEST")
     print("=" * 76)
     print(f"Swing symbol : {args.symbol.strip().upper()}")
     print(f"Input folder : {Path(args.input_dir).resolve()}")

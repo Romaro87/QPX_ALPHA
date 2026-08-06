@@ -210,6 +210,7 @@ def run_hybrid_backtest(
     config: BotConfig,
     vix: float | Sequence[float] = 20.0,
     forced_entry_indices: set[int] | None = None,
+    start_trading_index: int = 0,
 ) -> HybridBacktestResult:
     """
     Run the configured Hybrid Dividend + Swing strategy.
@@ -229,6 +230,9 @@ def run_hybrid_backtest(
     if len(swing_candles) < 2:
         raise ValueError("At least two swing candles are required.")
 
+    if not 0 <= start_trading_index < len(swing_candles):
+        raise ValueError("Start trading index is outside the candle series.")
+
     normalized_swing = swing_symbol.strip().upper()
     normalized_income = config.dividend_symbol.strip().upper()
 
@@ -243,7 +247,9 @@ def run_hybrid_backtest(
         for candle in income_candles
     }
     income_dates = [candle.date for candle in income_candles]
-    first_swing_date = swing_candles[0].date
+    first_swing_date = (
+        swing_candles[start_trading_index].date
+    )
 
     if income_dates[0] > first_swing_date:
         raise ValueError(
@@ -297,7 +303,11 @@ def run_hybrid_backtest(
         first_swing_date.month,
     )
 
-    for index, swing_candle in enumerate(swing_candles):
+    for index in range(
+        start_trading_index,
+        len(swing_candles),
+    ):
+        swing_candle = swing_candles[index]
         while (
             income_pointer + 1 < len(income_candles)
             and income_candles[income_pointer + 1].date
@@ -545,7 +555,9 @@ def run_hybrid_backtest(
     return HybridBacktestResult(
         swing_symbol=normalized_swing,
         income_symbol=normalized_income,
-        start_date=swing_candles[0].date,
+        start_date=swing_candles[
+            start_trading_index
+        ].date,
         end_date=swing_candles[-1].date,
         starting_cash=config.starting_cash,
         total_contributions=total_external_contributions,

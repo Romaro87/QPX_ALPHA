@@ -157,7 +157,7 @@ def run_real_data_backtest(
         "generated_at_utc": datetime.now(
             timezone.utc
         ).isoformat(),
-        "qpx_version": "1.7.0",
+        "qpx_version": "1.8.0",
         "swing_symbol": swing_symbol.strip().upper(),
         "common_start": validation.common_start.isoformat(),
         "common_end": validation.common_end.isoformat(),
@@ -228,7 +228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     missing = [path for path in paths.values() if not path.exists()]
 
     print("=" * 74)
-    print("QPX BOT v1.7 — REAL HISTORICAL DATA RUNNER")
+    print("QPX BOT v1.8 — REAL HISTORICAL DATA RUNNER")
     print("=" * 74)
     print(f"Input folder : {Path(args.input_dir).resolve()}")
     print(f"Output folder: {Path(args.output_dir).resolve()}")

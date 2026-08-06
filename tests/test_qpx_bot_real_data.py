@@ -137,6 +137,6 @@ with TemporaryDirectory() as temporary_directory:
 
     manifest = artifacts["manifest"].read_text(encoding="utf-8")
     assert '"sha256"' in manifest
-    assert '"qpx_version": "1.7.0"' in manifest
+    assert '"qpx_version": "1.8.0"' in manifest
 
 print("QPX Bot Real Historical Data Pipeline PASS")
