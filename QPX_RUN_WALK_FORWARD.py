@@ -42,7 +42,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Run rolling QPX training/testing windows and compare "
-            "unseen results with adjusted-close SPY buy-and-hold."
+            "unseen results with matched adjusted-close buy-and-hold."
         )
     )
     parser.add_argument(
@@ -53,7 +53,11 @@ def _parser() -> argparse.ArgumentParser:
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
     )
-    parser.add_argument("--symbol", default="SPY")
+    parser.add_argument(
+        "--symbol",
+        required=True,
+        help="Explicit swing and matched benchmark ticker.",
+    )
     parser.add_argument("--train-bars", type=int, default=252)
     parser.add_argument("--test-bars", type=int, default=63)
     parser.add_argument("--step-bars", type=int, default=63)
@@ -67,7 +71,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     missing = [path for path in paths.values() if not path.exists()]
 
     print("=" * 78)
-    print("QPX BOT v1.8 — WALK-FORWARD + SPY BENCHMARK RUNNER")
+    print("QPX BOT v1.10 — WALK-FORWARD + MATCHED BENCHMARK RUNNER")
     print("=" * 78)
 
     if missing:

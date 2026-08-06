@@ -39,3 +39,7 @@ reports/qpx_paper/
 
 # QPX persistent paper runtime
 qpx_bot/paper_runtime/
+
+# QPX data-driven selection runtime and reports
+qpx_bot/selection_runtime/
+reports/qpx_symbol_selection/

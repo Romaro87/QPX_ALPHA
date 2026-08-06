@@ -427,7 +427,7 @@ def format_walk_forward_report(
 
     lines = [
         "=" * 78,
-        "QPX BOT v1.8 — WALK-FORWARD OUT-OF-SAMPLE VALIDATION",
+        "QPX BOT v1.10 — WALK-FORWARD OUT-OF-SAMPLE VALIDATION",
         "=" * 78,
         f"Symbol                    : {result.symbol}",
         f"Training window           : {result.train_bars} bars",
@@ -447,18 +447,18 @@ def format_walk_forward_report(
             f"{percent(strategy.total_return)}"
         ),
         (
-            "SPY contribution-adjusted return : "
-            f"{percent(benchmark.total_return)}"
+            f"{result.symbol} contribution-adjusted "
+            f"return : {percent(benchmark.total_return)}"
         ),
         f"QPX CAGR                         : {percent(strategy.cagr)}",
-        f"SPY CAGR                         : {percent(benchmark.cagr)}",
+        f"{result.symbol} CAGR                         : {percent(benchmark.cagr)}",
         f"CAGR advantage                   : {percent(result.cagr_advantage)}",
         f"QPX Sharpe                       : {ratio(strategy.sharpe_ratio)}",
-        f"SPY Sharpe                       : {ratio(benchmark.sharpe_ratio)}",
+        f"{result.symbol} Sharpe                       : {ratio(benchmark.sharpe_ratio)}",
         f"QPX Sortino                      : {ratio(strategy.sortino_ratio)}",
-        f"SPY Sortino                      : {ratio(benchmark.sortino_ratio)}",
+        f"{result.symbol} Sortino                      : {ratio(benchmark.sortino_ratio)}",
         f"QPX maximum drawdown             : {percent(strategy.maximum_drawdown)}",
-        f"SPY maximum drawdown             : {percent(benchmark.maximum_drawdown)}",
+        f"{result.symbol} maximum drawdown             : {percent(benchmark.maximum_drawdown)}",
         f"QPX swing exposure               : {percent(strategy.exposure)}",
         "-" * 78,
         "WINDOWS",
@@ -472,7 +472,7 @@ def format_walk_forward_report(
                 f"test {window.test_start}..{window.test_end} | "
                 f"{window.selected_candidate} | "
                 f"QPX CAGR {percent(window.strategy_metrics.cagr)} | "
-                f"SPY CAGR {percent(window.benchmark_metrics.cagr)} | "
+                f"{result.symbol} CAGR {percent(window.benchmark_metrics.cagr)} | "
                 f"alpha {percent(window.cagr_advantage)}"
             )
         )

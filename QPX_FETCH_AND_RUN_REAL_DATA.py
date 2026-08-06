@@ -29,8 +29,8 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--symbol",
-        default="SPY",
-        help="Swing ticker to download. Default: SPY.",
+        required=True,
+        help="Explicit swing ticker to download.",
     )
     parser.add_argument(
         "--input-dir",

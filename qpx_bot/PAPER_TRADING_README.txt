@@ -3,7 +3,7 @@ QPX PERSISTENT PAPER TRADING
 
 Daily command:
 
-python QPX_RUN_PAPER.py --symbol SPY
+python QPX_RUN_AUTO_PAPER.py
 
 The runner:
 

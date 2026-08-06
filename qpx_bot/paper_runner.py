@@ -85,7 +85,7 @@ def _format_status(payload) -> str:
     money = lambda value: f"${float(value):,.2f}"
     lines = [
         "=" * 76,
-        "QPX BOT v1.9 — PERSISTENT PAPER ACCOUNT",
+        "QPX BOT v1.10 — PERSISTENT PAPER ACCOUNT",
         "=" * 76,
         f"Mode                  : {payload['mode']}",
         f"State ID              : {payload['state_id']}",
@@ -170,7 +170,14 @@ def _parser() -> argparse.ArgumentParser:
             "QPX simulated paper account."
         )
     )
-    parser.add_argument("--symbol", default="SPY")
+    parser.add_argument(
+        "--symbol",
+        default=None,
+        help=(
+            "Explicit swing ticker. The recommended "
+            "auto runner selects one without a default."
+        ),
+    )
     parser.add_argument(
         "--input-dir",
         default=str(DEFAULT_INPUT_DIR),
@@ -268,6 +275,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(_format_status(payload))
             return 0
 
+        if not args.symbol:
+            print(
+                "No swing symbol was supplied. Use "
+                "QPX_RUN_AUTO_PAPER.py or --symbol TICKER."
+            )
+            return 2
+
+        symbol = args.symbol.strip().upper()
+
         input_directory = Path(
             args.input_dir
         ).expanduser().resolve()
@@ -280,7 +296,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 / datetime.now().strftime("%Y%m%d_%H%M%S")
             )
             download_real_dataset(
-                swing_symbol=args.symbol,
+                swing_symbol=symbol,
                 input_directory=input_directory,
                 backup_directory=backup,
             )
@@ -319,7 +335,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if store.exists():
             state = store.load()
 
-            if state.swing_symbol != args.symbol.strip().upper():
+            if state.swing_symbol != symbol:
                 raise RuntimeError(
                     "Saved paper symbol does not match --symbol. "
                     "Use the same symbol as the existing state."
@@ -335,7 +351,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ]
         else:
             state, initialization = create_initial_state(
-                swing_symbol=args.symbol,
+                swing_symbol=symbol,
                 income_symbol=config.dividend_symbol,
                 start_date=latest_swing.date,
                 income_price=latest_income.close,
