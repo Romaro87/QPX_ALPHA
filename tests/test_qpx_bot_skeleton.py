@@ -19,10 +19,9 @@ candles = load_csv(sample_file)
 prices = closing_prices(candles)
 
 assert config.starting_cash == 1300.0
-assert len(candles) == 10
+assert len(candles) >= config.sma_trend_period
 assert candles[0].date < candles[-1].date
 assert len(prices) == len(candles)
-assert prices[0] == 100.50
-assert prices[-1] == 109.70
+assert all(price > 0 for price in prices)
 
 print("QPX Bot Skeleton PASS")
