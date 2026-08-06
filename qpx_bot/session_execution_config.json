@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "market_timezone": "America/New_York",
+  "regular_session_open": "09:30",
+  "opening_window_start": "09:35",
+  "opening_window_end": "10:30",
+  "regular_session_close": "16:00",
+  "intraday_interval": "1m",
+  "intraday_range": "1d",
+  "maximum_gap_atr_multiple": 1.5,
+  "maximum_quote_attempts": 4,
+  "quote_timeout_seconds": 20.0,
+  "extended_hours_enabled": false
+}

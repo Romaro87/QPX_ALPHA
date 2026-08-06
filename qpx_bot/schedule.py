@@ -1,4 +1,4 @@
-"""Install and manage the local Termux cron schedule for QPX."""
+"""Install and manage local Termux schedules for QPX."""
 
 from __future__ import annotations
 
@@ -40,29 +40,67 @@ def remove_qpx_cron_block(content: str) -> str:
     return "\n".join(output)
 
 
+def _cron_command(
+    script: Path,
+    *,
+    home: Path,
+    prefix: Path,
+) -> str:
+    return (
+        f'HOME="{home}" '
+        f'PATH="{prefix / "bin"}:/system/bin" '
+        f'"{script}"'
+    )
+
+
 def build_qpx_cron_block(
     script_path: str | Path,
     *,
     home: str | Path,
     prefix: str | Path,
 ) -> str:
-    script = Path(script_path).expanduser().resolve()
-    home_path = Path(home).expanduser().resolve()
-    prefix_path = Path(prefix).expanduser().resolve()
-    command = (
-        f'HOME="{home_path}" '
-        f'PATH="{prefix_path / "bin"}:/system/bin" '
-        f'"{script}"'
+    analysis_script = Path(
+        script_path
+    ).expanduser().resolve()
+    session_script = analysis_script.with_name(
+        "QPX_TERMUX_SESSION.sh"
+    )
+    home_path = Path(
+        home
+    ).expanduser().resolve()
+    prefix_path = Path(
+        prefix
+    ).expanduser().resolve()
+    session_command = _cron_command(
+        session_script,
+        home=home_path,
+        prefix=prefix_path,
+    )
+    analysis_command = _cron_command(
+        analysis_script,
+        home=home_path,
+        prefix=prefix_path,
     )
 
     return "\n".join(
         [
             CRON_BEGIN,
             (
-                "# Hourly evening checks; the Python runner "
-                "executes only once per completed market session."
+                "# Regular-session checks. Python gates "
+                "execution to 09:35-10:30 New York time."
             ),
-            f"15 16-23 * * 1-5 {command}",
+            (
+                f"*/15 6-12 * * 1-5 "
+                f"{session_command}"
+            ),
+            (
+                "# After-close analysis. This job stages "
+                "instructions but cannot fill entries."
+            ),
+            (
+                f"15 16-23 * * 1-5 "
+                f"{analysis_command}"
+            ),
             CRON_END,
         ]
     )
@@ -92,14 +130,18 @@ def _write_crontab(content: str) -> None:
 
 
 def _ensure_cronie() -> None:
-    if shutil.which("crontab") and shutil.which("crond"):
+    if (
+        shutil.which("crontab")
+        and shutil.which("crond")
+    ):
         return
 
     pkg = shutil.which("pkg")
 
     if pkg is None:
         raise RuntimeError(
-            "Termux pkg command was not found; cannot install cronie."
+            "Termux pkg command was not found; "
+            "cannot install cronie."
         )
 
     subprocess.run(
@@ -107,10 +149,13 @@ def _ensure_cronie() -> None:
         check=True,
     )
 
-    if not shutil.which("crontab") or not shutil.which("crond"):
+    if (
+        not shutil.which("crontab")
+        or not shutil.which("crond")
+    ):
         raise RuntimeError(
-            "cronie installation completed but cron commands "
-            "are still unavailable."
+            "cronie installed but cron commands "
+            "remain unavailable."
         )
 
 
@@ -127,18 +172,30 @@ def _start_crond() -> None:
         if running.returncode == 0:
             return
 
-    subprocess.run(["crond"], check=True)
+    subprocess.run(
+        ["crond"],
+        check=True,
+    )
 
 
 def _write_boot_script(prefix: Path) -> Path:
-    boot_directory = Path.home() / ".termux" / "boot"
-    boot_directory.mkdir(parents=True, exist_ok=True)
-    path = boot_directory / "qpx-start-crond.sh"
+    boot_directory = (
+        Path.home() / ".termux" / "boot"
+    )
+    boot_directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    path = (
+        boot_directory / "qpx-start-crond.sh"
+    )
     path.write_text(
         (
             f"#!{prefix / 'bin' / 'sh'}\n"
-            f'export PATH="{prefix / "bin"}:/system/bin:$PATH"\n'
-            'pgrep -x crond >/dev/null 2>&1 || crond\n'
+            f'export PATH="{prefix / "bin"}:'
+            '/system/bin:$PATH"\n'
+            "pgrep -x crond >/dev/null 2>&1 "
+            "|| crond\n"
         ),
         encoding="utf-8",
     )
@@ -153,25 +210,46 @@ def _write_scheduler_status(
     script_path: Path,
     boot_script: Path | None,
 ) -> Path:
-    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    RUNTIME_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
     path = RUNTIME_DIR / "scheduler.json"
     payload = {
         "backend": backend,
         "installed": installed,
-        "script_path": str(script_path),
+        "analysis_script": str(script_path),
+        "session_script": str(
+            script_path.with_name(
+                "QPX_TERMUX_SESSION.sh"
+            )
+        ),
         "boot_script": (
             str(boot_script)
             if boot_script
             else None
         ),
-        "schedule": "15 16-23 * * 1-5",
+        "regular_session_schedule": (
+            "*/15 6-12 * * 1-5"
+        ),
+        "regular_session_gate": (
+            "09:35-10:30 America/New_York"
+        ),
+        "extended_hours": False,
+        "analysis_schedule": (
+            "15 16-23 * * 1-5"
+        ),
+        "analysis_gate": (
+            "17:15 America/New_York"
+        ),
         "timezone": "device local time",
-        "market_gate": "17:15 America/New_York",
         "updated_at_utc": datetime.now(
             timezone.utc
         ).isoformat(),
     }
-    temporary = path.with_suffix(".json.tmp")
+    temporary = path.with_suffix(
+        ".json.tmp"
+    )
     temporary.write_text(
         json.dumps(payload, indent=2) + "\n",
         encoding="utf-8",
@@ -184,12 +262,23 @@ def install_schedule(
     script_path: str | Path,
 ) -> Path:
     _ensure_cronie()
-    script = Path(script_path).expanduser().resolve()
+    script = Path(
+        script_path
+    ).expanduser().resolve()
+    session_script = script.with_name(
+        "QPX_TERMUX_SESSION.sh"
+    )
 
     if not script.exists():
         raise FileNotFoundError(script)
 
+    if not session_script.exists():
+        raise FileNotFoundError(
+            session_script
+        )
+
     script.chmod(0o700)
+    session_script.chmod(0o700)
     prefix = Path(
         os.environ.get(
             "PREFIX",
@@ -211,7 +300,9 @@ def install_schedule(
     )
     _write_crontab(updated)
     _start_crond()
-    boot_script = _write_boot_script(prefix)
+    boot_script = _write_boot_script(
+        prefix
+    )
     return _write_scheduler_status(
         backend="cronie",
         installed=True,
@@ -244,7 +335,10 @@ def _parser():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Install or remove QPX Termux scheduling."
+        description=(
+            "Install or remove QPX regular-session "
+            "and after-close schedules."
+        )
     )
     action = parser.add_mutually_exclusive_group()
     action.add_argument(
@@ -264,20 +358,31 @@ def _parser():
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+) -> int:
     args = _parser().parse_args(argv)
 
     if args.remove:
-        status = remove_schedule(args.script)
-        print(f"QPX daily schedule removed: {status}")
+        status = remove_schedule(
+            args.script
+        )
+        print(
+            f"QPX schedules removed: {status}"
+        )
         return 0
 
-    status = install_schedule(args.script)
-    print(f"QPX daily schedule installed: {status}")
+    status = install_schedule(
+        args.script
+    )
     print(
-        "Cron checks hourly from 16:15 through 23:15 local "
-        "time on weekdays; the market gate and session ledger "
-        "prevent early or duplicate paper runs."
+        f"QPX schedules installed: {status}"
+    )
+    print(
+        "Regular-session checks are gated to "
+        "09:35-10:30 New York time. After-close "
+        "jobs analyze completed bars only. "
+        "Extended-hours execution is disabled."
     )
     return 0
 

@@ -253,8 +253,10 @@ def process_paper_day(
     """
     Process exactly one new daily bar.
 
-    Pending entries fill at the next bar's open. Stops and targets use
-    that bar's OHLC. New entry signals are created only after the close.
+    Pending entries are never filled by after-close analysis. The
+    regular-session runner consumes them during the next opening
+    window. Stops and targets use completed regular-session OHLC for
+    post-session reconciliation. New signals are created after close.
     """
     config.validate()
     state.validate()
@@ -376,74 +378,9 @@ def process_paper_day(
             )
         )
 
-    if (
-        state.pending_entry is not None
-        and state.position is None
-        and state.pending_entry.signal_date < current_date
-    ):
-        pending = state.pending_entry
-        order_key = pending.order_id
-
-        if order_key not in state.completed_order_keys:
-            combined_equity = _mark_equity(
-                state,
-                swing_price=candle.open,
-                income_price=income_candle.open,
-            )
-            sizing = calculate_position_size(
-                account_equity=combined_equity,
-                available_cash=state.swing_cash,
-                entry_price=candle.open,
-                atr=pending.signal_atr,
-                active_risk=0.0,
-                config=config,
-                trade_results_r=state.trade_results_r,
-            )
-
-            if sizing.is_tradeable:
-                cost = sizing.entry_fill * sizing.shares
-                state.swing_cash -= cost
-                state.position = PersistentPosition(
-                    symbol=state.swing_symbol,
-                    shares=sizing.shares,
-                    entry_date=current_date,
-                    entry_price=sizing.entry_fill,
-                    entry_atr=pending.signal_atr,
-                    stop_price=sizing.stop_price,
-                    target_price=sizing.target_price,
-                    highest_price=sizing.entry_fill,
-                )
-                event_type = "ENTRY_FILLED"
-                details = {
-                    "order_id": order_key,
-                    "shares": sizing.shares,
-                    "fill_price": sizing.entry_fill,
-                    "cost": cost,
-                    "stop_price": sizing.stop_price,
-                    "target_price": sizing.target_price,
-                    "planned_risk": sizing.planned_risk,
-                }
-            else:
-                event_type = "ENTRY_REJECTED"
-                details = {
-                    "order_id": order_key,
-                    "reason": sizing.blocked_reason,
-                    "available_cash": state.swing_cash,
-                    "combined_equity": combined_equity,
-                }
-
-            state.completed_order_keys.append(order_key)
-            events.append(
-                _event(
-                    state=state,
-                    event_type=event_type,
-                    event_date=current_date,
-                    unique=order_key,
-                    details=details,
-                )
-            )
-
-        state.pending_entry = None
+    # Staged entries are consumed only by qpx_bot.session_execution
+    # during the next regular-session opening window. After-close
+    # processing must never fill or clear a pending entry.
 
     if state.position is not None and current_atr is not None:
         live_position = _as_position(state.position)
@@ -510,6 +447,10 @@ def process_paper_day(
                         "reason": (
                             exit_evaluation.reason or "EXIT"
                         ),
+                        "execution_session": (
+                            "REGULAR_SESSION_RECONCILIATION"
+                        ),
+                        "extended_hours": False,
                     },
                 )
             )
@@ -575,7 +516,10 @@ def process_paper_day(
                             "order_id": order_id,
                             "signal_atr": current_atr,
                             "triggers": list(triggers),
-                            "execution": "NEXT_DAILY_OPEN",
+                            "execution": (
+                                "NEXT_REGULAR_SESSION_OPENING_WINDOW"
+                            ),
+                            "extended_hours": False,
                         },
                     )
                 )

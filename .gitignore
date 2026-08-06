@@ -51,3 +51,6 @@ reports/qpx_operations/
 # QPX verified backup runtime and reports
 qpx_bot/backup_runtime/
 reports/qpx_backup/
+
+# QPX regular-session execution reports
+reports/qpx_session_execution/

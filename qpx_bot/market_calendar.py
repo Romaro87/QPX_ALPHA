@@ -232,6 +232,24 @@ def previous_market_session(
     return current
 
 
+
+def next_market_session(
+    day: date,
+    *,
+    include_day: bool = False,
+) -> date:
+    current = (
+        day
+        if include_day
+        else day + timedelta(days=1)
+    )
+
+    while not is_market_session(current):
+        current += timedelta(days=1)
+
+    return current
+
+
 def latest_completed_session(
     current: datetime | None = None,
     *,
