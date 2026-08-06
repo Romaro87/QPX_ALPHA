@@ -21,6 +21,17 @@ cd "${ROOT}" || exit 1
 "${PYTHON_BIN}" QPX_RUN_DAILY_OPERATIONS.py >>"${LOG_FILE}" 2>&1
 status=$?
 
+if [ "${status}" -eq 0 ]; then
+    "${PYTHON_BIN}" QPX_BACKUP_RUNTIME.py \
+        --create \
+        --drill-latest >>"${LOG_FILE}" 2>&1
+    backup_status=$?
+
+    if [ "${backup_status}" -ne 0 ]; then
+        status="${backup_status}"
+    fi
+fi
+
 if [ "${wake_locked}" -eq 1 ] \
     && command -v termux-wake-unlock >/dev/null 2>&1; then
     termux-wake-unlock >/dev/null 2>&1 || true

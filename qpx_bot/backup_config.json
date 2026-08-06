@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "archive_directory_name": "QPX_ALPHA_BACKUPS",
+  "retention_archives": 30,
+  "require_successful_session": true,
+  "notify_with_termux_api": true
+}

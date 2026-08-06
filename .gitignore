@@ -47,3 +47,7 @@ reports/qpx_symbol_selection/
 # QPX automated operations runtime and reports
 qpx_bot/operations_runtime/
 reports/qpx_operations/
+
+# QPX verified backup runtime and reports
+qpx_bot/backup_runtime/
+reports/qpx_backup/
