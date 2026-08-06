@@ -1,98 +1,43 @@
-QPX ACTUAL TWO-YEAR 15-MINUTE SIX-POSITION BACKTEST
-====================================================
+QPX ACTUAL TWO-YEAR 15-MINUTE SIX-POSITION BACKTEST — CBOE VIX
+================================================================
 
-Purpose
--------
+The Massive/Polygon key downloaded the ETF histories but returned HTTP
+403 for I:VIX because the account is not entitled to that index ticker.
 
-This research runner replays the active QPX 15-minute strategy over two
-completed years using actual provider bars.
+This revision does not fabricate VIX values and does not use an ETF
+proxy. It downloads Cboe's official daily VIX closing history.
 
-It does not alter the active paper account or its scheduled runtime.
+For each 15-minute session bar, the VIX gate uses the official close
+from the previous completed market session. Monday therefore uses
+Friday's official close. Tuesday uses Monday's official close.
 
-Why a second provider is required
----------------------------------
+This prevents look-ahead. It is real VIX data, but it is deliberately
+lagged daily data rather than unavailable intraday VIX data. The report,
+manifest, and provenance files disclose that distinction.
 
-The active Yahoo paper feed requests only 60 days of 15-minute history.
-That is sufficient for live paper scanning but cannot support a genuine
-two-year 15-minute replay.
+DIA, IWM, QQQ, SPY, XLE, XLF, XLK, XLV, and QDTE continue to use actual
+15-minute Massive/Polygon bars. The runner reuses validated files from
+the incomplete download, avoiding repeated rate-limited requests. A
+symbol is downloaded again only if its cache is missing or incomplete.
 
-The backtest therefore uses the Massive/Polygon aggregate API:
+Actual QDTE dividend records still come from the authenticated provider.
 
-- nine stock/ETF histories:
-  DIA, IWM, QQQ, SPY, XLE, XLF, XLK, XLV, QDTE;
-- the actual VIX index history using I:VIX;
-- actual QDTE dividend records.
+The runner aborts instead of using synthetic or interpolated ETF bars,
+daily ETF bars in place of intraday bars, a volatility ETF proxy,
+fabricated VIX values, fake distributions, or forced trades.
 
-A Massive or Polygon API key with access to the requested stock and
-index history is required. The installer asks for the key using hidden
-terminal input. It does not save, print, commit, or push the key.
+Rankings remain removed. The six-position cap, risk controls, next-bar
+execution, ATR exits, contributions, allocation rules, slippage, and tax
+reserves remain unchanged. Live brokerage remains disabled.
 
-No fallback policy
-------------------
+Research simulation only. Historical results do not guarantee future
+performance.
 
-The runner aborts instead of substituting:
 
-- daily bars;
-- synthetic bars;
-- interpolated bars;
-- placeholder VIX values;
-- placeholder QDTE distributions;
-- forced entries.
+V4 unit-test correction
+-----------------------
 
-Strategy reproduced
--------------------
-
-- all eight swing ETFs checked on every common completed 15-minute bar;
-- rankings removed;
-- up to six concurrent positions;
-- next-common-bar opening execution;
-- 1.5 ATR opening-gap rejection;
-- quarter-Kelly sizing;
-- 1% base risk per position;
-- 6% aggregate active-risk cap;
-- 2.5 ATR stop;
-- 5 ATR target;
-- trailing activation after 3 ATR;
-- VIX entry ceiling of 28;
-- existing trend, momentum, breakout, and volume filters;
-- $1,300 QDTE seed;
-- $1,500 swing liquidity;
-- $2,000 monthly contributions;
-- 65/35 allocation through the first two complete years;
-- exact-date transition to 40/60;
-- slippage and realized-gain tax reserves.
-
-Coverage controls
------------------
-
-The downloader requests 75 calendar days of pre-test warmup and the
-latest two completed years. It filters to regular-session bars and uses
-only timestamps present in every required history.
-
-The run requires:
-
-- at least 12,000 common 15-minute test bars;
-- at least 480 market sessions;
-- at least 200 pre-test bars for every required series;
-- a current end date;
-- actual QDTE dividend events.
-
-Outputs
--------
-
-reports/qpx_actual_two_year_15m_six/<RUN_ID>/
-    actual_two_year_15m_report.txt
-    actual_two_year_15m_result.json
-    actual_two_year_15m_equity.csv
-    actual_two_year_15m_trades.csv
-    actual_two_year_15m_signals.csv
-    actual_two_year_15m_allocations.csv
-    actual_two_year_15m_diagnostics.json
-    actual_two_year_15m_provenance.json
-
-research_data/qpx_actual_two_year_15m_six/<RUN_ID>/
-    actual provider CSV files
-    QDTE_DIVIDENDS.csv
-    DOWNLOAD_MANIFEST.json
-
-Research simulation only. Live brokerage remains disabled.
+Production still requires 12,000 covered VIX timestamps. The small
+three-bar deterministic unit fixture passes an explicit three-bar test
+threshold so it can validate previous-session timing without weakening
+the real backtest coverage requirement.

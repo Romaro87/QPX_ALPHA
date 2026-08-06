@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+from bisect import bisect_left
 import csv
 import getpass
 import hashlib
 import json
 import math
 import os
+import shutil
 import time
 import urllib.error
 import urllib.parse
@@ -66,7 +68,14 @@ SWING_SYMBOLS = (
     "XLV",
 )
 INCOME_SYMBOL = "QDTE"
-VIX_PROVIDER_SYMBOL = "I:VIX"
+VIX_PROVIDER_SYMBOL = "CBOE_VIX_PREVIOUS_SESSION_CLOSE"
+CBOE_VIX_HISTORY_URL = (
+    "https://cdn.cboe.com/api/global/us_indices/"
+    "daily_prices/VIX_History.csv"
+)
+VIX_OBSERVATION_POLICY = (
+    "PREVIOUS_COMPLETED_SESSION_DAILY_CLOSE"
+)
 INTERVAL_MINUTES = 15
 CHUNK_DAYS = 90
 WARMUP_DAYS = 75
@@ -162,6 +171,7 @@ class BacktestResult:
     swing_symbols: tuple[str, ...]
     income_symbol: str
     vix_symbol: str
+    vix_observation_policy: str
     rankings_enabled: bool
     maximum_concurrent_positions: int
     maximum_observed_positions: int
@@ -305,7 +315,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.23"
+                        "AppleWebKit/537.36 QPXBot/1.23.3"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -553,6 +563,347 @@ def fetch_aggregate_history(
         )
 
     return bars, provider_host
+
+
+
+def _read_cached_bars(
+    path: Path,
+) -> list[IntradayBar]:
+    bars: list[IntradayBar] = []
+
+    with path.open(
+        "r",
+        newline="",
+        encoding="utf-8-sig",
+    ) as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            try:
+                start = datetime.fromisoformat(
+                    str(row["TimestampMarket"])
+                ).astimezone(NEW_YORK)
+                values = (
+                    float(row["Open"]),
+                    float(row["High"]),
+                    float(row["Low"]),
+                    float(row["Close"]),
+                )
+                volume = int(
+                    float(row.get("Volume", 0) or 0)
+                )
+            except (
+                KeyError,
+                TypeError,
+                ValueError,
+            ):
+                continue
+
+            wall = start.time().replace(
+                tzinfo=None
+            )
+
+            if not all(
+                math.isfinite(value)
+                and value > 0
+                for value in values
+            ):
+                continue
+
+            if not (
+                clock_time(9, 30)
+                <= wall
+                < clock_time(16, 0)
+            ):
+                continue
+
+            if (
+                start.minute
+                % INTERVAL_MINUTES
+                != 0
+            ):
+                continue
+
+            bars.append(
+                IntradayBar(
+                    start=start,
+                    open=values[0],
+                    high=values[1],
+                    low=values[2],
+                    close=values[3],
+                    volume=max(
+                        0,
+                        volume,
+                    ),
+                )
+            )
+
+    deduplicated = {
+        bar.start.isoformat(): bar
+        for bar in bars
+    }
+    return sorted(
+        deduplicated.values(),
+        key=lambda bar: bar.start,
+    )
+
+
+def _find_valid_cached_history(
+    *,
+    data_root: Path,
+    logical_symbol: str,
+    start: date,
+    end: date,
+    exclude_directory: Path,
+) -> tuple[list[IntradayBar], Path] | None:
+    filename = (
+        logical_symbol
+        .replace("^", "")
+        .replace(":", "_")
+        + "_15M.csv"
+    )
+    candidates = [
+        path
+        for path in data_root.glob(
+            f"*/{filename}"
+        )
+        if (
+            path.is_file()
+            and path.parent.resolve()
+            != exclude_directory.resolve()
+        )
+    ]
+    candidates.sort(
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+    for path in candidates:
+        try:
+            bars = _read_cached_bars(path)
+        except OSError:
+            continue
+
+        if len(bars) < MINIMUM_TEST_BARS:
+            continue
+
+        if (
+            bars[0].start.date()
+            > start + timedelta(days=10)
+        ):
+            continue
+
+        if (
+            end - bars[-1].start.date()
+        ).days > MAXIMUM_END_STALE_DAYS:
+            continue
+
+        return bars, path
+
+    return None
+
+
+def _download_text(
+    url: str,
+    *,
+    attempts: int = 5,
+) -> str:
+    last_error: Exception | None = None
+
+    for attempt in range(attempts):
+        request = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Linux; Android 14) "
+                    "AppleWebKit/537.36 QPXBot/1.23.3"
+                ),
+                "Accept": "text/csv,text/plain,*/*",
+                "Accept-Encoding": "identity",
+                "Connection": "close",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(
+                request,
+                timeout=45.0,
+            ) as response:
+                return response.read().decode(
+                    "utf-8-sig"
+                )
+        except (
+            OSError,
+            urllib.error.URLError,
+            UnicodeDecodeError,
+        ) as exc:
+            last_error = exc
+            time.sleep(
+                min(
+                    12.0,
+                    2.0 * (attempt + 1),
+                )
+            )
+
+    raise ProviderError(
+        "Unable to download official Cboe "
+        f"VIX history: {last_error}"
+    )
+
+
+def _parse_cboe_date(
+    raw: str,
+) -> date:
+    value = raw.strip()
+
+    for date_format in (
+        "%m/%d/%Y",
+        "%Y-%m-%d",
+        "%Y/%m/%d",
+    ):
+        try:
+            return datetime.strptime(
+                value,
+                date_format,
+            ).date()
+        except ValueError:
+            continue
+
+    raise ValueError(
+        f"Unsupported Cboe date: {raw!r}"
+    )
+
+
+def fetch_cboe_vix_daily(
+    *,
+    start: date,
+    end: date,
+) -> tuple[dict[date, float], str]:
+    raw = _download_text(
+        CBOE_VIX_HISTORY_URL
+    )
+    reader = csv.DictReader(
+        raw.splitlines()
+    )
+
+    if not reader.fieldnames:
+        raise ProviderError(
+            "Official Cboe VIX CSV has no header."
+        )
+
+    headers = {
+        name.strip().upper(): name
+        for name in reader.fieldnames
+    }
+
+    if (
+        "DATE" not in headers
+        or "CLOSE" not in headers
+    ):
+        raise ProviderError(
+            "Official Cboe VIX CSV is missing "
+            "DATE or CLOSE."
+        )
+
+    closes: dict[date, float] = {}
+    earliest = start - timedelta(days=20)
+
+    for row in reader:
+        try:
+            day = _parse_cboe_date(
+                str(
+                    row[headers["DATE"]]
+                )
+            )
+            close = float(
+                row[headers["CLOSE"]]
+            )
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+        ):
+            continue
+
+        if (
+            earliest <= day <= end
+            and math.isfinite(close)
+            and close >= 0
+        ):
+            closes[day] = close
+
+    if len(closes) < 480:
+        raise ProviderError(
+            "Official Cboe VIX history did not "
+            "cover the required two-year period."
+        )
+
+    return (
+        closes,
+        CBOE_VIX_HISTORY_URL,
+    )
+
+
+def expand_previous_session_vix(
+    *,
+    reference_bars: Sequence[IntradayBar],
+    closes: Mapping[date, float],
+    minimum_bars: int = MINIMUM_TEST_BARS,
+) -> list[IntradayBar]:
+    if minimum_bars < 0:
+        raise ValueError(
+            "Minimum VIX coverage cannot be negative."
+        )
+
+    close_dates = sorted(closes)
+
+    if not close_dates:
+        raise ProviderError(
+            "No official Cboe VIX closes "
+            "are available."
+        )
+
+    expanded: list[IntradayBar] = []
+
+    for bar in reference_bars:
+        index = bisect_left(
+            close_dates,
+            bar.start.date(),
+        ) - 1
+
+        if index < 0:
+            continue
+
+        observation_date = close_dates[index]
+        value = float(
+            closes[observation_date]
+        )
+
+        if (
+            not math.isfinite(value)
+            or value < 0
+        ):
+            continue
+
+        expanded.append(
+            IntradayBar(
+                start=bar.start,
+                open=value,
+                high=value,
+                low=value,
+                close=value,
+                volume=0,
+            )
+        )
+
+    if len(expanded) < minimum_bars:
+        raise ProviderError(
+            "The official previous-session VIX "
+            "series does not cover enough "
+            "15-minute ETF timestamps."
+        )
+
+    return expanded
 
 
 def fetch_qdte_dividends(
@@ -1063,7 +1414,7 @@ def _format_report(
         (
             "=" * 78,
             (
-                "QPX BOT v1.23.1 — ACTUAL TWO-YEAR "
+                "QPX BOT v1.23.3 — ACTUAL TWO-YEAR "
                 "15-MINUTE SIX-POSITION BACKTEST"
             ),
             "=" * 78,
@@ -1082,6 +1433,10 @@ def _format_report(
             ),
             f"Income sleeve              : {result.income_symbol}",
             f"Volatility series          : {result.vix_symbol}",
+            (
+                "VIX observation timing      : "
+                f"{result.vix_observation_policy}"
+            ),
             f"Rankings enabled           : {result.rankings_enabled}",
             (
                 "Concurrent swing slots     : "
@@ -1304,28 +1659,17 @@ def run_backtest(
             for symbol in SWING_SYMBOLS
         },
         INCOME_SYMBOL: INCOME_SYMBOL,
-        "^VIX": VIX_PROVIDER_SYMBOL,
     }
     histories: dict[str, list[IntradayBar]] = {}
     provider_hosts: set[str] = set()
     input_paths: dict[str, Path] = {}
+    data_root_path = (
+        Path(data_root)
+        .expanduser()
+        .resolve()
+    )
 
     for logical_symbol, provider_symbol in provider_symbols.items():
-        print(
-            f"Downloading actual 15-minute history: "
-            f"{logical_symbol} ({provider_symbol})"
-        )
-        bars, host = fetch_aggregate_history(
-            api_key=api_key,
-            provider_symbol=provider_symbol,
-            start=warmup_start,
-            end=end_session,
-            require_volume=(
-                logical_symbol != "^VIX"
-            ),
-        )
-        histories[logical_symbol] = bars
-        provider_hosts.add(host)
         path = (
             data_directory
             / (
@@ -1335,8 +1679,67 @@ def run_backtest(
                 + "_15M.csv"
             )
         )
-        _write_bars(path, bars)
+        cached = _find_valid_cached_history(
+            data_root=data_root_path,
+            logical_symbol=logical_symbol,
+            start=warmup_start,
+            end=end_session,
+            exclude_directory=data_directory,
+        )
+
+        if cached is not None:
+            bars, cached_path = cached
+            print(
+                f"Reusing validated actual 15-minute cache: "
+                f"{logical_symbol} ({cached_path})"
+            )
+            shutil.copy2(
+                cached_path,
+                path,
+            )
+            provider_hosts.add(
+                "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE"
+            )
+        else:
+            print(
+                f"Downloading actual 15-minute history: "
+                f"{logical_symbol} ({provider_symbol})"
+            )
+            bars, host = fetch_aggregate_history(
+                api_key=api_key,
+                provider_symbol=provider_symbol,
+                start=warmup_start,
+                end=end_session,
+                require_volume=True,
+            )
+            provider_hosts.add(host)
+            _write_bars(path, bars)
+
+        histories[logical_symbol] = bars
         input_paths[logical_symbol] = path
+
+    print(
+        "Downloading official Cboe VIX daily closing history..."
+    )
+    vix_closes, vix_source = fetch_cboe_vix_daily(
+        start=warmup_start,
+        end=end_session,
+    )
+    vix_bars = expand_previous_session_vix(
+        reference_bars=histories["SPY"],
+        closes=vix_closes,
+    )
+    histories["^VIX"] = vix_bars
+    provider_hosts.add(vix_source)
+    vix_path = (
+        data_directory
+        / "VIX_PREVIOUS_SESSION_DAILY_CLOSE_15M.csv"
+    )
+    _write_bars(
+        vix_path,
+        vix_bars,
+    )
+    input_paths["^VIX"] = vix_path
 
     dividends, dividend_host = fetch_qdte_dividends(
         api_key=api_key,
@@ -1407,7 +1810,7 @@ def run_backtest(
 
     first_test_time = test_times[0]
 
-    for symbol in provider_symbols:
+    for symbol in histories:
         warmup_count = sum(
             bar.start < first_test_time
             for bar in histories[symbol]
@@ -1444,6 +1847,11 @@ def run_backtest(
             (*SWING_SYMBOLS, INCOME_SYMBOL)
         ),
         "index_symbol": VIX_PROVIDER_SYMBOL,
+        "vix_source_url": CBOE_VIX_HISTORY_URL,
+        "vix_observation_policy": VIX_OBSERVATION_POLICY,
+        "intraday_vix_data": False,
+        "vix_values_are_actual": True,
+        "vix_placeholder": False,
         "bars": {
             symbol: len(bars)
             for symbol, bars in histories.items()
@@ -1461,7 +1869,8 @@ def run_backtest(
         "placeholder_data": False,
         "synthetic_data": False,
         "interpolated_bars": False,
-        "daily_bar_substitution": False,
+        "tradeable_asset_daily_bar_substitution": False,
+        "vix_daily_close_expanded_to_intraday_timestamps": True,
         "forced_entries": False,
         "live_broker_enabled": False,
     }
@@ -2164,8 +2573,8 @@ def run_backtest(
             timezone.utc
         ).isoformat(),
         provider=(
-            "Massive/Polygon stock and index "
-            "aggregate APIs"
+            "Massive/Polygon actual 15-minute ETF bars "
+            "+ official Cboe VIX daily closes"
         ),
         actual_data=True,
         requested_start=requested_start,
@@ -2178,6 +2587,9 @@ def run_backtest(
         swing_symbols=SWING_SYMBOLS,
         income_symbol=INCOME_SYMBOL,
         vix_symbol=VIX_PROVIDER_SYMBOL,
+        vix_observation_policy=(
+            VIX_OBSERVATION_POLICY
+        ),
         rankings_enabled=False,
         maximum_concurrent_positions=6,
         maximum_observed_positions=(
@@ -2410,6 +2822,15 @@ def run_backtest(
             "provider_index_symbol": (
                 VIX_PROVIDER_SYMBOL
             ),
+            "provider_vix_source_url": (
+                CBOE_VIX_HISTORY_URL
+            ),
+            "vix_observation_policy": (
+                VIX_OBSERVATION_POLICY
+            ),
+            "intraday_vix_data": False,
+            "vix_values_are_actual": True,
+            "vix_placeholder": False,
             "provider_dividend_endpoint": (
                 "/stocks/v1/dividends"
             ),
@@ -2448,7 +2869,8 @@ def run_backtest(
             "placeholder_data": False,
             "synthetic_data": False,
             "interpolated_bars": False,
-            "daily_bar_substitution": False,
+            "tradeable_asset_daily_bar_substitution": False,
+        "vix_daily_close_expanded_to_intraday_timestamps": True,
             "forced_entries": False,
             "live_broker_enabled": False,
         },
@@ -2539,7 +2961,7 @@ def main(
     print()
     print(
         "QPX ACTUAL TWO-YEAR 15-MINUTE "
-        "SIX-POSITION BACKTEST V2: COMPLETE"
+        "SIX-POSITION CBOE-VIX BACKTEST V4: COMPLETE"
     )
     return 0
 
