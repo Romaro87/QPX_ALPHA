@@ -46,7 +46,7 @@ def _parser() -> argparse.ArgumentParser:
         "--range",
         dest="range_name",
         default="max",
-        help="Provider history range. Default: max.",
+        help=("Daily window: max/default maps to five years; ""or use 3y through 8y."),
     )
     parser.add_argument(
         "--download-only",

@@ -11,7 +11,8 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from statistics import median
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +61,41 @@ class DownloadSummary:
     manifest_path: Path
 
 
+
+def _daily_period_bounds(
+    range_name: str,
+) -> tuple[int, int, str]:
+    """
+    Convert a requested range into a bounded daily-data window.
+
+    Yahoo can silently downgrade ``range=max`` requests to weekly or
+    monthly bars. QPX therefore requests explicit Unix timestamps.
+    Five years stays inside the provider's daily-history limits while
+    fully covering QDTE's available history.
+    """
+    normalized = range_name.strip().lower()
+    years = 5
+
+    if normalized not in {"", "max", "daily"}:
+        if normalized.endswith("y") and normalized[:-1].isdigit():
+            years = int(normalized[:-1])
+        else:
+            raise ValueError(
+                "History range must be max, daily, or a value such "
+                "as 3y, 5y, or 8y."
+            )
+
+    years = max(1, min(years, 8))
+    end = datetime.now(timezone.utc) + timedelta(days=2)
+    start = end - timedelta(days=366 * years)
+
+    return (
+        int(start.timestamp()),
+        int(end.timestamp()),
+        f"{years}y-daily",
+    )
+
+
 def _chart_url(
     host: str,
     symbol: str,
@@ -67,9 +103,11 @@ def _chart_url(
     range_name: str,
 ) -> str:
     encoded_symbol = urllib.parse.quote(symbol, safe="")
+    period1, period2, _ = _daily_period_bounds(range_name)
     query = urllib.parse.urlencode(
         {
-            "range": range_name,
+            "period1": period1,
+            "period2": period2,
             "interval": "1d",
             "events": "div,splits",
             "includePrePost": "false",
@@ -80,6 +118,7 @@ def _chart_url(
         f"https://{host}/v8/finance/chart/"
         f"{encoded_symbol}?{query}"
     )
+
 
 
 def _open_json(url: str, timeout_seconds: float) -> Mapping[str, Any]:
@@ -134,6 +173,67 @@ def _open_json(url: str, timeout_seconds: float) -> Mapping[str, Any]:
     return result
 
 
+
+def _validate_daily_result(
+    result: Mapping[str, Any],
+    symbol: str,
+) -> None:
+    """Reject provider responses that were silently downsampled."""
+    meta = result.get("meta")
+    granularity = None
+
+    if isinstance(meta, Mapping):
+        raw_granularity = meta.get("dataGranularity")
+        if raw_granularity is not None:
+            granularity = str(raw_granularity).strip().lower()
+
+    if granularity and granularity != "1d":
+        raise YahooDataError(
+            f"{symbol} returned {granularity} bars instead of "
+            "required 1d bars."
+        )
+
+    timestamps = _sequence(result, "timestamp")
+
+    if len(timestamps) < 2:
+        raise YahooDataError(
+            f"{symbol} returned too few observations."
+        )
+
+    dates = [
+        datetime.fromtimestamp(
+            float(timestamp),
+            tz=timezone.utc,
+        ).date()
+        for timestamp in timestamps
+        if timestamp is not None
+    ]
+
+    if len(dates) < 2:
+        raise YahooDataError(
+            f"{symbol} returned too few valid timestamps."
+        )
+
+    gaps = [
+        (current - previous).days
+        for previous, current in zip(dates, dates[1:])
+        if current > previous
+    ]
+
+    if not gaps:
+        raise YahooDataError(
+            f"{symbol} returned no increasing daily dates."
+        )
+
+    typical_gap = float(median(gaps))
+
+    if typical_gap > 4.0:
+        raise YahooDataError(
+            f"{symbol} appears downsampled; median bar gap is "
+            f"{typical_gap:.1f} days."
+        )
+
+
 def fetch_chart(
     symbol: str,
     *,
@@ -141,7 +241,7 @@ def fetch_chart(
     timeout_seconds: float = 30.0,
     maximum_attempts: int = 6,
 ) -> Mapping[str, Any]:
-    """Fetch one daily chart with host failover and backoff."""
+    """Fetch one true daily chart with host failover and backoff."""
     normalized = symbol.strip().upper()
 
     if not normalized:
@@ -161,7 +261,9 @@ def fetch_chart(
         )
 
         try:
-            return _open_json(url, timeout_seconds)
+            result = _open_json(url, timeout_seconds)
+            _validate_daily_result(result, normalized)
+            return result
         except (
             YahooDataError,
             urllib.error.HTTPError,
@@ -183,10 +285,11 @@ def fetch_chart(
                 time.sleep(delay)
 
     raise YahooDataError(
-        f"Unable to download {normalized} after "
+        f"Unable to download true daily {normalized} data after "
         f"{maximum_attempts} attempts.\n"
         + "\n".join(errors)
     )
+
 
 
 def _sequence(
@@ -208,6 +311,13 @@ def extract_market_rows(
     result: Mapping[str, Any],
 ) -> list[MarketRow]:
     """Convert a Yahoo chart result into validated daily rows."""
+    meta = result.get("meta")
+    symbol = "UNKNOWN"
+
+    if isinstance(meta, Mapping):
+        symbol = str(meta.get("symbol") or symbol)
+
+    _validate_daily_result(result, symbol)
     timestamps = _sequence(result, "timestamp")
     indicators = result.get("indicators")
 
@@ -545,7 +655,9 @@ def download_real_dataset(
         "downloaded_at_utc": datetime.now(
             timezone.utc
         ).isoformat(),
-        "range": range_name,
+        "requested_range": range_name,
+        "effective_window": _daily_period_bounds(range_name)[2],
+        "interval": "1d",
         "symbols": {
             "swing": normalized_swing,
             "income": normalized_income,

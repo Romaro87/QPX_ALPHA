@@ -7,6 +7,9 @@ From the QPX_ALPHA project root, run:
 
 python QPX_FETCH_AND_RUN_REAL_DATA.py --symbol SPY
 
+The command requests an explicit five-year daily window so the
+provider cannot silently substitute weekly or monthly bars.
+
 The command downloads:
 
 SWING.csv

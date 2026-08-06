@@ -5,7 +5,11 @@ from tempfile import TemporaryDirectory
 
 from qpx_bot.dividends import load_dividend_csv
 from qpx_bot.real_data import load_market_csv, load_vix_csv
-from qpx_bot.yahoo_data import download_real_dataset
+from qpx_bot.yahoo_data import (
+    YahooDataError,
+    download_real_dataset,
+    extract_market_rows,
+)
 
 
 def make_result(
@@ -51,7 +55,10 @@ def make_result(
         events["dividends"] = dividend_events
 
     return {
-        "meta": {"symbol": symbol},
+        "meta": {
+            "symbol": symbol,
+            "dataGranularity": "1d",
+        },
         "timestamp": timestamps,
         "indicators": {
             "quote": [
@@ -132,5 +139,21 @@ with TemporaryDirectory() as temporary_directory:
     assert manifest["symbols"]["swing"] == "SPY"
     assert manifest["rows"]["dividend_events"] == 4
     assert len(manifest["files"]["swing"]["sha256"]) == 64
+
+
+monthly_result = make_result(
+    symbol="MONTHLY",
+    base_price=100.0,
+    volume=1_000_000,
+    with_dividends=False,
+)
+monthly_result["meta"]["dataGranularity"] = "1mo"
+
+try:
+    extract_market_rows(monthly_result)
+except YahooDataError as exc:
+    assert "instead of required 1d bars" in str(exc)
+else:
+    raise AssertionError("Downsampled market data was not rejected.")
 
 print("QPX Bot Market Data Acquisition PASS")
