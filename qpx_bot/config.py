@@ -28,6 +28,9 @@ class BotConfig:
 
     dividend_symbol: str = "QDTE"
 
+    # Swing opportunity set
+    maximum_swing_positions: int = 3
+
     # Trend and momentum
     ema_fast_period: int = 9
     ema_slow_period: int = 21
@@ -131,6 +134,11 @@ class BotConfig:
         if self.minimum_rebalance_trade < 0:
             raise ValueError(
                 "Minimum rebalance trade cannot be negative."
+            )
+
+        if self.maximum_swing_positions != 3:
+            raise ValueError(
+                "This strategy requires exactly three swing slots."
             )
 
         period_values = {

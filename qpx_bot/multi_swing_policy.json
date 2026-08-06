@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "rankings_enabled": false,
+  "maximum_concurrent_positions": 3,
+  "candidates": [
+    "DIA",
+    "IWM",
+    "QQQ",
+    "SPY",
+    "XLE",
+    "XLF",
+    "XLK",
+    "XLV"
+  ],
+  "signal_evaluation": "all_candidates_daily",
+  "signal_execution": "next_common_session_open",
+  "simultaneous_signal_tiebreak": "sha256_of_signal_date_and_symbol",
+  "symbol_bonus_policy": "none",
+  "live_broker_enabled": false
+}
