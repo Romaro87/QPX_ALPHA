@@ -32,6 +32,16 @@ if [ "${status}" -eq 0 ]; then
     fi
 fi
 
+"${PYTHON_BIN}" QPX_RUN_QUALIFICATION.py \
+    --record-after-close \
+    --command-status "${status}" >>"${LOG_FILE}" 2>&1
+qualification_status=$?
+
+if [ "${status}" -eq 0 ] \
+    && [ "${qualification_status}" -ne 0 ]; then
+    status="${qualification_status}"
+fi
+
 if [ "${wake_locked}" -eq 1 ] \
     && command -v termux-wake-unlock >/dev/null 2>&1; then
     termux-wake-unlock >/dev/null 2>&1 || true

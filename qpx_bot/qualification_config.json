@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "minimum_observation_sessions": 20,
+  "minimum_instruction_outcomes": 3,
+  "minimum_opening_window_coverage": 0.95,
+  "minimum_after_close_coverage": 0.95,
+  "minimum_backup_coverage": 0.90,
+  "minimum_instruction_processing_rate": 0.95,
+  "maximum_missed_window_events": 0,
+  "maximum_stale_instruction_events": 0,
+  "maximum_extended_hours_events": 0,
+  "maximum_duplicate_terminal_orders": 0,
+  "live_broker_enabled": false
+}

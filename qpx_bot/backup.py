@@ -33,6 +33,7 @@ EXACT_FILES = (
     "qpx_bot/operations_config.json",
     "qpx_bot/backup_config.json",
     "qpx_bot/session_execution_config.json",
+"qpx_bot/qualification_config.json",
     "qpx_bot/data_inputs/SWING.csv",
     "qpx_bot/data_inputs/QDTE.csv",
     "qpx_bot/data_inputs/QDTE_DIVIDENDS.csv",
@@ -44,6 +45,9 @@ EXACT_FILES = (
     "reports/qpx_operations/latest_health.json",
     "reports/qpx_session_execution/latest_session_execution.txt",
     "reports/qpx_session_execution/latest_session_execution.json",
+"reports/qpx_qualification/latest_qualification.txt",
+"reports/qpx_qualification/latest_qualification.json",
+"reports/qpx_qualification/session_ledger.csv",
     "reports/qpx_symbol_selection/symbol_selection_report.txt",
     "reports/qpx_symbol_selection/symbol_selection_rankings.csv",
     "reports/qpx_symbol_selection/symbol_selection_result.json",
@@ -53,6 +57,7 @@ RUNTIME_ROOTS = (
     "qpx_bot/paper_runtime",
     "qpx_bot/selection_runtime",
     "qpx_bot/operations_runtime",
+"qpx_bot/qualification_runtime",
 )
 
 RESTORE_ROOTS = RUNTIME_ROOTS
@@ -61,6 +66,7 @@ EXCLUDED_NAMES = {
     "paper.lock",
     "operations.lock",
     "backup.lock",
+"qualification.lock",
 }
 
 EXCLUDED_SUFFIXES = (

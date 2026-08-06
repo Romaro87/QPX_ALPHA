@@ -54,3 +54,7 @@ reports/qpx_backup/
 
 # QPX regular-session execution reports
 reports/qpx_session_execution/
+
+# QPX paper execution qualification runtime and reports
+qpx_bot/qualification_runtime/
+reports/qpx_qualification/
