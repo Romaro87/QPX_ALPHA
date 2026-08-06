@@ -1254,7 +1254,7 @@ def _format_report(
         (
             "=" * 78,
             (
-                "QPX BOT v1.20 — ACTUAL TWO-YEAR "
+                "QPX BOT v1.21.1 — ACTUAL TWO-YEAR "
                 "UNRANKED THREE-POSITION BACKTEST"
             ),
             "=" * 78,
@@ -1672,6 +1672,12 @@ def run_actual_two_year_three_position_backtest(
         actual_start.year,
         actual_start.month,
     )
+    previous_allocation_years = (
+        elapsed_complete_years(
+            actual_start,
+            actual_start,
+        )
+    )
 
     for day in test_dates:
         income_row = income_map[day]
@@ -1694,23 +1700,38 @@ def run_actual_two_year_three_position_backtest(
             )
             dividend_event_count += 1
 
-        if month_key != current_month:
+        current_allocation_years = (
+            elapsed_complete_years(
+                actual_start,
+                day,
+            )
+        )
+        allocation_phase_changed = (
+            current_allocation_years
+            != previous_allocation_years
+        )
+        month_changed = (
+            month_key != current_month
+        )
+        contribution_amount = 0.0
+
+        if month_changed:
             swing.deposit(
                 config.monthly_contribution
             )
-            total_contributions += (
+            contribution_amount = (
                 config.monthly_contribution
             )
-            contribution_count += 1
-            elapsed = (
-                elapsed_complete_years(
-                    actual_start,
-                    day,
-                )
+            total_contributions += (
+                contribution_amount
             )
+            contribution_count += 1
+            current_month = month_key
+
+        if month_changed or allocation_phase_changed:
             target_income_weight, _ = (
                 contribution_allocation(
-                    elapsed,
+                    current_allocation_years,
                     config,
                 )
             )
@@ -1743,9 +1764,11 @@ def run_actual_two_year_three_position_backtest(
                     date=day,
                     event_type=(
                         "MONTHLY_CONTRIBUTION_REBALANCE"
+                        if month_changed
+                        else "ALLOCATION_PHASE_REBALANCE"
                     ),
                     contribution=(
-                        config.monthly_contribution
+                        contribution_amount
                     ),
                     target_income_weight=(
                         target_income_weight
@@ -1771,8 +1794,10 @@ def run_actual_two_year_three_position_backtest(
                     ),
                 )
             )
-            current_month = month_key
 
+        previous_allocation_years = (
+            current_allocation_years
+        )
         if pending:
             pending_items = sorted(
                 pending.values(),
