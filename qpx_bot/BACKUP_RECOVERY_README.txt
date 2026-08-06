@@ -39,14 +39,18 @@ python QPX_BACKUP_RUNTIME.py --restore-latest --confirm-restore
 
 Restore safety:
 
-- Restore is refused while paper or operations locks are active.
+- Restore is refused while paper, operations, or qualification locks
+  are active.
 - A pre-restore safety backup is created first.
 - The requested archive must pass a full isolated recovery drill.
 - The paper kill switch is active during and after restoration.
-- After reviewing reports/qpx_backup/latest_backup.txt and
-  reports/qpx_operations/latest_health.txt, resume with:
+- After reviewing reports/qpx_backup/latest_backup.txt,
+  reports/qpx_operations/latest_health.txt,
+  reports/qpx_session_execution/latest_session_execution.txt, and
+  reports/qpx_qualification/latest_qualification.txt, clear only the
+  restore-owned guard with:
 
-python QPX_RUN_DAILY_OPERATIONS.py --resume
+python QPX_RUN_DAILY_OPERATIONS.py --resume-restored-paper --confirm-resume-restored-paper
 
 Backups include simulated runtime state, current market inputs, and
 latest reports. They do not contain brokerage credentials because QPX

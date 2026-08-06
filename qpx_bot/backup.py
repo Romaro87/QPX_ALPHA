@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import time
 import zipfile
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -33,7 +33,7 @@ EXACT_FILES = (
     "qpx_bot/operations_config.json",
     "qpx_bot/backup_config.json",
     "qpx_bot/session_execution_config.json",
-"qpx_bot/qualification_config.json",
+    "qpx_bot/qualification_config.json",
     "qpx_bot/data_inputs/SWING.csv",
     "qpx_bot/data_inputs/QDTE.csv",
     "qpx_bot/data_inputs/QDTE_DIVIDENDS.csv",
@@ -45,9 +45,9 @@ EXACT_FILES = (
     "reports/qpx_operations/latest_health.json",
     "reports/qpx_session_execution/latest_session_execution.txt",
     "reports/qpx_session_execution/latest_session_execution.json",
-"reports/qpx_qualification/latest_qualification.txt",
-"reports/qpx_qualification/latest_qualification.json",
-"reports/qpx_qualification/session_ledger.csv",
+    "reports/qpx_qualification/latest_qualification.txt",
+    "reports/qpx_qualification/latest_qualification.json",
+    "reports/qpx_qualification/session_ledger.csv",
     "reports/qpx_symbol_selection/symbol_selection_report.txt",
     "reports/qpx_symbol_selection/symbol_selection_rankings.csv",
     "reports/qpx_symbol_selection/symbol_selection_result.json",
@@ -57,7 +57,7 @@ RUNTIME_ROOTS = (
     "qpx_bot/paper_runtime",
     "qpx_bot/selection_runtime",
     "qpx_bot/operations_runtime",
-"qpx_bot/qualification_runtime",
+    "qpx_bot/qualification_runtime",
 )
 
 RESTORE_ROOTS = RUNTIME_ROOTS
@@ -66,7 +66,7 @@ EXCLUDED_NAMES = {
     "paper.lock",
     "operations.lock",
     "backup.lock",
-"qualification.lock",
+    "qualification.lock",
 }
 
 EXCLUDED_SUFFIXES = (
@@ -951,6 +951,7 @@ def create_backup(
     force: bool = False,
     unique: bool = False,
     reason: str = "scheduled",
+    _lock_held: bool = False,
 ) -> BackupResult:
     root = Path(project_root).expanduser().resolve()
     archives = Path(
@@ -963,8 +964,13 @@ def create_backup(
         report_directory
     ).expanduser().resolve()
     archives.mkdir(parents=True, exist_ok=True)
+    lock_context = (
+        nullcontext()
+        if _lock_held
+        else backup_lock(runtime)
+    )
 
-    with backup_lock(runtime):
+    with lock_context:
         paper, journal_records = _paper_snapshot(root)
         operations = _operations_snapshot(root)
         successful_session = (
@@ -1182,6 +1188,10 @@ def _runtime_lock_present(project_root: Path) -> list[Path]:
         / "qpx_bot"
         / "operations_runtime"
         / "operations.lock",
+        project_root
+        / "qpx_bot"
+        / "qualification_runtime"
+        / "qualification.lock",
     ]
     return [
         path
@@ -1236,6 +1246,7 @@ def restore_backup(
             force=True,
             unique=True,
             reason="pre_restore_safety_snapshot",
+            _lock_held=True,
         )
 
         paper_runtime = (
@@ -1245,13 +1256,15 @@ def restore_backup(
             parents=True,
             exist_ok=True,
         )
-        kill_switch = paper_runtime / "KILL_SWITCH"
-        _atomic_text(
-            kill_switch,
+        restore_store = StateStore(
+            paper_runtime
+        )
+        restore_store.activate_kill_switch(
             (
                 "QPX recovery restore in progress. "
-                "Manual resume required.\n"
+                "Manual resume required."
             ),
+            owner="restore_guard",
         )
 
         with tempfile.TemporaryDirectory(
@@ -1315,14 +1328,16 @@ def restore_backup(
             parents=True,
             exist_ok=True,
         )
-        _atomic_text(
-            paper_runtime / "KILL_SWITCH",
+        live_store = StateStore(
+            paper_runtime
+        )
+        live_store.activate_kill_switch(
             (
                 "Restored from verified backup. "
-                "Review health reports, then resume manually.\n"
+                "Review health reports, then resume manually."
             ),
+            owner="restore_guard",
         )
-        live_store = StateStore(paper_runtime)
         live_state = live_store.load()
         _, _, live_records = live_store.verify_journal()
 
@@ -1584,7 +1599,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "QPX VERIFIED RESTORE: COMPLETE\n"
             f"{result.archive_path}\n"
             "Paper trading remains paused. Review health, then "
-            "run QPX_RUN_DAILY_OPERATIONS.py --resume."
+            "run QPX_RUN_DAILY_OPERATIONS.py "
+            "--resume-restored-paper "
+            "--confirm-resume-restored-paper."
         )
 
     return 0

@@ -6,6 +6,7 @@ Primary commands:
 python QPX_RUN_DAILY_OPERATIONS.py
 python QPX_RUN_DAILY_OPERATIONS.py --check-only
 python QPX_RUN_DAILY_OPERATIONS.py --resume
+python QPX_RUN_DAILY_OPERATIONS.py --resume-restored-paper --confirm-resume-restored-paper
 python QPX_SETUP_DAILY_SCHEDULE.py --install
 python QPX_SETUP_DAILY_SCHEDULE.py --remove
 
@@ -29,9 +30,12 @@ Safety and recovery:
 - Persistent paper state must process that same session.
 - State checksum and audit-journal hash chain are verified.
 - Three consecutive failed sessions activate the operations circuit
-  breaker and the existing paper kill switch.
-- Resume only after reviewing reports/qpx_operations/latest_health.txt:
+  breaker. If no independent paper kill switch is already active,
+  operations creates an operations-owned paper kill switch.
+- A normal resume clears only an operations-owned kill switch:
   python QPX_RUN_DAILY_OPERATIONS.py --resume
+- A manual or restore-owned paper kill switch is never cleared by the
+  normal operations resume command.
 - Optional Termux notifications are sent when the Termux:API command
   is available.
 - Every attempt writes a timestamped log and health JSON/TXT report.

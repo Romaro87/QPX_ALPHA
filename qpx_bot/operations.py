@@ -673,31 +673,150 @@ def resume_operations(
     *,
     runtime_directory: Path,
     paper_runtime: Path,
-) -> None:
+) -> tuple[bool, str]:
     state = load_operations_state(runtime_directory)
-    state.paused = False
-    state.consecutive_failures = 0
-    state.last_status = "RESUMED"
-    state.last_message = "Manual operations resume."
-    state.last_recovery_utc = datetime.now(
-        timezone.utc
-    ).isoformat()
-    save_operations_state(runtime_directory, state)
-    (runtime_directory / "OPERATIONS_PAUSED").unlink(
-        missing_ok=True
+    paper_store = StateStore(paper_runtime)
+
+    with paper_store.locked():
+        kill_switch_cleared = (
+            paper_store.deactivate_kill_switch(
+                expected_owner=(
+                    "operations_circuit_breaker"
+                )
+            )
+        )
+        independent_kill_switch = (
+            paper_store.kill_switch_active()
+        )
+        remaining_details = (
+            paper_store.kill_switch_details()
+        )
+
+        state.paused = False
+        state.consecutive_failures = 0
+        state.last_recovery_utc = datetime.now(
+            timezone.utc
+        ).isoformat()
+
+        if independent_kill_switch:
+            state.last_status = (
+                "OPERATIONS_RESUMED_PAPER_PAUSED"
+            )
+            state.last_message = (
+                "Operations circuit breaker reset; "
+                "an independent paper kill switch "
+                "remains active."
+            )
+        else:
+            state.last_status = "RESUMED"
+            state.last_message = (
+                "QPX automated operations resumed."
+            )
+
+        save_operations_state(
+            runtime_directory,
+            state,
+        )
+        (
+            runtime_directory / "OPERATIONS_PAUSED"
+        ).unlink(missing_ok=True)
+        paper_store.append_events(
+            [
+                _operations_event(
+                    "OPERATIONS_RESUMED",
+                    {
+                        "reason": "manual CLI command",
+                        "operations_owned_kill_switch_cleared": (
+                            kill_switch_cleared
+                        ),
+                        "paper_kill_switch_active": (
+                            independent_kill_switch
+                        ),
+                        "remaining_kill_switch_owner": (
+                            remaining_details.get(
+                                "owner"
+                            )
+                            if remaining_details
+                            else None
+                        ),
+                    },
+                )
+            ]
+        )
+
+    return (
+        not independent_kill_switch,
+        state.last_message,
     )
+
+
+def resume_restored_paper(
+    *,
+    paper_runtime: Path,
+    confirm_resume: bool,
+) -> str:
+    if not confirm_resume:
+        raise RuntimeError(
+            "Restored-paper resume requires "
+            "--confirm-resume-restored-paper."
+        )
 
     paper_store = StateStore(paper_runtime)
-    paper_store.deactivate_kill_switch()
-    paper_store.append_events(
-        [
-            _operations_event(
-                "OPERATIONS_RESUMED",
-                {"reason": "manual CLI command"},
-            )
-        ]
-    )
 
+    with paper_store.locked():
+        details = paper_store.kill_switch_details()
+
+        if details is None:
+            return (
+                "No paper kill switch is active. "
+                "No restore guard was changed."
+            )
+
+        if details.get("owner") != "restore_guard":
+            raise RuntimeError(
+                "Refusing to clear a non-restore paper "
+                "kill switch. Owner: "
+                f"{details.get('owner')}"
+            )
+
+        state = paper_store.load()
+        _, _, journal_records = (
+            paper_store.verify_journal()
+        )
+        cleared = paper_store.deactivate_kill_switch(
+            expected_owner="restore_guard"
+        )
+
+        if not cleared:
+            raise RuntimeError(
+                "Restore guard changed during resume."
+            )
+
+        paper_store.append_events(
+            [
+                _operations_event(
+                    "PAPER_RESTORE_RESUMED",
+                    {
+                        "state_id": state.state_id,
+                        "revision": state.revision,
+                        "journal_records_before_resume": (
+                            journal_records
+                        ),
+                        "previous_kill_switch_owner": (
+                            "restore_guard"
+                        ),
+                        "reason": (
+                            "explicit confirmed CLI command"
+                        ),
+                    },
+                )
+            ]
+        )
+
+    return (
+        "Verified restored paper state and audit chain; "
+        "the restore guard is cleared."
+    )
 
 def run_daily_operations(
     *,
@@ -1052,9 +1171,15 @@ def run_daily_operations(
                 state.last_message + "\n",
                 encoding="utf-8",
             )
-            paper_store.activate_kill_switch(
-                "QPX automated operations circuit breaker"
+            existing_kill_switch = (
+                paper_store.kill_switch_details()
             )
+
+            if existing_kill_switch is None:
+                paper_store.activate_kill_switch(
+                    "QPX automated operations circuit breaker",
+                    owner="operations_circuit_breaker",
+                )
             paper_store.append_events(
                 [
                     _operations_event(
@@ -1141,7 +1266,26 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--resume",
         action="store_true",
-        help="Reset the circuit breaker and paper kill switch.",
+        help=(
+            "Reset the operations circuit breaker and clear "
+            "only an operations-owned paper kill switch."
+        ),
+    )
+    parser.add_argument(
+        "--resume-restored-paper",
+        action="store_true",
+        help=(
+            "Clear only a verified restore-owned paper "
+            "kill switch after integrity review."
+        ),
+    )
+    parser.add_argument(
+        "--confirm-resume-restored-paper",
+        action="store_true",
+        help=(
+            "Required confirmation for "
+            "--resume-restored-paper."
+        ),
     )
     return parser
 
@@ -1157,12 +1301,40 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.resume:
         with operations_lock(runtime):
-            resume_operations(
+            fully_resumed, message = resume_operations(
                 runtime_directory=runtime,
                 paper_runtime=paper,
             )
-        print("QPX automated operations are RESUMED.")
+        print(message)
+
+        if fully_resumed:
+            print(
+                "QPX automated operations are RESUMED."
+            )
+            return 0
+
+        print(
+            "QPX paper execution remains PAUSED by an "
+            "independent kill switch."
+        )
+        return 4
+
+    if args.resume_restored_paper:
+        with operations_lock(runtime):
+            message = resume_restored_paper(
+                paper_runtime=paper,
+                confirm_resume=(
+                    args.confirm_resume_restored_paper
+                ),
+            )
+        print(message)
         return 0
+
+    if args.confirm_resume_restored_paper:
+        raise RuntimeError(
+            "--confirm-resume-restored-paper requires "
+            "--resume-restored-paper."
+        )
 
     config = load_operations_config(args.config)
     code, report = run_daily_operations(

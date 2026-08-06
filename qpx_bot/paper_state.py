@@ -603,7 +603,14 @@ class StateStore:
         finally:
             self.lock_path.unlink(missing_ok=True)
 
-    def activate_kill_switch(self, reason: str) -> None:
+    def activate_kill_switch(
+        self,
+        reason: str,
+        *,
+        owner: str = "manual",
+    ) -> None:
+        normalized_reason = reason.strip() or "manual"
+        normalized_owner = owner.strip() or "manual"
         self.directory.mkdir(parents=True, exist_ok=True)
         self.kill_switch_path.write_text(
             json.dumps(
@@ -611,16 +618,105 @@ class StateStore:
                     "activated_utc": datetime.now(
                         timezone.utc
                     ).isoformat(),
-                    "reason": reason.strip() or "manual",
+                    "reason": normalized_reason,
+                    "owner": normalized_owner,
                 },
                 indent=2,
+                sort_keys=True,
             )
             + "\n",
             encoding="utf-8",
         )
 
-    def deactivate_kill_switch(self) -> None:
+    def kill_switch_details(
+        self,
+    ) -> Mapping[str, Any] | None:
+        if not self.kill_switch_path.exists():
+            return None
+
+        raw = self.kill_switch_path.read_text(
+            encoding="utf-8"
+        ).strip()
+
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            payload = None
+
+        if isinstance(payload, Mapping):
+            reason = str(
+                payload.get("reason", "")
+            ).strip()
+            owner = str(
+                payload.get("owner", "")
+            ).strip()
+
+            if not owner:
+                if reason == (
+                    "QPX automated operations circuit breaker"
+                ):
+                    owner = "operations_circuit_breaker"
+                elif (
+                    reason.startswith(
+                        "Restored from verified backup"
+                    )
+                    or reason.startswith(
+                        "QPX recovery restore"
+                    )
+                ):
+                    owner = "restore_guard"
+                else:
+                    owner = "manual_or_legacy"
+
+            return {
+                "activated_utc": (
+                    str(payload.get("activated_utc"))
+                    if payload.get("activated_utc")
+                    else None
+                ),
+                "reason": reason or "unspecified",
+                "owner": owner,
+            }
+
+        owner = (
+            "restore_guard"
+            if (
+                raw.startswith(
+                    "Restored from verified backup"
+                )
+                or raw.startswith(
+                    "QPX recovery restore"
+                )
+            )
+            else "manual_or_legacy"
+        )
+        return {
+            "activated_utc": None,
+            "reason": raw or "unspecified",
+            "owner": owner,
+        }
+
+    def deactivate_kill_switch(
+        self,
+        *,
+        expected_owner: str | None = None,
+    ) -> bool:
+        if not self.kill_switch_path.exists():
+            return False
+
+        if expected_owner is not None:
+            details = self.kill_switch_details()
+            actual_owner = (
+                str(details.get("owner"))
+                if details
+                else ""
+            )
+
+            if actual_owner != expected_owner:
+                return False
+
         self.kill_switch_path.unlink(missing_ok=True)
+        return True
 
     def kill_switch_active(self) -> bool:
         return self.kill_switch_path.exists()
