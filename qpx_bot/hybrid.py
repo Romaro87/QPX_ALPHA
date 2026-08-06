@@ -20,6 +20,7 @@ from qpx_bot.portfolio import (
 )
 from qpx_bot.risk import buy_fill, calculate_position_size
 from qpx_bot.strategy import evaluate_entry, evaluate_exit
+from qpx_bot.time_rules import elapsed_complete_years
 
 
 @dataclass(slots=True)
@@ -203,12 +204,7 @@ def _swing_prices(
 
 
 def _elapsed_years(start: date, current: date) -> int:
-    months = (
-        (current.year - start.year) * 12
-        + current.month
-        - start.month
-    )
-    return max(0, months // 12)
+    return elapsed_complete_years(start, current)
 
 
 def run_hybrid_backtest(
@@ -364,26 +360,49 @@ def run_hybrid_backtest(
             swing_portfolio.cash += dividend_cash
             dividend_event_count += 1
 
-        if current_month != previous_month:
+        previous_allocation_date = (
+            swing_candles[index - 1].date
+            if index > start_trading_index
+            else first_swing_date
+        )
+        current_allocation_years = _elapsed_years(
+            first_swing_date,
+            swing_candle.date,
+        )
+        previous_allocation_years = _elapsed_years(
+            first_swing_date,
+            previous_allocation_date,
+        )
+        month_changed = (
+            current_month != previous_month
+        )
+        phase_changed = (
+            current_allocation_years
+            != previous_allocation_years
+        )
+
+        if month_changed or phase_changed:
             income_weight, swing_weight = (
                 contribution_allocation(
-                    _elapsed_years(
-                        first_swing_date,
-                        swing_candle.date,
-                    ),
+                    current_allocation_years,
                     config,
                 )
+            )
+            contribution_amount = (
+                config.monthly_contribution
+                if month_changed
+                else 0.0
             )
             cash_before_contribution = (
                 swing_portfolio.cash
             )
 
-            if config.monthly_contribution > 0:
+            if contribution_amount > 0:
                 swing_portfolio.deposit(
-                    config.monthly_contribution
+                    contribution_amount
                 )
                 total_external_contributions += (
-                    config.monthly_contribution
+                    contribution_amount
                 )
                 contribution_count += 1
 
@@ -436,7 +455,7 @@ def run_hybrid_backtest(
             allocation_events.append(
                 AllocationEvent(
                     date=swing_candle.date,
-                    amount=config.monthly_contribution,
+                    amount=contribution_amount,
                     income_weight=income_weight,
                     swing_weight=swing_weight,
                     income_amount=rebalance.trade_cash,
@@ -459,7 +478,9 @@ def run_hybrid_backtest(
                     ),
                 )
             )
-            previous_month = current_month
+
+            if month_changed:
+                previous_month = current_month
 
         if (
             pending_signal_index is not None

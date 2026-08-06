@@ -30,6 +30,7 @@ from qpx_bot.portfolio import (
 from qpx_bot.real_data import sha256_file
 from qpx_bot.risk import calculate_position_size
 from qpx_bot.strategy import evaluate_entry, evaluate_exit
+from qpx_bot.time_rules import elapsed_complete_years
 from qpx_bot.symbol_selector import (
     CandidateMetrics,
     SelectionConfig,
@@ -111,6 +112,20 @@ class AllocationSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class EntryDiagnostic:
+    date: date
+    symbol: str
+    monthly_winner: str
+    active_symbol: str
+    portfolio_locked: bool
+    execution_eligible: bool
+    should_enter: bool
+    triggers: tuple[str, ...]
+    failed_checks: tuple[str, ...]
+    checks: Mapping[str, bool]
+
+
+@dataclass(frozen=True, slots=True)
 class PortfolioPoint:
     date: date
     total_equity: float
@@ -169,6 +184,12 @@ class ActualTwoYearResult:
     swing_exposure: float
     selection_months: int
     winner_counts: Mapping[str, int]
+    diagnostic_evaluations: int
+    active_entry_evaluations: int
+    all_symbol_qualifying_signals: int
+    qualifying_signals_by_symbol: Mapping[str, int]
+    failed_check_counts: Mapping[str, int]
+    active_failed_check_counts: Mapping[str, int]
     forced_entry_indices: None
     symbol_bonus_policy: str
     live_broker_enabled: bool
@@ -182,6 +203,7 @@ class RunArtifacts:
     trades: Path
     selections: Path
     allocations: Path
+    entry_diagnostics: Path
     provenance: Path
     manifest: Path
 
@@ -201,12 +223,8 @@ def subtract_years(day: date, years: int) -> date:
 
 
 def _elapsed_years(start: date, current: date) -> int:
-    months = (
-        (current.year - start.year) * 12
-        + current.month
-        - start.month
-    )
-    return max(0, months // 12)
+    """Return only fully completed anniversary years."""
+    return elapsed_complete_years(start, current)
 
 
 def _safe_symbol(symbol: str) -> str:
@@ -910,6 +928,65 @@ def _write_allocations(
             )
 
 
+
+def _write_entry_diagnostics(
+    path: Path,
+    diagnostics: Sequence[EntryDiagnostic],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    check_names = (
+        "data_ready",
+        "price_above_sma",
+        "sma_slope_positive",
+        "average_volume",
+        "breakout_volume",
+        "price_breakout",
+        "vix_filter",
+        "rsi_not_overbought",
+        "momentum_trigger",
+    )
+
+    with path.open(
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as file:
+        writer = csv.writer(file)
+        writer.writerow(
+            (
+                "Date",
+                "Symbol",
+                "MonthlyWinner",
+                "ActiveSymbol",
+                "PortfolioLocked",
+                "ExecutionEligible",
+                "ShouldEnter",
+                "Triggers",
+                "FailedChecks",
+                *check_names,
+            )
+        )
+
+        for item in diagnostics:
+            writer.writerow(
+                (
+                    item.date.isoformat(),
+                    item.symbol,
+                    item.monthly_winner,
+                    item.active_symbol,
+                    item.portfolio_locked,
+                    item.execution_eligible,
+                    item.should_enter,
+                    ";".join(item.triggers),
+                    ";".join(item.failed_checks),
+                    *(
+                        item.checks.get(name, "")
+                        for name in check_names
+                    ),
+                )
+            )
+
+
 def _format_report(
     result: ActualTwoYearResult,
 ) -> str:
@@ -922,12 +999,33 @@ def _format_report(
         f"  {symbol}: {result.winner_counts.get(symbol, 0)}"
         for symbol in result.universe
     ]
+    qualifying_lines = [
+        (
+            f"  {symbol}: "
+            f"{result.qualifying_signals_by_symbol.get(symbol, 0)}"
+        )
+        for symbol in result.universe
+    ]
+    failure_lines = [
+        f"  {name}: {count}"
+        for name, count in sorted(
+            result.failed_check_counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )
+    ]
+    active_failure_lines = [
+        f"  {name}: {count}"
+        for name, count in sorted(
+            result.active_failed_check_counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )
+    ]
 
     return "\n".join(
         (
             "=" * 78,
             (
-                "QPX BOT v1.18 — ACTUAL TWO-YEAR "
+                "QPX BOT v1.19 — ACTUAL TWO-YEAR "
                 "EIGHT-SYMBOL PORTFOLIO BACKTEST"
             ),
             "=" * 78,
@@ -1063,6 +1161,32 @@ def _format_report(
             ),
             "Monthly winner counts:",
             *winner_lines,
+            (
+                "All-symbol diagnostics    : "
+                f"{result.diagnostic_evaluations}"
+            ),
+            (
+                "Active-entry evaluations  : "
+                f"{result.active_entry_evaluations}"
+            ),
+            (
+                "All-symbol qualifying bars: "
+                f"{result.all_symbol_qualifying_signals}"
+            ),
+            "Qualifying bars by symbol:",
+            *qualifying_lines,
+            (
+                "Failed checks across all eight "
+                "(counts may overlap):"
+            ),
+            *failure_lines,
+            (
+                "Failed checks for executable active winner "
+                "(counts may overlap):"
+            ),
+            *active_failure_lines,
+            "Allocation anniversary rule : EXACT_DATE",
+            "Strategy parameters changed : NO",
             "Forced entries              : DISABLED",
             (
                 "Symbol-specific bonuses    : "
@@ -1302,6 +1426,8 @@ def run_actual_two_year_eight_symbol_backtest(
     ]
     pending: PendingSignal | None = None
     points: list[PortfolioPoint] = []
+    entry_diagnostics: list[EntryDiagnostic] = []
+    previous_allocation_years = 0
     signal_count = 0
     filled_entries = 0
     gap_rejections = 0
@@ -1329,7 +1455,20 @@ def run_actual_two_year_eight_symbol_backtest(
             swing.cash += dividend_cash
             dividend_event_count += 1
 
-        if current_month_key != current_month:
+        current_allocation_years = _elapsed_years(
+            actual_start,
+            day,
+        )
+        allocation_phase_changed = (
+            current_allocation_years
+            != previous_allocation_years
+        )
+        month_changed = (
+            current_month_key != current_month
+        )
+        contribution_amount = 0.0
+
+        if month_changed:
             selection = rank_as_of(
                 decision_date=day,
                 histories=histories,
@@ -1355,20 +1494,24 @@ def run_actual_two_year_eight_symbol_backtest(
                 )
             )
 
-            swing.deposit(
-                config.monthly_contribution
-            )
-            total_contributions += (
-                config.monthly_contribution
-            )
-            contribution_count += 1
-            elapsed = _elapsed_years(
-                actual_start,
-                day,
-            )
+            if config.monthly_contribution > 0:
+                swing.deposit(
+                    config.monthly_contribution
+                )
+                contribution_amount = (
+                    config.monthly_contribution
+                )
+                total_contributions += (
+                    contribution_amount
+                )
+                contribution_count += 1
+
+            current_month = current_month_key
+
+        if month_changed or allocation_phase_changed:
             target_income_weight, _ = (
                 contribution_allocation(
-                    elapsed,
+                    current_allocation_years,
                     config,
                 )
             )
@@ -1405,9 +1548,11 @@ def run_actual_two_year_eight_symbol_backtest(
                     date=day,
                     event_type=(
                         "MONTHLY_CONTRIBUTION_REBALANCE"
+                        if month_changed
+                        else "ALLOCATION_PHASE_REBALANCE"
                     ),
                     contribution=(
-                        config.monthly_contribution
+                        contribution_amount
                     ),
                     target_income_weight=(
                         target_income_weight
@@ -1433,7 +1578,10 @@ def run_actual_two_year_eight_symbol_backtest(
                     ),
                 )
             )
-            current_month = current_month_key
+
+        previous_allocation_years = (
+            current_allocation_years
+        )
 
         if pending is not None:
             row = row_maps[pending.symbol][day]
@@ -1540,6 +1688,58 @@ def run_actual_two_year_eight_symbol_backtest(
                         evaluation.highest_price
                     )
 
+        portfolio_locked = (
+            bool(swing.positions)
+            or pending is not None
+        )
+        day_evaluations = {}
+
+        for diagnostic_symbol in REQUIRED_UNIVERSE:
+            diagnostic_index = index_maps[
+                diagnostic_symbol
+            ][day]
+            diagnostic_evaluation = evaluate_entry(
+                candles=candles[
+                    diagnostic_symbol
+                ],
+                indicators=indicators[
+                    diagnostic_symbol
+                ],
+                index=diagnostic_index,
+                vix=vix_map[day],
+                config=config,
+            )
+            day_evaluations[
+                diagnostic_symbol
+            ] = diagnostic_evaluation
+            entry_diagnostics.append(
+                EntryDiagnostic(
+                    date=day,
+                    symbol=diagnostic_symbol,
+                    monthly_winner=monthly_winner,
+                    active_symbol=active_symbol,
+                    portfolio_locked=portfolio_locked,
+                    execution_eligible=(
+                        not portfolio_locked
+                        and day != actual_end
+                        and diagnostic_symbol
+                        == active_symbol
+                    ),
+                    should_enter=(
+                        diagnostic_evaluation.should_enter
+                    ),
+                    triggers=(
+                        diagnostic_evaluation.triggers
+                    ),
+                    failed_checks=(
+                        diagnostic_evaluation.failed_checks
+                    ),
+                    checks=dict(
+                        diagnostic_evaluation.checks
+                    ),
+                )
+            )
+
         if (
             not swing.positions
             and pending is None
@@ -1549,17 +1749,9 @@ def run_actual_two_year_eight_symbol_backtest(
             index = index_maps[
                 active_symbol
             ][day]
-            evaluation = evaluate_entry(
-                candles=candles[
-                    active_symbol
-                ],
-                indicators=indicators[
-                    active_symbol
-                ],
-                index=index,
-                vix=vix_map[day],
-                config=config,
-            )
+            evaluation = day_evaluations[
+                active_symbol
+            ]
 
             if evaluation.should_enter:
                 signal_atr = indicators[
@@ -1746,6 +1938,27 @@ def run_actual_two_year_eight_symbol_backtest(
         snapshot.winner
         for snapshot in selection_snapshots
     )
+    failed_check_counts: Counter[str] = Counter()
+    active_failed_check_counts: Counter[str] = Counter()
+    qualifying_signals_by_symbol: Counter[str] = Counter()
+    active_entry_evaluations = 0
+
+    for diagnostic in entry_diagnostics:
+        failed_check_counts.update(
+            diagnostic.failed_checks
+        )
+
+        if diagnostic.should_enter:
+            qualifying_signals_by_symbol[
+                diagnostic.symbol
+            ] += 1
+
+        if diagnostic.execution_eligible:
+            active_entry_evaluations += 1
+            active_failed_check_counts.update(
+                diagnostic.failed_checks
+            )
+
     result = ActualTwoYearResult(
         generated_at_utc=datetime.now(
             timezone.utc
@@ -1839,6 +2052,40 @@ def run_actual_two_year_eight_symbol_backtest(
             )
             for symbol in REQUIRED_UNIVERSE
         },
+        diagnostic_evaluations=len(
+            entry_diagnostics
+        ),
+        active_entry_evaluations=(
+            active_entry_evaluations
+        ),
+        all_symbol_qualifying_signals=sum(
+            qualifying_signals_by_symbol.values()
+        ),
+        qualifying_signals_by_symbol={
+            symbol: qualifying_signals_by_symbol.get(
+                symbol,
+                0,
+            )
+            for symbol in REQUIRED_UNIVERSE
+        },
+        failed_check_counts=dict(
+            sorted(
+                failed_check_counts.items(),
+                key=lambda item: (
+                    -item[1],
+                    item[0],
+                ),
+            )
+        ),
+        active_failed_check_counts=dict(
+            sorted(
+                active_failed_check_counts.items(),
+                key=lambda item: (
+                    -item[1],
+                    item[0],
+                ),
+            )
+        ),
         forced_entry_indices=None,
         symbol_bonus_policy=(
             selection_config.symbol_bonus_policy
@@ -1869,6 +2116,10 @@ def run_actual_two_year_eight_symbol_backtest(
     allocation_path = (
         report_directory
         / "allocation_rebalance_log.csv"
+    )
+    entry_diagnostics_path = (
+        report_directory
+        / "entry_filter_diagnostics.csv"
     )
     provenance_path = (
         report_directory
@@ -1908,6 +2159,10 @@ def run_actual_two_year_eight_symbol_backtest(
     _write_allocations(
         allocation_path,
         allocation_snapshots,
+    )
+    _write_entry_diagnostics(
+        entry_diagnostics_path,
+        entry_diagnostics,
     )
     provenance = {
         "schema_version": 1,
@@ -1962,6 +2217,38 @@ def run_actual_two_year_eight_symbol_backtest(
             "date strictly before the decision date."
         ),
         "position_lock": True,
+        "allocation_anniversary_rule": (
+            "Exact calendar anniversary; rebalance on "
+            "the first processed session at or after "
+            "the anniversary."
+        ),
+        "strategy_parameters_changed": False,
+        "entry_diagnostics": {
+            "symbols_per_session": len(
+                REQUIRED_UNIVERSE
+            ),
+            "evaluations": len(
+                entry_diagnostics
+            ),
+            "active_entry_evaluations": (
+                active_entry_evaluations
+            ),
+            "failed_check_counts": dict(
+                failed_check_counts
+            ),
+            "active_failed_check_counts": dict(
+                active_failed_check_counts
+            ),
+            "qualifying_signals_by_symbol": {
+                symbol: (
+                    qualifying_signals_by_symbol.get(
+                        symbol,
+                        0,
+                    )
+                )
+                for symbol in REQUIRED_UNIVERSE
+            },
+        },
         "opening_gap_atr_limit": (
             maximum_gap_atr
         ),
@@ -1990,6 +2277,9 @@ def run_actual_two_year_eight_symbol_backtest(
             "allocations": str(
                 allocation_path
             ),
+            "entry_diagnostics": str(
+                entry_diagnostics_path
+            ),
         },
         "live_broker_enabled": False,
     }
@@ -2004,6 +2294,9 @@ def run_actual_two_year_eight_symbol_backtest(
         trades=trades_path,
         selections=selection_path,
         allocations=allocation_path,
+        entry_diagnostics=(
+            entry_diagnostics_path
+        ),
         provenance=provenance_path,
         manifest=manifest_path,
     )

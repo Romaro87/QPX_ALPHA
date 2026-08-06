@@ -26,6 +26,7 @@ from qpx_bot.risk import (
     sell_fill,
 )
 from qpx_bot.strategy import evaluate_entry, evaluate_exit
+from qpx_bot.time_rules import elapsed_complete_years
 
 
 def _identifier(*parts: object) -> str:
@@ -59,12 +60,7 @@ def _month_key(day: date) -> str:
 
 
 def _elapsed_years(start: date, current: date) -> int:
-    months = (
-        (current.year - start.year) * 12
-        + current.month
-        - start.month
-    )
-    return max(0, months // 12)
+    return elapsed_complete_years(start, current)
 
 
 def _latest_income_candle(
@@ -337,19 +333,45 @@ def process_paper_day(
 
     current_month = _month_key(current_date)
 
-    if current_month != state.last_contribution_month:
+    previous_allocation_date = (
+        state.last_processed_date
+        or state.start_date
+    )
+    current_allocation_years = _elapsed_years(
+        state.start_date,
+        current_date,
+    )
+    previous_allocation_years = _elapsed_years(
+        state.start_date,
+        previous_allocation_date,
+    )
+    month_changed = (
+        current_month
+        != state.last_contribution_month
+    )
+    phase_changed = (
+        current_allocation_years
+        != previous_allocation_years
+    )
+
+    if month_changed or phase_changed:
         income_weight, swing_weight = contribution_allocation(
-            _elapsed_years(
-                state.start_date,
-                current_date,
-            ),
+            current_allocation_years,
             config,
         )
-        swing_cash_before = state.swing_cash
-        state.swing_cash += config.monthly_contribution
-        state.total_contributions += (
+        contribution_amount = (
             config.monthly_contribution
+            if month_changed
+            else 0.0
         )
+        swing_cash_before = state.swing_cash
+
+        if contribution_amount > 0:
+            state.swing_cash += contribution_amount
+            state.total_contributions += (
+                contribution_amount
+            )
+
         swing_market_value = (
             state.position.shares * candle.open
             if state.position is not None
@@ -388,24 +410,40 @@ def process_paper_day(
         state.realized_pnl += (
             rebalance.realized_pnl
         )
-        state.last_contribution_month = current_month
 
+        if month_changed:
+            state.last_contribution_month = (
+                current_month
+            )
+
+        event_type = (
+            "MONTHLY_CONTRIBUTION"
+            if month_changed
+            else "ALLOCATION_PHASE_REBALANCE"
+        )
+        unique = (
+            current_month
+            if month_changed
+            else current_date.isoformat()
+        )
         events.append(
             _event(
                 state=state,
-                event_type="MONTHLY_CONTRIBUTION",
+                event_type=event_type,
                 event_date=current_date,
-                unique=current_month,
+                unique=unique,
                 details={
-                    "amount": (
-                        config.monthly_contribution
-                    ),
+                    "amount": contribution_amount,
                     "target_income_weight": (
                         income_weight
                     ),
                     "target_swing_weight": (
                         swing_weight
                     ),
+                    "allocation_years": (
+                        current_allocation_years
+                    ),
+                    "exact_anniversary_rule": True,
                     "rebalance_action": (
                         rebalance.action
                     ),

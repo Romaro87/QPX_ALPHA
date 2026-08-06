@@ -16,6 +16,7 @@ from qpx_bot.paper_state import (
 )
 from qpx_bot.portfolio import contribution_allocation
 from qpx_bot.real_data import load_market_csv
+from qpx_bot.time_rules import elapsed_complete_years
 
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -28,12 +29,7 @@ def _elapsed_years(
     start: date,
     current: date,
 ) -> int:
-    months = (
-        (current.year - start.year) * 12
-        + current.month
-        - start.month
-    )
-    return max(0, months // 12)
+    return elapsed_complete_years(start, current)
 
 
 def _latest_on_or_before(
