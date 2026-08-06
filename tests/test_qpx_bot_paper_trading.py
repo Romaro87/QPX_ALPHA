@@ -24,6 +24,7 @@ from qpx_bot.session_execution import (
 config = replace(
     BotConfig(),
     starting_cash=10_000.0,
+    starting_swing_cash=5_000.0,
     monthly_contribution=500.0,
     ema_fast_period=2,
     ema_slow_period=3,
@@ -254,7 +255,10 @@ events = process_paper_day(
     config=config,
     forced_entry=False,
 )
-assert state.total_contributions == 10_500.0
+assert state.total_contributions == (
+    config.total_starting_capital
+    + config.monthly_contribution
+)
 assert any(
     event.event_type
     == "MONTHLY_CONTRIBUTION"

@@ -17,6 +17,7 @@ from qpx_bot.report import (
 config = replace(
     BotConfig(),
     starting_cash=10_000.0,
+    starting_swing_cash=5_000.0,
     monthly_contribution=1_000.0,
     ema_fast_period=2,
     ema_slow_period=3,
@@ -89,7 +90,7 @@ assert result.swing_symbol == "TEST"
 assert result.income_symbol == "QDTE"
 assert result.contribution_count >= 25
 assert result.total_contributions == (
-    config.starting_cash
+    config.total_starting_capital
     + (
         result.contribution_count
         * config.monthly_contribution

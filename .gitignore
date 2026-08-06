@@ -62,3 +62,6 @@ reports/qpx_qualification/
 # QPX actual five-year research data and reports
 research_data/qpx_actual_five_year/
 reports/qpx_actual_five_year/
+
+# QPX capital migration scratch output
+backups/qpx_initial_capital_rebalance/

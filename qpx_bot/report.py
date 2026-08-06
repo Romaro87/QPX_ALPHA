@@ -75,8 +75,23 @@ def format_hybrid_report(
             f"Period                    : "
             f"{result.start_date} to {result.end_date}"
         ),
-        f"Starting cash             : {_money(result.starting_cash)}",
+        (
+            "Initial total capital     : "
+            f"{_money(result.starting_cash)}"
+        ),
+        (
+            "Initial QDTE seed         : "
+            f"{_money(result.starting_income_cash)}"
+        ),
+        (
+            "Initial swing liquidity   : "
+            f"{_money(result.starting_swing_cash)}"
+        ),
         f"Monthly deposits made     : {result.contribution_count}",
+        (
+            "Monthly rebalances        : "
+            f"{len(result.allocation_events)}"
+        ),
         (
             "Total contributed capital : "
             f"{_money(result.total_contributions)}"

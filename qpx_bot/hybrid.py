@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Sequence
 
+from qpx_bot.allocation import (
+    rebalance_income_allocation,
+)
 from qpx_bot.config import BotConfig
 from qpx_bot.data_loader import Candle
 from qpx_bot.dividends import DividendEvent, dividend_amounts_by_date
@@ -65,7 +68,7 @@ class IncomeHolding:
 
 @dataclass(frozen=True, slots=True)
 class AllocationEvent:
-    """One external contribution and its two-sleeve split."""
+    """One external contribution and allocation rebalance."""
 
     date: date
     amount: float
@@ -73,6 +76,11 @@ class AllocationEvent:
     swing_weight: float
     income_amount: float
     swing_amount: float
+    rebalance_action: str = "NONE"
+    income_weight_before: float = 0.0
+    income_weight_after: float = 0.0
+    rebalance_tax_reserved: float = 0.0
+    target_fully_reached: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +108,8 @@ class HybridBacktestResult:
     start_date: date
     end_date: date
     starting_cash: float
+    starting_income_cash: float
+    starting_swing_cash: float
     total_contributions: float
     ending_equity: float
     ending_income_value: float
@@ -259,15 +269,8 @@ def run_hybrid_backtest(
     dividend_map = dividend_amounts_by_date(dividends)
     indicators = calculate_indicators(swing_candles, config)
 
-    initial_income_weight, initial_swing_weight = (
-        contribution_allocation(0, config)
-    )
-    initial_income_cash = (
-        config.starting_cash * initial_income_weight
-    )
-    initial_swing_cash = (
-        config.starting_cash * initial_swing_weight
-    )
+    initial_income_cash = config.starting_cash
+    initial_swing_cash = config.starting_swing_cash
 
     income_holding = IncomeHolding(normalized_income)
     swing_portfolio = Portfolio(initial_swing_cash)
@@ -288,8 +291,36 @@ def run_hybrid_backtest(
         market_price=latest_income.open,
         slippage_rate=config.slippage_rate,
     )
+    initial_income_weight, _ = contribution_allocation(
+        0,
+        config,
+    )
+    initial_rebalance = rebalance_income_allocation(
+        income_shares=income_holding.shares,
+        income_cost=income_holding.invested_cost,
+        swing_cash=swing_portfolio.cash,
+        swing_market_value=0.0,
+        income_price=latest_income.open,
+        target_income_weight=initial_income_weight,
+        slippage_rate=config.slippage_rate,
+        tax_reserve_rate=config.annual_tax_reserve_rate,
+        tolerance=config.allocation_rebalance_tolerance,
+        minimum_trade=config.minimum_rebalance_trade,
+    )
+    income_holding.shares = initial_rebalance.shares_after
+    income_holding.invested_cost = (
+        initial_rebalance.income_cost_after
+    )
+    swing_portfolio.cash = (
+        initial_rebalance.swing_cash_after
+    )
+    swing_portfolio.tax_reserve_cash += (
+        initial_rebalance.tax_reserved
+    )
 
-    total_external_contributions = config.starting_cash
+    total_external_contributions = (
+        config.total_starting_capital
+    )
     contribution_count = 0
     dividend_event_count = 0
     signal_count = 0
@@ -334,47 +365,100 @@ def run_hybrid_backtest(
             dividend_event_count += 1
 
         if current_month != previous_month:
-            if config.monthly_contribution > 0:
-                elapsed_years = _elapsed_years(
-                    first_swing_date,
-                    swing_candle.date,
+            income_weight, swing_weight = (
+                contribution_allocation(
+                    _elapsed_years(
+                        first_swing_date,
+                        swing_candle.date,
+                    ),
+                    config,
                 )
-                income_weight, swing_weight = (
-                    contribution_allocation(
-                        elapsed_years,
-                        config,
-                    )
-                )
-                income_amount = (
-                    config.monthly_contribution
-                    * income_weight
-                )
-                swing_amount = (
-                    config.monthly_contribution
-                    * swing_weight
-                )
+            )
+            cash_before_contribution = (
+                swing_portfolio.cash
+            )
 
-                income_holding.buy(
-                    cash_amount=income_amount,
-                    market_price=latest_income.open,
-                    slippage_rate=config.slippage_rate,
+            if config.monthly_contribution > 0:
+                swing_portfolio.deposit(
+                    config.monthly_contribution
                 )
-                swing_portfolio.deposit(swing_amount)
                 total_external_contributions += (
                     config.monthly_contribution
                 )
                 contribution_count += 1
-                allocation_events.append(
-                    AllocationEvent(
-                        date=swing_candle.date,
-                        amount=config.monthly_contribution,
-                        income_weight=income_weight,
-                        swing_weight=swing_weight,
-                        income_amount=income_amount,
-                        swing_amount=swing_amount,
-                    )
-                )
 
+            open_position = (
+                swing_portfolio.positions.get(
+                    normalized_swing
+                )
+            )
+            swing_market_value_at_open = (
+                open_position.shares
+                * swing_candle.open
+                if open_position is not None
+                else 0.0
+            )
+            rebalance = rebalance_income_allocation(
+                income_shares=income_holding.shares,
+                income_cost=income_holding.invested_cost,
+                swing_cash=swing_portfolio.cash,
+                swing_market_value=(
+                    swing_market_value_at_open
+                ),
+                income_price=latest_income.open,
+                target_income_weight=income_weight,
+                slippage_rate=config.slippage_rate,
+                tax_reserve_rate=(
+                    config.annual_tax_reserve_rate
+                ),
+                tolerance=(
+                    config.allocation_rebalance_tolerance
+                ),
+                minimum_trade=(
+                    config.minimum_rebalance_trade
+                ),
+            )
+            income_holding.shares = (
+                rebalance.shares_after
+            )
+            income_holding.invested_cost = (
+                rebalance.income_cost_after
+            )
+            swing_portfolio.cash = (
+                rebalance.swing_cash_after
+            )
+            swing_portfolio.tax_reserve_cash += (
+                rebalance.tax_reserved
+            )
+            swing_portfolio.realized_pnl += (
+                rebalance.realized_pnl
+            )
+            allocation_events.append(
+                AllocationEvent(
+                    date=swing_candle.date,
+                    amount=config.monthly_contribution,
+                    income_weight=income_weight,
+                    swing_weight=swing_weight,
+                    income_amount=rebalance.trade_cash,
+                    swing_amount=(
+                        swing_portfolio.cash
+                        - cash_before_contribution
+                    ),
+                    rebalance_action=rebalance.action,
+                    income_weight_before=(
+                        rebalance.before_income_weight
+                    ),
+                    income_weight_after=(
+                        rebalance.after_income_weight
+                    ),
+                    rebalance_tax_reserved=(
+                        rebalance.tax_reserved
+                    ),
+                    target_fully_reached=(
+                        rebalance.target_fully_reached
+                    ),
+                )
+            )
             previous_month = current_month
 
         if (
@@ -559,7 +643,9 @@ def run_hybrid_backtest(
             start_trading_index
         ].date,
         end_date=swing_candles[-1].date,
-        starting_cash=config.starting_cash,
+        starting_cash=config.total_starting_capital,
+        starting_income_cash=config.starting_cash,
+        starting_swing_cash=config.starting_swing_cash,
         total_contributions=total_external_contributions,
         ending_equity=ending_equity,
         ending_income_value=final_income_value,

@@ -7,17 +7,24 @@ from dataclasses import dataclass
 class BotConfig:
     """Default Hybrid Dividend + Swing strategy settings."""
 
-    # Capital
+    # Initial capital
+    # $1,300 is seeded into QDTE and $1,500 starts as swing liquidity.
     starting_cash: float = 1_300.0
+    starting_swing_cash: float = 1_500.0
     monthly_contribution: float = 2_000.0
 
-    # Years 1–2 allocation
+    # Years 1–2 target allocation
     dividend_allocation_years_1_2: float = 0.65
     swing_allocation_years_1_2: float = 0.35
 
-    # Year 3 onward allocation
+    # Year 3 onward target allocation
     dividend_allocation_later: float = 0.40
     swing_allocation_later: float = 0.60
+
+    # Rebalance on the first processed market session of each month.
+    allocation_rebalance_frequency: str = "monthly"
+    allocation_rebalance_tolerance: float = 0.0025
+    minimum_rebalance_trade: float = 1.0
 
     dividend_symbol: str = "QDTE"
 
@@ -57,6 +64,11 @@ class BotConfig:
     # Tax reserve
     annual_tax_reserve_rate: float = 0.37
 
+    @property
+    def total_starting_capital(self) -> float:
+        """Return the complete initial external contribution."""
+        return self.starting_cash + self.starting_swing_cash
+
     def validate(self) -> None:
         """Reject internally inconsistent configuration."""
         allocation_pairs = (
@@ -76,11 +88,50 @@ class BotConfig:
                     "Dividend and swing allocations must total 100%."
                 )
 
+            if not 0.0 <= dividend_weight <= 1.0:
+                raise ValueError(
+                    "Dividend allocation must be between zero and one."
+                )
+
+            if not 0.0 <= swing_weight <= 1.0:
+                raise ValueError(
+                    "Swing allocation must be between zero and one."
+                )
+
         if self.starting_cash <= 0:
-            raise ValueError("Starting cash must be positive.")
+            raise ValueError(
+                "Initial QDTE capital must be positive."
+            )
+
+        if self.starting_swing_cash < 0:
+            raise ValueError(
+                "Initial swing liquidity cannot be negative."
+            )
+
+        if self.total_starting_capital <= 0:
+            raise ValueError(
+                "Total starting capital must be positive."
+            )
 
         if self.monthly_contribution < 0:
-            raise ValueError("Monthly contribution cannot be negative.")
+            raise ValueError(
+                "Monthly contribution cannot be negative."
+            )
+
+        if self.allocation_rebalance_frequency != "monthly":
+            raise ValueError(
+                "Only monthly allocation rebalancing is supported."
+            )
+
+        if not 0.0 <= self.allocation_rebalance_tolerance < 0.10:
+            raise ValueError(
+                "Rebalance tolerance must be between zero and 10%."
+            )
+
+        if self.minimum_rebalance_trade < 0:
+            raise ValueError(
+                "Minimum rebalance trade cannot be negative."
+            )
 
         period_values = {
             "EMA fast": self.ema_fast_period,
@@ -95,24 +146,37 @@ class BotConfig:
 
         for name, value in period_values.items():
             if value < 2:
-                raise ValueError(f"{name} period must be at least 2.")
+                raise ValueError(
+                    f"{name} period must be at least 2."
+                )
 
         if self.ema_fast_period >= self.ema_slow_period:
-            raise ValueError("Fast EMA period must be below slow EMA period.")
+            raise ValueError(
+                "Fast EMA period must be below slow EMA period."
+            )
 
         if self.rmi_momentum < 1:
-            raise ValueError("RMI momentum must be at least 1.")
+            raise ValueError(
+                "RMI momentum must be at least 1."
+            )
 
         if not 0 < self.risk_per_trade <= 1:
-            raise ValueError("Risk per trade must be between 0 and 1.")
+            raise ValueError(
+                "Risk per trade must be between 0 and 1."
+            )
 
         if not 0 < self.maximum_active_portfolio_risk <= 1:
             raise ValueError(
-                "Maximum active portfolio risk must be between 0 and 1."
+                "Maximum active portfolio risk must be "
+                "between 0 and 1."
             )
 
         if self.stop_atr_multiple <= 0:
-            raise ValueError("ATR stop multiple must be positive.")
+            raise ValueError(
+                "ATR stop multiple must be positive."
+            )
 
         if self.target_atr_multiple <= self.stop_atr_multiple:
-            raise ValueError("ATR target must be greater than the ATR stop.")
+            raise ValueError(
+                "ATR target must be greater than the ATR stop."
+            )

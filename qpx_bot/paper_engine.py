@@ -6,6 +6,9 @@ import hashlib
 from datetime import date
 from typing import Sequence
 
+from qpx_bot.allocation import (
+    rebalance_income_allocation,
+)
 from qpx_bot.config import BotConfig
 from qpx_bot.data_loader import Candle
 from qpx_bot.dividends import DividendEvent
@@ -103,15 +106,31 @@ def create_initial_state(
         0,
         config,
     )
-    income_cash = config.starting_cash * income_weight
-    swing_cash = config.starting_cash * swing_weight
-    fill = buy_fill(income_price, config.slippage_rate)
+    income_cash = config.starting_cash
+    swing_cash = config.starting_swing_cash
+    fill = buy_fill(
+        income_price,
+        config.slippage_rate,
+    )
     income_shares = income_cash / fill
+    initial_rebalance = rebalance_income_allocation(
+        income_shares=income_shares,
+        income_cost=income_cash,
+        swing_cash=swing_cash,
+        swing_market_value=0.0,
+        income_price=income_price,
+        target_income_weight=income_weight,
+        slippage_rate=config.slippage_rate,
+        tax_reserve_rate=config.annual_tax_reserve_rate,
+        tolerance=config.allocation_rebalance_tolerance,
+        minimum_trade=config.minimum_rebalance_trade,
+    )
     state_id = _identifier(
         normalized_swing,
         normalized_income,
         start_date.isoformat(),
         f"{config.starting_cash:.8f}",
+        f"{config.starting_swing_cash:.8f}",
     )
 
     state = PaperState(
@@ -119,13 +138,23 @@ def create_initial_state(
         swing_symbol=normalized_swing,
         income_symbol=normalized_income,
         start_date=start_date,
-        starting_cash=config.starting_cash,
-        swing_cash=swing_cash,
-        tax_reserve_cash=0.0,
-        total_contributions=config.starting_cash,
-        realized_pnl=0.0,
-        income_shares=income_shares,
-        income_cost=income_cash,
+        starting_cash=config.total_starting_capital,
+        swing_cash=initial_rebalance.swing_cash_after,
+        tax_reserve_cash=(
+            initial_rebalance.tax_reserved
+        ),
+        total_contributions=(
+            config.total_starting_capital
+        ),
+        realized_pnl=(
+            initial_rebalance.realized_pnl
+        ),
+        income_shares=(
+            initial_rebalance.shares_after
+        ),
+        income_cost=(
+            initial_rebalance.income_cost_after
+        ),
         dividends_received=0.0,
         last_processed_date=None,
         last_contribution_month=_month_key(start_date),
@@ -140,12 +169,33 @@ def create_initial_state(
         details={
             "swing_symbol": normalized_swing,
             "income_symbol": normalized_income,
-            "starting_cash": config.starting_cash,
+            "starting_income_cash": (
+                config.starting_cash
+            ),
+            "starting_swing_cash": (
+                config.starting_swing_cash
+            ),
+            "total_starting_capital": (
+                config.total_starting_capital
+            ),
             "income_weight": income_weight,
             "swing_weight": swing_weight,
             "income_fill": fill,
-            "income_shares": income_shares,
-            "swing_cash": swing_cash,
+            "income_shares": (
+                initial_rebalance.shares_after
+            ),
+            "swing_cash": (
+                initial_rebalance.swing_cash_after
+            ),
+            "rebalance_action": (
+                initial_rebalance.action
+            ),
+            "income_weight_before": (
+                initial_rebalance.before_income_weight
+            ),
+            "income_weight_after": (
+                initial_rebalance.after_income_weight
+            ),
             "mode": "SIMULATED_ONLY",
         },
     )
@@ -289,31 +339,54 @@ def process_paper_day(
 
     if current_month != state.last_contribution_month:
         income_weight, swing_weight = contribution_allocation(
-            _elapsed_years(state.start_date, current_date),
+            _elapsed_years(
+                state.start_date,
+                current_date,
+            ),
             config,
         )
-        income_amount = (
-            config.monthly_contribution * income_weight
-        )
-        swing_amount = (
-            config.monthly_contribution * swing_weight
-        )
-
-        if income_amount > 0:
-            income_fill = buy_fill(
-                income_candle.open,
-                config.slippage_rate,
-            )
-            acquired = income_amount / income_fill
-            state.income_shares += acquired
-            state.income_cost += income_amount
-        else:
-            income_fill = 0.0
-            acquired = 0.0
-
-        state.swing_cash += swing_amount
+        swing_cash_before = state.swing_cash
+        state.swing_cash += config.monthly_contribution
         state.total_contributions += (
             config.monthly_contribution
+        )
+        swing_market_value = (
+            state.position.shares * candle.open
+            if state.position is not None
+            else 0.0
+        )
+        rebalance = rebalance_income_allocation(
+            income_shares=state.income_shares,
+            income_cost=state.income_cost,
+            swing_cash=state.swing_cash,
+            swing_market_value=swing_market_value,
+            income_price=income_candle.open,
+            target_income_weight=income_weight,
+            slippage_rate=config.slippage_rate,
+            tax_reserve_rate=(
+                config.annual_tax_reserve_rate
+            ),
+            tolerance=(
+                config.allocation_rebalance_tolerance
+            ),
+            minimum_trade=(
+                config.minimum_rebalance_trade
+            ),
+        )
+        state.income_shares = (
+            rebalance.shares_after
+        )
+        state.income_cost = (
+            rebalance.income_cost_after
+        )
+        state.swing_cash = (
+            rebalance.swing_cash_after
+        )
+        state.tax_reserve_cash += (
+            rebalance.tax_reserved
+        )
+        state.realized_pnl += (
+            rebalance.realized_pnl
         )
         state.last_contribution_month = current_month
 
@@ -324,11 +397,43 @@ def process_paper_day(
                 event_date=current_date,
                 unique=current_month,
                 details={
-                    "amount": config.monthly_contribution,
-                    "income_amount": income_amount,
-                    "swing_amount": swing_amount,
-                    "income_fill": income_fill,
-                    "income_shares_acquired": acquired,
+                    "amount": (
+                        config.monthly_contribution
+                    ),
+                    "target_income_weight": (
+                        income_weight
+                    ),
+                    "target_swing_weight": (
+                        swing_weight
+                    ),
+                    "rebalance_action": (
+                        rebalance.action
+                    ),
+                    "income_weight_before": (
+                        rebalance.before_income_weight
+                    ),
+                    "income_weight_after": (
+                        rebalance.after_income_weight
+                    ),
+                    "income_trade_cash": (
+                        rebalance.trade_cash
+                    ),
+                    "swing_cash_change": (
+                        state.swing_cash
+                        - swing_cash_before
+                    ),
+                    "rebalance_realized_pnl": (
+                        rebalance.realized_pnl
+                    ),
+                    "rebalance_tax_reserved": (
+                        rebalance.tax_reserved
+                    ),
+                    "target_fully_reached": (
+                        rebalance.target_fully_reached
+                    ),
+                    "open_swing_position_preserved": (
+                        state.position is not None
+                    ),
                 },
             )
         )
