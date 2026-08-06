@@ -34,3 +34,8 @@ qpx_bot/data_inputs/DOWNLOAD_MANIFEST.json
 
 # QPX generated research reports
 reports/qpx_real_backtest/
+reports/qpx_walk_forward/
+reports/qpx_paper/
+
+# QPX persistent paper runtime
+qpx_bot/paper_runtime/

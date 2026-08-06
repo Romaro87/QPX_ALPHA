@@ -1,0 +1,617 @@
+"""Restart-safe simulated execution for the QPX hybrid strategy."""
+
+from __future__ import annotations
+
+import hashlib
+from datetime import date
+from typing import Sequence
+
+from qpx_bot.config import BotConfig
+from qpx_bot.data_loader import Candle
+from qpx_bot.dividends import DividendEvent
+from qpx_bot.indicators import IndicatorSet
+from qpx_bot.paper_state import (
+    AuditEvent,
+    PaperState,
+    PendingEntry,
+    PersistentPosition,
+)
+from qpx_bot.portfolio import Position, contribution_allocation
+from qpx_bot.risk import (
+    buy_fill,
+    calculate_position_size,
+    sell_fill,
+)
+from qpx_bot.strategy import evaluate_entry, evaluate_exit
+
+
+def _identifier(*parts: object) -> str:
+    raw = "|".join(str(part) for part in parts)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def _event(
+    *,
+    state: PaperState,
+    event_type: str,
+    event_date: date,
+    unique: str,
+    details: dict[str, object],
+) -> AuditEvent:
+    return AuditEvent(
+        event_id=_identifier(
+            state.state_id,
+            event_type,
+            event_date.isoformat(),
+            unique,
+        ),
+        event_type=event_type,
+        event_date=event_date,
+        details=details,
+    )
+
+
+def _month_key(day: date) -> str:
+    return f"{day.year:04d}-{day.month:02d}"
+
+
+def _elapsed_years(start: date, current: date) -> int:
+    months = (
+        (current.year - start.year) * 12
+        + current.month
+        - start.month
+    )
+    return max(0, months // 12)
+
+
+def _latest_income_candle(
+    income_candles: Sequence[Candle],
+    current_date: date,
+) -> Candle:
+    selected: Candle | None = None
+
+    for candle in income_candles:
+        if candle.date > current_date:
+            break
+        selected = candle
+
+    if selected is None:
+        raise ValueError(
+            "Income history does not cover the paper date."
+        )
+
+    return selected
+
+
+def create_initial_state(
+    *,
+    swing_symbol: str,
+    income_symbol: str,
+    start_date: date,
+    income_price: float,
+    config: BotConfig,
+) -> tuple[PaperState, AuditEvent]:
+    config.validate()
+
+    normalized_swing = swing_symbol.strip().upper()
+    normalized_income = income_symbol.strip().upper()
+
+    if not normalized_swing or not normalized_income:
+        raise ValueError("Paper symbols cannot be empty.")
+
+    income_weight, swing_weight = contribution_allocation(
+        0,
+        config,
+    )
+    income_cash = config.starting_cash * income_weight
+    swing_cash = config.starting_cash * swing_weight
+    fill = buy_fill(income_price, config.slippage_rate)
+    income_shares = income_cash / fill
+    state_id = _identifier(
+        normalized_swing,
+        normalized_income,
+        start_date.isoformat(),
+        f"{config.starting_cash:.8f}",
+    )
+
+    state = PaperState(
+        state_id=state_id,
+        swing_symbol=normalized_swing,
+        income_symbol=normalized_income,
+        start_date=start_date,
+        starting_cash=config.starting_cash,
+        swing_cash=swing_cash,
+        tax_reserve_cash=0.0,
+        total_contributions=config.starting_cash,
+        realized_pnl=0.0,
+        income_shares=income_shares,
+        income_cost=income_cash,
+        dividends_received=0.0,
+        last_processed_date=None,
+        last_contribution_month=_month_key(start_date),
+    )
+    state.validate()
+
+    event = _event(
+        state=state,
+        event_type="ACCOUNT_INITIALIZED",
+        event_date=start_date,
+        unique="initial",
+        details={
+            "swing_symbol": normalized_swing,
+            "income_symbol": normalized_income,
+            "starting_cash": config.starting_cash,
+            "income_weight": income_weight,
+            "swing_weight": swing_weight,
+            "income_fill": fill,
+            "income_shares": income_shares,
+            "swing_cash": swing_cash,
+            "mode": "SIMULATED_ONLY",
+        },
+    )
+    return state, event
+
+
+def _as_position(
+    position: PersistentPosition,
+) -> Position:
+    return Position(
+        symbol=position.symbol,
+        shares=position.shares,
+        entry_date=position.entry_date,
+        entry_price=position.entry_price,
+        entry_atr=position.entry_atr,
+        stop_price=position.stop_price,
+        target_price=position.target_price,
+        highest_price=position.highest_price,
+    )
+
+
+def _mark_equity(
+    state: PaperState,
+    *,
+    swing_price: float,
+    income_price: float,
+) -> float:
+    return state.equity(
+        swing_price=swing_price,
+        income_price=income_price,
+    )
+
+
+def reconcile_state(
+    state: PaperState,
+    *,
+    swing_price: float,
+    income_price: float,
+) -> dict[str, float | int | str | None]:
+    """Validate and return a deterministic account reconciliation."""
+    state.validate()
+    swing_value = (
+        state.position.shares * swing_price
+        if state.position
+        else 0.0
+    )
+    income_value = state.income_shares * income_price
+    equity = (
+        state.swing_cash
+        + state.tax_reserve_cash
+        + swing_value
+        + income_value
+    )
+
+    if abs(
+        equity
+        - state.equity(
+            swing_price=swing_price,
+            income_price=income_price,
+        )
+    ) > 1e-7:
+        raise RuntimeError("Paper equity reconciliation failed.")
+
+    return {
+        "state_id": state.state_id,
+        "revision": state.revision,
+        "last_processed_date": (
+            state.last_processed_date.isoformat()
+            if state.last_processed_date
+            else None
+        ),
+        "swing_cash": state.swing_cash,
+        "tax_reserve_cash": state.tax_reserve_cash,
+        "swing_market_value": swing_value,
+        "income_market_value": income_value,
+        "total_equity": equity,
+        "total_contributions": state.total_contributions,
+        "realized_pnl": state.realized_pnl,
+        "dividends_received": state.dividends_received,
+        "open_shares": (
+            state.position.shares
+            if state.position
+            else 0
+        ),
+        "pending_entry": (
+            state.pending_entry.order_id
+            if state.pending_entry
+            else None
+        ),
+    }
+
+
+def process_paper_day(
+    *,
+    state: PaperState,
+    swing_candles: Sequence[Candle],
+    income_candles: Sequence[Candle],
+    dividends: Sequence[DividendEvent],
+    indicators: IndicatorSet,
+    vix_values: Sequence[float],
+    index: int,
+    config: BotConfig,
+    forced_entry: bool | None = None,
+) -> list[AuditEvent]:
+    """
+    Process exactly one new daily bar.
+
+    Pending entries fill at the next bar's open. Stops and targets use
+    that bar's OHLC. New entry signals are created only after the close.
+    """
+    config.validate()
+    state.validate()
+
+    if index < 0 or index >= len(swing_candles):
+        raise IndexError("Paper index is outside swing history.")
+
+    if len(vix_values) != len(swing_candles):
+        raise ValueError(
+            "Paper VIX series must align with swing candles."
+        )
+
+    candle = swing_candles[index]
+    current_date = candle.date
+
+    if (
+        state.last_processed_date is not None
+        and current_date <= state.last_processed_date
+    ):
+        return []
+
+    income_candle = _latest_income_candle(
+        income_candles,
+        current_date,
+    )
+    current_atr = indicators.atr[index]
+    events: list[AuditEvent] = []
+
+    current_month = _month_key(current_date)
+
+    if current_month != state.last_contribution_month:
+        income_weight, swing_weight = contribution_allocation(
+            _elapsed_years(state.start_date, current_date),
+            config,
+        )
+        income_amount = (
+            config.monthly_contribution * income_weight
+        )
+        swing_amount = (
+            config.monthly_contribution * swing_weight
+        )
+
+        if income_amount > 0:
+            income_fill = buy_fill(
+                income_candle.open,
+                config.slippage_rate,
+            )
+            acquired = income_amount / income_fill
+            state.income_shares += acquired
+            state.income_cost += income_amount
+        else:
+            income_fill = 0.0
+            acquired = 0.0
+
+        state.swing_cash += swing_amount
+        state.total_contributions += (
+            config.monthly_contribution
+        )
+        state.last_contribution_month = current_month
+
+        events.append(
+            _event(
+                state=state,
+                event_type="MONTHLY_CONTRIBUTION",
+                event_date=current_date,
+                unique=current_month,
+                details={
+                    "amount": config.monthly_contribution,
+                    "income_amount": income_amount,
+                    "swing_amount": swing_amount,
+                    "income_fill": income_fill,
+                    "income_shares_acquired": acquired,
+                },
+            )
+        )
+
+    previous_date = state.last_processed_date
+
+    for dividend in dividends:
+        if dividend.date > current_date:
+            break
+
+        if previous_date is not None and dividend.date <= previous_date:
+            continue
+
+        if previous_date is None and dividend.date != current_date:
+            continue
+
+        key = (
+            f"{dividend.date.isoformat()}:"
+            f"{dividend.amount_per_share:.10f}"
+        )
+
+        if key in state.processed_dividend_keys:
+            continue
+
+        gross_cash = (
+            state.income_shares
+            * dividend.amount_per_share
+        )
+        state.swing_cash += gross_cash
+        state.dividends_received += gross_cash
+        state.processed_dividend_keys.append(key)
+
+        events.append(
+            _event(
+                state=state,
+                event_type="DIVIDEND_CASH",
+                event_date=dividend.date,
+                unique=key,
+                details={
+                    "amount_per_share": (
+                        dividend.amount_per_share
+                    ),
+                    "income_shares": state.income_shares,
+                    "gross_cash": gross_cash,
+                    "destination": "SWING_CASH",
+                },
+            )
+        )
+
+    if (
+        state.pending_entry is not None
+        and state.position is None
+        and state.pending_entry.signal_date < current_date
+    ):
+        pending = state.pending_entry
+        order_key = pending.order_id
+
+        if order_key not in state.completed_order_keys:
+            combined_equity = _mark_equity(
+                state,
+                swing_price=candle.open,
+                income_price=income_candle.open,
+            )
+            sizing = calculate_position_size(
+                account_equity=combined_equity,
+                available_cash=state.swing_cash,
+                entry_price=candle.open,
+                atr=pending.signal_atr,
+                active_risk=0.0,
+                config=config,
+                trade_results_r=state.trade_results_r,
+            )
+
+            if sizing.is_tradeable:
+                cost = sizing.entry_fill * sizing.shares
+                state.swing_cash -= cost
+                state.position = PersistentPosition(
+                    symbol=state.swing_symbol,
+                    shares=sizing.shares,
+                    entry_date=current_date,
+                    entry_price=sizing.entry_fill,
+                    entry_atr=pending.signal_atr,
+                    stop_price=sizing.stop_price,
+                    target_price=sizing.target_price,
+                    highest_price=sizing.entry_fill,
+                )
+                event_type = "ENTRY_FILLED"
+                details = {
+                    "order_id": order_key,
+                    "shares": sizing.shares,
+                    "fill_price": sizing.entry_fill,
+                    "cost": cost,
+                    "stop_price": sizing.stop_price,
+                    "target_price": sizing.target_price,
+                    "planned_risk": sizing.planned_risk,
+                }
+            else:
+                event_type = "ENTRY_REJECTED"
+                details = {
+                    "order_id": order_key,
+                    "reason": sizing.blocked_reason,
+                    "available_cash": state.swing_cash,
+                    "combined_equity": combined_equity,
+                }
+
+            state.completed_order_keys.append(order_key)
+            events.append(
+                _event(
+                    state=state,
+                    event_type=event_type,
+                    event_date=current_date,
+                    unique=order_key,
+                    details=details,
+                )
+            )
+
+        state.pending_entry = None
+
+    if state.position is not None and current_atr is not None:
+        live_position = _as_position(state.position)
+        exit_evaluation = evaluate_exit(
+            position=live_position,
+            candle=candle,
+            current_atr=current_atr,
+            config=config,
+        )
+
+        if exit_evaluation.should_exit:
+            assert exit_evaluation.exit_price is not None
+            fill = sell_fill(
+                exit_evaluation.exit_price,
+                config.slippage_rate,
+            )
+            proceeds = fill * state.position.shares
+            pnl = (
+                (fill - state.position.entry_price)
+                * state.position.shares
+            )
+            tax_reserved = (
+                max(0.0, pnl)
+                * config.annual_tax_reserve_rate
+            )
+            initial_risk = (
+                state.position.entry_atr
+                * config.stop_atr_multiple
+                * state.position.shares
+            )
+            result_r = (
+                pnl / initial_risk
+                if initial_risk > 0
+                else 0.0
+            )
+            entry_date = state.position.entry_date
+            shares = state.position.shares
+
+            state.swing_cash += proceeds - tax_reserved
+            state.tax_reserve_cash += tax_reserved
+            state.realized_pnl += pnl
+            state.trade_results_r.append(result_r)
+            state.position = None
+
+            exit_key = _identifier(
+                state.swing_symbol,
+                entry_date.isoformat(),
+                current_date.isoformat(),
+                exit_evaluation.reason or "EXIT",
+            )
+            events.append(
+                _event(
+                    state=state,
+                    event_type="EXIT_FILLED",
+                    event_date=current_date,
+                    unique=exit_key,
+                    details={
+                        "shares": shares,
+                        "entry_date": entry_date.isoformat(),
+                        "fill_price": fill,
+                        "pnl": pnl,
+                        "tax_reserved": tax_reserved,
+                        "result_r": result_r,
+                        "reason": (
+                            exit_evaluation.reason or "EXIT"
+                        ),
+                    },
+                )
+            )
+        else:
+            state.position.stop_price = (
+                exit_evaluation.next_stop_price
+            )
+            state.position.highest_price = (
+                exit_evaluation.highest_price
+            )
+
+    if (
+        state.position is None
+        and state.pending_entry is None
+        and index < len(swing_candles)
+    ):
+        if forced_entry is None:
+            evaluation = evaluate_entry(
+                candles=swing_candles,
+                indicators=indicators,
+                index=index,
+                vix=vix_values,
+                config=config,
+            )
+            should_enter = evaluation.should_enter
+            triggers = evaluation.triggers
+            failed_checks = evaluation.failed_checks
+        else:
+            should_enter = forced_entry
+            triggers = (
+                ("TEST_FORCED_ENTRY",)
+                if forced_entry
+                else ()
+            )
+            failed_checks = (
+                ()
+                if forced_entry
+                else ("TEST_FORCED_HOLD",)
+            )
+
+        if should_enter and current_atr is not None:
+            order_id = _identifier(
+                "ENTRY",
+                state.state_id,
+                state.swing_symbol,
+                current_date.isoformat(),
+            )
+
+            if order_id not in state.completed_order_keys:
+                state.pending_entry = PendingEntry(
+                    order_id=order_id,
+                    symbol=state.swing_symbol,
+                    signal_date=current_date,
+                    signal_atr=current_atr,
+                )
+                events.append(
+                    _event(
+                        state=state,
+                        event_type="ENTRY_SIGNAL",
+                        event_date=current_date,
+                        unique=order_id,
+                        details={
+                            "order_id": order_id,
+                            "signal_atr": current_atr,
+                            "triggers": list(triggers),
+                            "execution": "NEXT_DAILY_OPEN",
+                        },
+                    )
+                )
+        else:
+            events.append(
+                _event(
+                    state=state,
+                    event_type="DAILY_HOLD",
+                    event_date=current_date,
+                    unique="no-entry",
+                    details={
+                        "failed_checks": list(failed_checks),
+                        "position_open": (
+                            state.position is not None
+                        ),
+                    },
+                )
+            )
+
+    state.last_processed_date = current_date
+    state.revision += 1
+    state.validate()
+
+    reconciliation = reconcile_state(
+        state,
+        swing_price=candle.close,
+        income_price=income_candle.close,
+    )
+    events.append(
+        _event(
+            state=state,
+            event_type="DAILY_RECONCILIATION",
+            event_date=current_date,
+            unique=f"revision-{state.revision}",
+            details=reconciliation,
+        )
+    )
+
+    return events

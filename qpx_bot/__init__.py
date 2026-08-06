@@ -1,7 +1,7 @@
 """
 QPX Bot
 
-Backtesting bot for the Hybrid Dividend + Swing strategy.
+Research and paper-trading bot for the Hybrid Dividend + Swing strategy.
 """
 
-__version__ = "1.8.0"
+__version__ = "1.9.0"
