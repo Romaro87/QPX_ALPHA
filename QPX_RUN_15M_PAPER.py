@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility entry point for the active QPX 15-minute paper engine."""
+"""Run one regular-session QPX 15-minute paper cycle."""
 
 from qpx_bot.intraday_six_paper import main
 

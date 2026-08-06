@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "rankings_enabled": false,
-  "maximum_concurrent_positions": 3,
+  "maximum_concurrent_positions": 6,
   "candidates": [
     "DIA",
     "IWM",

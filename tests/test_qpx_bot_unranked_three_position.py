@@ -13,7 +13,7 @@ from qpx_bot.config import BotConfig
 config = BotConfig()
 config.validate()
 
-assert config.maximum_swing_positions == 3
+assert config.maximum_swing_positions == 6
 assert REQUIRED_UNIVERSE == (
     "DIA",
     "IWM",
@@ -27,7 +27,7 @@ assert REQUIRED_UNIVERSE == (
 
 policy = load_policy()
 assert not policy.rankings_enabled
-assert policy.maximum_concurrent_positions == 3
+assert policy.maximum_concurrent_positions == 6
 assert policy.candidates == REQUIRED_UNIVERSE
 assert policy.symbol_bonus_policy == "none"
 assert not policy.live_broker_enabled
@@ -36,7 +36,7 @@ accepted_a, deferred_a = (
     choose_signals_without_ranking(
         signal_date=date(2026, 8, 6),
         qualifying=REQUIRED_UNIVERSE,
-        available_slots=3,
+        available_slots=6,
     )
 )
 accepted_b, deferred_b = (
@@ -45,14 +45,14 @@ accepted_b, deferred_b = (
         qualifying=tuple(
             reversed(REQUIRED_UNIVERSE)
         ),
-        available_slots=3,
+        available_slots=6,
     )
 )
 
 assert accepted_a == accepted_b
 assert deferred_a == deferred_b
-assert len(accepted_a) == 3
-assert len(deferred_a) == 5
+assert len(accepted_a) == 6
+assert len(deferred_a) == 2
 assert set(accepted_a).isdisjoint(
     deferred_a
 )
@@ -103,6 +103,6 @@ for prohibited in (
     assert prohibited not in source
 
 print(
-    "QPX Bot Unranked Three-Position "
+    "QPX Bot Unranked Six-Position "
     "Swing PASS"
 )

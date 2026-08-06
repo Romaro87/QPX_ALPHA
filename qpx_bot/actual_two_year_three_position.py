@@ -94,9 +94,9 @@ class MultiSwingPolicy:
                 "Rankings must remain disabled."
             )
 
-        if self.maximum_concurrent_positions != 3:
+        if self.maximum_concurrent_positions != 6:
             raise ValueError(
-                "Exactly three concurrent swing slots are required."
+                "Exactly six concurrent swing slots are required."
             )
 
         if self.candidates != REQUIRED_UNIVERSE:
@@ -1255,7 +1255,7 @@ def _format_report(
             "=" * 78,
             (
                 "QPX BOT v1.21.1 — ACTUAL TWO-YEAR "
-                "UNRANKED THREE-POSITION BACKTEST"
+                "UNRANKED SIX-POSITION BACKTEST"
             ),
             "=" * 78,
             (

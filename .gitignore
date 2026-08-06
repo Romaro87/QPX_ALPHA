@@ -73,3 +73,7 @@ reports/qpx_actual_two_year_eight_symbol/
 # QPX actual two-year unranked three-position research
 research_data/qpx_actual_two_year_three_position/
 reports/qpx_actual_two_year_three_position/
+
+# QPX 15-minute six-position paper runtime
+qpx_bot/intraday_six_runtime/
+reports/qpx_intraday_six/
