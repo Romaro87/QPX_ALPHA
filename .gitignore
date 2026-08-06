@@ -65,3 +65,7 @@ reports/qpx_actual_five_year/
 
 # QPX capital migration scratch output
 backups/qpx_initial_capital_rebalance/
+
+# QPX actual two-year eight-symbol research
+research_data/qpx_actual_two_year_eight_symbol/
+reports/qpx_actual_two_year_eight_symbol/
