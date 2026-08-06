@@ -1,9 +1,4 @@
-"""
-QPX Bot configuration.
-
-Strategy values are centralized here so they can later be
-optimized without rewriting the trading engine.
-"""
+"""QPX Bot strategy and execution configuration."""
 
 from dataclasses import dataclass
 
@@ -32,7 +27,10 @@ class BotConfig:
     rsi_period: int = 14
     rsi_overbought: float = 70.0
     rsi_strength_level: float = 50.0
+    rmi_period: int = 14
+    rmi_momentum: int = 5
     sma_trend_period: int = 200
+    sma_slope_lookback: int = 5
 
     # Volatility and exits
     atr_period: int = 14
@@ -44,12 +42,14 @@ class BotConfig:
     minimum_average_daily_volume: int = 2_000_000
     average_volume_period: int = 20
     breakout_volume_multiplier: float = 1.20
+    breakout_lookback: int = 20
     maximum_vix_for_entries: float = 28.0
 
     # Risk
     risk_per_trade: float = 0.01
     maximum_active_portfolio_risk: float = 0.06
     kelly_fraction: float = 0.25
+    minimum_kelly_trades: int = 20
 
     # Execution
     slippage_rate: float = 0.00075
@@ -79,6 +79,30 @@ class BotConfig:
         if self.starting_cash <= 0:
             raise ValueError("Starting cash must be positive.")
 
+        if self.monthly_contribution < 0:
+            raise ValueError("Monthly contribution cannot be negative.")
+
+        period_values = {
+            "EMA fast": self.ema_fast_period,
+            "EMA slow": self.ema_slow_period,
+            "RSI": self.rsi_period,
+            "RMI": self.rmi_period,
+            "SMA": self.sma_trend_period,
+            "ATR": self.atr_period,
+            "average volume": self.average_volume_period,
+            "breakout": self.breakout_lookback,
+        }
+
+        for name, value in period_values.items():
+            if value < 2:
+                raise ValueError(f"{name} period must be at least 2.")
+
+        if self.ema_fast_period >= self.ema_slow_period:
+            raise ValueError("Fast EMA period must be below slow EMA period.")
+
+        if self.rmi_momentum < 1:
+            raise ValueError("RMI momentum must be at least 1.")
+
         if not 0 < self.risk_per_trade <= 1:
             raise ValueError("Risk per trade must be between 0 and 1.")
 
@@ -91,6 +115,4 @@ class BotConfig:
             raise ValueError("ATR stop multiple must be positive.")
 
         if self.target_atr_multiple <= self.stop_atr_multiple:
-            raise ValueError(
-                "ATR target must be greater than the ATR stop."
-            )
+            raise ValueError("ATR target must be greater than the ATR stop.")

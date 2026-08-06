@@ -1,8 +1,7 @@
 """
 QPX Bot
 
-Focused backtesting bot for the Hybrid Dividend + Swing
-investment strategy.
+Backtesting bot for the Hybrid Dividend + Swing strategy.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
