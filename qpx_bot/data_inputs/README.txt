@@ -1,43 +1,53 @@
-QPX BOT REAL-DATA DROP FOLDER
+QPX BOT REAL-DATA INPUT FOLDER
 ================================
 
-Place these four daily CSV files in this folder:
+AUTOMATIC WORKFLOW
 
-1. SWING.csv
-   The swing-trading symbol exported from TradingView.
-   Required columns, case-insensitive:
-   Date/time, Open, High, Low, Close, Volume
+From the QPX_ALPHA project root, run:
 
-2. QDTE.csv
-   Daily QDTE OHLCV history.
-   Required columns:
-   Date/time, Open, High, Low, Close, Volume
+python QPX_FETCH_AND_RUN_REAL_DATA.py --symbol SPY
 
-3. QDTE_DIVIDENDS.csv
-   Actual QDTE cash distributions.
-   Required columns:
-   Date, Dividend
+The command downloads:
 
-4. VIX.csv
-   Daily VIX history.
-   Accepted formats:
-   Date,VIX
-   or a TradingView OHLCV export, using its Close column.
+SWING.csv
+    Daily history for the selected swing symbol.
 
-Run from the QPX_ALPHA project root:
+QDTE.csv
+    Daily QDTE OHLCV history.
 
-python QPX_RUN_REAL_BACKTEST.py --check-only
+QDTE_DIVIDENDS.csv
+    QDTE cash-distribution events.
 
-After all four files show FOUND:
+VIX.csv
+    Daily CBOE Volatility Index closing values.
 
-python QPX_RUN_REAL_BACKTEST.py --symbol SPY
+DOWNLOAD_MANIFEST.json
+    Provider, symbols, row counts, date range, and SHA-256 hashes.
 
-Reports are written to:
+It then validates the overlapping history and runs the real hybrid
+dividend-plus-swing backtest. Reports are written to:
 
 reports/qpx_real_backtest/
 
+MANUAL FALLBACK
+
+The runner also accepts manually exported daily CSV files. Required
+names and columns are:
+
+SWING.csv
+QDTE.csv
+    Date/time, Open, High, Low, Close, Volume
+
+QDTE_DIVIDENDS.csv
+    Date, Dividend
+
+VIX.csv
+    Date,VIX
+    or daily OHLCV with a Close column
+
 Important:
 - Use daily bars, not intraday bars.
-- Do not invent dividends or extend QDTE before its actual history.
-- The runner trims all sources to their real overlapping date range.
-- Input file SHA-256 hashes are recorded for reproducibility.
+- Provider data is third-party research data and can be revised.
+- Raw downloads and generated reports are intentionally not committed.
+- Preserve each DOWNLOAD_MANIFEST.json with its research results.
+- This is research simulation software, not live trading or advice.

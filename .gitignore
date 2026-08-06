@@ -24,3 +24,13 @@ Thumbs.db
 # Temporary
 *.tmp
 *.bak
+
+# QPX downloaded market data
+qpx_bot/data_inputs/SWING.csv
+qpx_bot/data_inputs/QDTE.csv
+qpx_bot/data_inputs/QDTE_DIVIDENDS.csv
+qpx_bot/data_inputs/VIX.csv
+qpx_bot/data_inputs/DOWNLOAD_MANIFEST.json
+
+# QPX generated research reports
+reports/qpx_real_backtest/
