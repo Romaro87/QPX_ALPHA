@@ -388,3 +388,57 @@ These are in-sample diagnostics of an already-examined historical
 window. They are intended to formulate a small number of explicit exit
 hypotheses for later frozen validation, not to claim independent
 performance validation.
+
+
+V18 fixed-window exit-hypothesis research matrix
+------------------------------------------------
+
+V18 freezes the V16 non-exit rules and tests only five explicit exit
+profiles on the same fixed local 15-minute window:
+
+1. BASELINE — the unchanged V16 exit behavior.
+2. BE_1R — after a completed bar reaches +1.00 initial R, raise the
+   next-bar protective stop to sell-slippage-adjusted breakeven.
+3. BE_0P75R — same behavior after +0.75 initial R.
+4. NO_OVERNIGHT — run normal intrabar stop/target logic first, then
+   flatten any remaining position at the final common regular-session
+   15-minute bar close; signals from that close are not staged overnight.
+5. BE_1R_NO_OVERNIGHT — combine profiles 2 and 4.
+
+Frozen across all five profiles:
+- relaxed-frequency V16 entries;
+- 16% account-equity position-notional target with one-share floor;
+- 1% trade-risk ceiling;
+- 6% aggregate active-risk ceiling;
+- Kelly disabled;
+- net-realized tax-reserve research model;
+- 2.5 ATR initial stop;
+- 5 ATR target;
+- existing trailing-stop calculation;
+- 0.075% slippage;
+- six concurrent slots;
+- no rankings;
+- same eight-ETF universe;
+- same validated local real 15-minute caches;
+- same previous-session official Cboe VIX daily-close series;
+- no forced, placeholder, synthetic, or interpolated entries/data.
+
+The break-even stop is never applied retroactively inside the bar that
+first reaches its activation level. The new stop becomes eligible only
+on the next bar. Its market stop level is adjusted so that, after the
+configured sell-side slippage, the modeled fill is approximately the
+original entry fill.
+
+The no-overnight profiles preserve ordinary stop/target priority during
+the final bar. Only positions still open afterward are closed at that
+bar's close, with normal sell-side slippage.
+
+Before testing any alternative exit, V18 reruns BASELINE and compares
+it to the latest completed V16 result. The matrix aborts if the baseline
+does not reproduce V16 on key trade counts and performance metrics.
+
+V18 writes a text, JSON, and CSV matrix summary plus the full artifacts
+for every profile. It does not automatically promote any profile to
+paper or live defaults. This remains in-sample research on an already
+examined window; any apparently improved profile must be frozen and
+validated separately.

@@ -16,7 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date, datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -102,6 +102,26 @@ DEFAULT_NOTIONAL_CAP_REPORT_ROOT = (
     PROJECT_ROOT
     / "reports"
     / "qpx_16pct_notional_cap_2024_08_06_to_2026_07_28"
+)
+DEFAULT_EXIT_MATRIX_REPORT_ROOT = (
+    PROJECT_ROOT
+    / "reports"
+    / "qpx_exit_hypothesis_matrix_2024_08_06_to_2026_07_28"
+)
+
+BASELINE_EXIT_PROFILE = "BASELINE_EXIT"
+BREAK_EVEN_1R_EXIT_PROFILE = "BREAKEVEN_AFTER_1R_RESEARCH"
+BREAK_EVEN_075R_EXIT_PROFILE = "BREAKEVEN_AFTER_0P75R_RESEARCH"
+NO_OVERNIGHT_EXIT_PROFILE = "NO_OVERNIGHT_RESEARCH"
+BREAK_EVEN_1R_NO_OVERNIGHT_EXIT_PROFILE = (
+    "BREAKEVEN_AFTER_1R_PLUS_NO_OVERNIGHT_RESEARCH"
+)
+EXIT_HYPOTHESIS_PROFILES = (
+    BASELINE_EXIT_PROFILE,
+    BREAK_EVEN_1R_EXIT_PROFILE,
+    BREAK_EVEN_075R_EXIT_PROFILE,
+    NO_OVERNIGHT_EXIT_PROFILE,
+    BREAK_EVEN_1R_NO_OVERNIGHT_EXIT_PROFILE,
 )
 
 BASELINE_NOTIONAL_PROFILE = "NO_POSITION_NOTIONAL_CAP"
@@ -317,6 +337,14 @@ class BacktestResult:
     placeholder_data: bool
     synthetic_data: bool
     live_broker_enabled: bool
+    exit_profile: str = BASELINE_EXIT_PROFILE
+    break_even_activation_r: float = 0.0
+    flatten_at_session_close: bool = False
+    break_even_stop_activations: int = 0
+    session_close_exits: int = 0
+    exit_reason_counts: Mapping[str, int] = field(
+        default_factory=dict
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -416,7 +444,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.31.0"
+                        "AppleWebKit/537.36 QPXBot/1.32.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1195,7 +1223,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.31.0"
+                    "AppleWebKit/537.36 QPXBot/1.32.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -2070,6 +2098,252 @@ def _apply_position_notional_cap(
     )
 
 
+
+def _exit_profile_settings(
+    exit_profile: str,
+) -> tuple[float, bool]:
+    """Return break-even activation R and session-close flatten flag."""
+    settings = {
+        BASELINE_EXIT_PROFILE: (0.0, False),
+        BREAK_EVEN_1R_EXIT_PROFILE: (1.0, False),
+        BREAK_EVEN_075R_EXIT_PROFILE: (0.75, False),
+        NO_OVERNIGHT_EXIT_PROFILE: (0.0, True),
+        BREAK_EVEN_1R_NO_OVERNIGHT_EXIT_PROFILE: (
+            1.0,
+            True,
+        ),
+    }
+
+    if exit_profile not in settings:
+        raise ValueError(
+            "Unsupported exit-hypothesis research profile."
+        )
+
+    return settings[exit_profile]
+
+
+def _apply_research_break_even_stop(
+    *,
+    position: Any,
+    evaluation: Any,
+    config: BotConfig,
+    activation_r: float,
+) -> tuple[float, bool]:
+    """
+    Raise the next-bar stop to sell-slippage-adjusted breakeven after
+    a completed bar reaches the requested initial-R threshold.
+
+    The current bar is never retroactively stopped by the new level.
+    """
+    next_stop = evaluation.next_stop_price
+
+    if (
+        activation_r <= 0
+        or evaluation.should_exit
+    ):
+        return next_stop, False
+
+    initial_risk_per_share = (
+        position.entry_atr
+        * config.stop_atr_multiple
+    )
+
+    if initial_risk_per_share <= 0:
+        return next_stop, False
+
+    activation_price = (
+        position.entry_price
+        + (
+            initial_risk_per_share
+            * activation_r
+        )
+    )
+
+    if (
+        evaluation.highest_price
+        + 1e-12
+        < activation_price
+    ):
+        return next_stop, False
+
+    if not (0.0 <= config.slippage_rate < 1.0):
+        raise ValueError(
+            "Slippage rate must be in [0, 1)."
+        )
+
+    break_even_market_stop = (
+        position.entry_price
+        / (
+            1.0
+            - config.slippage_rate
+        )
+    )
+    raised_stop = max(
+        next_stop,
+        break_even_market_stop,
+    )
+    activated = (
+        raised_stop
+        > next_stop + 1e-12
+    )
+    return raised_stop, activated
+
+
+def _latest_v16_baseline_result(
+    report_root: str | Path = (
+        DEFAULT_NOTIONAL_CAP_REPORT_ROOT
+    ),
+) -> tuple[Path, Mapping[str, Any]]:
+    """Locate the latest completed V16 baseline result on local disk."""
+    root = (
+        Path(report_root)
+        .expanduser()
+        .resolve()
+    )
+
+    if not root.exists():
+        raise RuntimeError(
+            f"V16 report root is missing: {root}"
+        )
+
+    candidates: list[
+        tuple[str, Path, Mapping[str, Any]]
+    ] = []
+
+    for directory in root.iterdir():
+        if not directory.is_dir():
+            continue
+
+        result_path = (
+            directory
+            / "swing_only_control_result.json"
+        )
+
+        if not result_path.exists():
+            continue
+
+        payload = json.loads(
+            result_path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        if (
+            payload.get("entry_profile")
+            != RELAXED_ENTRY_PROFILE
+            or payload.get("risk_profile")
+            != FIXED_ONE_PERCENT_RISK_PROFILE
+            or payload.get("tax_reserve_profile")
+            != NET_REALIZED_TAX_RESERVE_PROFILE
+            or payload.get("notional_profile")
+            != NOTIONAL_CAP_16PCT_PROFILE
+            or bool(payload.get("kelly_enabled"))
+            or payload.get(
+                "exit_profile",
+                BASELINE_EXIT_PROFILE,
+            )
+            != BASELINE_EXIT_PROFILE
+        ):
+            continue
+
+        candidates.append(
+            (
+                directory.name,
+                result_path,
+                payload,
+            )
+        )
+
+    if not candidates:
+        raise RuntimeError(
+            "No completed V16 baseline result was found."
+        )
+
+    _, result_path, payload = max(
+        candidates,
+        key=lambda item: item[0],
+    )
+    return result_path, payload
+
+
+def _assert_v16_baseline_reproduction(
+    *,
+    source: Mapping[str, Any],
+    candidate: BacktestResult,
+) -> None:
+    """Abort the matrix if the unchanged baseline drifts from V16."""
+    exact_fields = (
+        "closed_trades",
+        "filled_entries",
+        "staged_signals",
+        "capacity_deferred",
+        "gap_rejections",
+        "risk_rejections",
+        "maximum_observed_positions",
+        "contribution_count",
+        "common_test_bars",
+        "test_sessions",
+    )
+
+    for name in exact_fields:
+        if int(source[name]) != int(
+            getattr(candidate, name)
+        ):
+            raise RuntimeError(
+                "V18 baseline reproduction mismatch "
+                f"for {name}: source={source[name]!r}, "
+                f"candidate={getattr(candidate, name)!r}"
+            )
+
+    numeric_fields = (
+        "ending_equity",
+        "net_profit",
+        "win_rate",
+        "profit_factor",
+        "maximum_drawdown",
+        "flow_adjusted_cagr",
+        "swing_exposure",
+    )
+
+    for name in numeric_fields:
+        source_value = source.get(name)
+        candidate_value = getattr(
+            candidate,
+            name,
+        )
+
+        if (
+            source_value is None
+            or candidate_value is None
+        ):
+            if source_value != candidate_value:
+                raise RuntimeError(
+                    "V18 baseline reproduction mismatch "
+                    f"for {name}."
+                )
+            continue
+
+        tolerance = (
+            0.01
+            if name
+            in (
+                "ending_equity",
+                "net_profit",
+            )
+            else 1e-10
+        )
+
+        if abs(
+            float(source_value)
+            - float(candidate_value)
+        ) > tolerance:
+            raise RuntimeError(
+                "V18 baseline reproduction mismatch "
+                f"for {name}: source={source_value!r}, "
+                f"candidate={candidate_value!r}"
+            )
+
+
 def _position_size_rejection_diagnostic(
     *,
     account_equity: float,
@@ -2487,18 +2761,18 @@ def _format_report(
             "=" * 78,
             (
                 (
-                    "QPX BOT v1.31.0 — FIXED SWING-ONLY CONTROL "
+                    "QPX BOT v1.32.0 — FIXED SWING-ONLY CONTROL "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
                 if result.swing_only
                 else (
                     (
-                        "QPX BOT v1.31.0 — FIXED NEAR-TWO-YEAR "
+                        "QPX BOT v1.32.0 — FIXED NEAR-TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                     if result.fixed_window
                     else (
-                        "QPX BOT v1.31.0 — ACTUAL TWO-YEAR "
+                        "QPX BOT v1.32.0 — ACTUAL TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                 )
@@ -2558,6 +2832,29 @@ def _format_report(
             (
                 "Position notional target   : "
                 f"{result.maximum_position_notional_fraction:.2%}"
+            ),
+            (
+                "Exit hypothesis profile    : "
+                f"{result.exit_profile}"
+            ),
+            (
+                "Break-even activation      : "
+                + (
+                    "DISABLED"
+                    if result.break_even_activation_r <= 0
+                    else (
+                        f"{result.break_even_activation_r:.2f}R "
+                        "(next-bar stop)"
+                    )
+                )
+            ),
+            (
+                "Session-close flatten      : "
+                + (
+                    "ENABLED"
+                    if result.flatten_at_session_close
+                    else "DISABLED"
+                )
             ),
             (
                 "Indicator initialization   : "
@@ -2724,6 +3021,14 @@ def _format_report(
                 f"{result.one_share_floor_uses}"
             ),
             (
+                "Break-even stop activations: "
+                f"{result.break_even_stop_activations}"
+            ),
+            (
+                "Session-close exits        : "
+                f"{result.session_close_exits}"
+            ),
+            (
                 "Gap / risk rejections      : "
                 f"{result.gap_rejections} / "
                 f"{result.risk_rejections}"
@@ -2750,6 +3055,18 @@ def _format_report(
                     )
                 )
                 if result.risk_rejection_diagnostics
+                else ("  none",)
+            ),
+            "Exit reason counts:",
+            *(
+                (
+                    f"  {name}: {count}"
+                    for name, count
+                    in sorted(
+                        result.exit_reason_counts.items()
+                    )
+                )
+                if result.exit_reason_counts
                 else ("  none",)
             ),
             (
@@ -2805,6 +3122,7 @@ def run_backtest(
     risk_profile: str = BASELINE_RISK_PROFILE,
     tax_reserve_profile: str = BASELINE_TAX_RESERVE_PROFILE,
     notional_profile: str = BASELINE_NOTIONAL_PROFILE,
+    exit_profile: str = BASELINE_EXIT_PROFILE,
 ) -> tuple[BacktestResult, RunArtifacts]:
     fixed_window = (
         fixed_start is not None
@@ -2873,6 +3191,27 @@ def run_backtest(
     ):
         raise ValueError(
             "Unsupported position-notional research profile."
+        )
+
+    (
+        break_even_activation_r,
+        flatten_at_session_close,
+    ) = _exit_profile_settings(
+        exit_profile
+    )
+
+    if (
+        exit_profile
+        != BASELINE_EXIT_PROFILE
+        and not (
+            swing_only
+            and fixed_window
+            and local_only
+        )
+    ):
+        raise ValueError(
+            "Exit-hypothesis profiles are restricted "
+            "to the fixed local swing-only research control."
         )
 
     if (
@@ -3519,6 +3858,13 @@ def run_backtest(
             notional_profile
             == NOTIONAL_CAP_16PCT_PROFILE
         ),
+        "exit_profile": exit_profile,
+        "break_even_activation_r": (
+            break_even_activation_r
+        ),
+        "flatten_at_session_close": (
+            flatten_at_session_close
+        ),
         "income_sleeve_active": (not swing_only),
         "qdte_used_for_common_timestamp_control": swing_only,
         "initialization_bars": initialization_bars,
@@ -3643,6 +3989,8 @@ def run_backtest(
     tax_reserve_released = 0.0
     notional_cap_adjustments = 0
     one_share_floor_uses = 0
+    break_even_stop_activations = 0
+    session_close_exits = 0
     maximum_observed_positions = 0
     current_month = (
         first_test_time.year,
@@ -3731,8 +4079,20 @@ def run_backtest(
         )
 
 
-    for bar_time in test_times:
+    for bar_time_index, bar_time in enumerate(
+        test_times
+    ):
         qdte_bar = maps[INCOME_SYMBOL][bar_time]
+        is_last_session_bar = (
+            bar_time_index
+            == len(test_times) - 1
+            or (
+                test_times[
+                    bar_time_index + 1
+                ].date()
+                != bar_time.date()
+            )
+        )
 
         if not swing_only:
             for event in dividend_by_date.get(
@@ -4095,11 +4455,76 @@ def run_backtest(
                     )
                 )
             else:
+                (
+                    next_stop_price,
+                    break_even_activated,
+                ) = _apply_research_break_even_stop(
+                    position=position,
+                    evaluation=evaluation,
+                    config=config,
+                    activation_r=(
+                        break_even_activation_r
+                    ),
+                )
+                if break_even_activated:
+                    break_even_stop_activations += 1
                 position.stop_price = (
-                    evaluation.next_stop_price
+                    next_stop_price
                 )
                 position.highest_price = (
                     evaluation.highest_price
+                )
+
+        if (
+            flatten_at_session_close
+            and is_last_session_bar
+        ):
+            for position in list(
+                portfolio.positions.values()
+            ):
+                symbol = position.symbol
+                bar = maps[symbol][bar_time]
+                closed = portfolio.close_position(
+                    symbol=symbol,
+                    exit_price=bar.close,
+                    exit_date=bar_time.date(),
+                    reason="SESSION_CLOSE",
+                    config=config,
+                )
+                session_close_exits += 1
+                tax_release_on_close = 0.0
+                if (
+                    tax_reserve_profile
+                    == NET_REALIZED_TAX_RESERVE_PROFILE
+                ):
+                    tax_release_on_close = (
+                        _reconcile_net_realized_tax_reserve(
+                            portfolio=portfolio,
+                            config=config,
+                        )
+                    )
+                    tax_reserve_released += (
+                        tax_release_on_close
+                    )
+                entry_time = entry_times.pop(
+                    symbol
+                )
+                trade_records.append(
+                    TradeRecord(
+                        symbol=closed.symbol,
+                        entry_time=entry_time,
+                        exit_time=bar_time,
+                        shares=closed.shares,
+                        entry_price=closed.entry_price,
+                        exit_price=closed.exit_price,
+                        pnl=closed.pnl,
+                        tax_reserved=(
+                            closed.tax_reserved
+                            - tax_release_on_close
+                        ),
+                        reason=closed.reason,
+                        result_r=closed.result_r,
+                    )
                 )
 
         if bar_time >= entry_eligible_time:
@@ -4145,6 +4570,10 @@ def run_backtest(
                         symbol not in open_symbols
                         and symbol not in pending_symbols
                         and bar_time != test_times[-1]
+                        and not (
+                            flatten_at_session_close
+                            and is_last_session_bar
+                        )
                     ):
                         qualifying.append(symbol)
 
@@ -4644,6 +5073,25 @@ def run_backtest(
         placeholder_data=False,
         synthetic_data=False,
         live_broker_enabled=False,
+        exit_profile=exit_profile,
+        break_even_activation_r=(
+            break_even_activation_r
+        ),
+        flatten_at_session_close=(
+            flatten_at_session_close
+        ),
+        break_even_stop_activations=(
+            break_even_stop_activations
+        ),
+        session_close_exits=(
+            session_close_exits
+        ),
+        exit_reason_counts=dict(
+            Counter(
+                trade.reason
+                for trade in trade_records
+            )
+        ),
     )
 
     artifact_prefix = (
@@ -4768,6 +5216,25 @@ def run_backtest(
             "one_share_floor_uses": (
                 one_share_floor_uses
             ),
+            "exit_profile": exit_profile,
+            "break_even_activation_r": (
+                break_even_activation_r
+            ),
+            "flatten_at_session_close": (
+                flatten_at_session_close
+            ),
+            "break_even_stop_activations": (
+                break_even_stop_activations
+            ),
+            "session_close_exits": (
+                session_close_exits
+            ),
+            "exit_reason_counts": dict(
+                Counter(
+                    trade.reason
+                    for trade in trade_records
+                )
+            ),
             "counts_overlap": True,
             "fixed_window": fixed_window,
             "local_only": local_only,
@@ -4858,6 +5325,33 @@ def run_backtest(
             ),
             "one_share_floor_uses": (
                 one_share_floor_uses
+            ),
+            "exit_profile": exit_profile,
+            "break_even_activation_r": (
+                break_even_activation_r
+            ),
+            "flatten_at_session_close": (
+                flatten_at_session_close
+            ),
+            "break_even_stop_activations": (
+                break_even_stop_activations
+            ),
+            "session_close_exits": (
+                session_close_exits
+            ),
+            "exit_reason_counts": dict(
+                Counter(
+                    trade.reason
+                    for trade in trade_records
+                )
+            ),
+            "exit_semantics_note": (
+                "Break-even stops activate only after the completed "
+                "bar reaches the threshold and take effect on the "
+                "next bar. Session-close profiles run ordinary "
+                "intrabar stop/target logic first, then flatten "
+                "remaining positions at the last common regular-"
+                "session bar close."
             ),
             "tax_reserve_model_note": (
                 "Research cash-reserve model only; "
@@ -5110,6 +5604,520 @@ def fixed_window_main(
 
 
 
+
+
+
+def _matrix_pf_text(
+    value: float | None,
+) -> str:
+    if value is None:
+        return "∞"
+    return f"{value:.3f}"
+
+
+def exit_hypothesis_matrix_main(
+    argv: Sequence[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the fixed local V16 strategy through a "
+            "five-profile exit-hypothesis research matrix."
+        )
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(DEFAULT_DATA_ROOT),
+    )
+    parser.add_argument(
+        "--report-root",
+        default=str(
+            DEFAULT_EXIT_MATRIX_REPORT_ROOT
+        ),
+    )
+    args = parser.parse_args(argv)
+
+    source_path, source_result = (
+        _latest_v16_baseline_result()
+    )
+
+    matrix_id = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+    matrix_directory = (
+        Path(args.report_root)
+        .expanduser()
+        .resolve()
+        / matrix_id
+    )
+    matrix_directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    labels = {
+        BASELINE_EXIT_PROFILE: "BASELINE",
+        BREAK_EVEN_1R_EXIT_PROFILE: "BE_1R",
+        BREAK_EVEN_075R_EXIT_PROFILE: "BE_0P75R",
+        NO_OVERNIGHT_EXIT_PROFILE: "NO_OVERNIGHT",
+        BREAK_EVEN_1R_NO_OVERNIGHT_EXIT_PROFILE: (
+            "BE_1R_NO_OVERNIGHT"
+        ),
+    }
+
+    print(
+        "QPX V18 EXIT-HYPOTHESIS MATRIX:"
+    )
+    print(
+        f"  verified V16 source: {source_path}"
+    )
+    print(
+        "  entries: V16 relaxed-frequency profile"
+    )
+    print(
+        "  position target: 16% account equity "
+        "with one-share floor"
+    )
+    print(
+        "  trade risk / active-risk cap: 1% / 6%"
+    )
+    print(
+        "  Kelly: disabled"
+    )
+    print(
+        "  tax reserve: net-realized research model"
+    )
+    print(
+        "  target remains 5 ATR (2R); initial stop remains 2.5 ATR"
+    )
+    print(
+        "  no provider key and no market-data download"
+    )
+    print(
+        "  live/paper defaults remain unchanged"
+    )
+    print()
+
+    runs: list[
+        tuple[str, BacktestResult, RunArtifacts]
+    ] = []
+
+    for profile in EXIT_HYPOTHESIS_PROFILES:
+        label = labels[profile]
+        print("=" * 78)
+        print(f"RUNNING PROFILE: {label}")
+        activation_r, flatten = (
+            _exit_profile_settings(
+                profile
+            )
+        )
+        print(
+            "  break-even activation: "
+            + (
+                "disabled"
+                if activation_r <= 0
+                else f"{activation_r:.2f}R"
+            )
+        )
+        print(
+            "  session-close flatten: "
+            + (
+                "enabled"
+                if flatten
+                else "disabled"
+            )
+        )
+        print("=" * 78)
+
+        profile_root = (
+            matrix_directory
+            / label.lower()
+        )
+        result, artifacts = run_backtest(
+            api_key="",
+            data_root=args.data_root,
+            report_root=profile_root,
+            fixed_start=FIXED_WINDOW_START,
+            fixed_end=FIXED_WINDOW_END,
+            local_only=True,
+            initialization_bars=FIXED_INITIALIZATION_BARS,
+            swing_only=True,
+            entry_profile=RELAXED_ENTRY_PROFILE,
+            risk_profile=(
+                FIXED_ONE_PERCENT_RISK_PROFILE
+            ),
+            tax_reserve_profile=(
+                NET_REALIZED_TAX_RESERVE_PROFILE
+            ),
+            notional_profile=(
+                NOTIONAL_CAP_16PCT_PROFILE
+            ),
+            exit_profile=profile,
+        )
+
+        if (
+            profile
+            == BASELINE_EXIT_PROFILE
+        ):
+            _assert_v16_baseline_reproduction(
+                source=source_result,
+                candidate=result,
+            )
+            print(
+                "V16 BASELINE REPRODUCTION: PASS"
+            )
+
+        runs.append(
+            (
+                label,
+                result,
+                artifacts,
+            )
+        )
+        print(
+            "  trades / PF / net / DD: "
+            f"{result.closed_trades} / "
+            f"{_matrix_pf_text(result.profit_factor)} / "
+            f"${result.net_profit:,.2f} / "
+            f"{result.maximum_drawdown:.2%}"
+        )
+        print()
+
+    baseline = runs[0][1]
+    rows: list[dict[str, Any]] = []
+
+    for label, result, artifacts in runs:
+        reasons = dict(
+            result.exit_reason_counts
+        )
+        target_exits = (
+            reasons.get("ATR_TARGET", 0)
+            + reasons.get("TARGET_GAP", 0)
+        )
+        stop_exits = (
+            reasons.get("ATR_STOP", 0)
+            + reasons.get("STOP_GAP", 0)
+        )
+
+        rows.append(
+            {
+                "label": label,
+                "exit_profile": (
+                    result.exit_profile
+                ),
+                "closed_trades": (
+                    result.closed_trades
+                ),
+                "filled_entries": (
+                    result.filled_entries
+                ),
+                "win_rate": (
+                    result.win_rate
+                ),
+                "profit_factor": (
+                    result.profit_factor
+                ),
+                "net_profit": (
+                    result.net_profit
+                ),
+                "ending_equity": (
+                    result.ending_equity
+                ),
+                "flow_adjusted_cagr": (
+                    result.flow_adjusted_cagr
+                ),
+                "maximum_drawdown": (
+                    result.maximum_drawdown
+                ),
+                "swing_exposure": (
+                    result.swing_exposure
+                ),
+                "break_even_stop_activations": (
+                    result.break_even_stop_activations
+                ),
+                "session_close_exits": (
+                    result.session_close_exits
+                ),
+                "target_exits": (
+                    target_exits
+                ),
+                "stop_exits": (
+                    stop_exits
+                ),
+                "exit_reason_counts": reasons,
+                "delta_net_profit_vs_baseline": (
+                    result.net_profit
+                    - baseline.net_profit
+                ),
+                "delta_profit_factor_vs_baseline": (
+                    None
+                    if (
+                        result.profit_factor is None
+                        or baseline.profit_factor is None
+                    )
+                    else (
+                        result.profit_factor
+                        - baseline.profit_factor
+                    )
+                ),
+                "delta_max_drawdown_vs_baseline": (
+                    result.maximum_drawdown
+                    - baseline.maximum_drawdown
+                ),
+                "report": str(
+                    artifacts.report
+                ),
+                "result": str(
+                    artifacts.result
+                ),
+                "trades": str(
+                    artifacts.trades
+                ),
+            }
+        )
+
+    report_lines = [
+        "=" * 100,
+        (
+            "QPX BOT v1.32.0 — FIXED V16 EXIT-HYPOTHESIS "
+            "RESEARCH MATRIX"
+        ),
+        "=" * 100,
+        f"Source V16 result          : {source_path}",
+        (
+            "Historical window          : "
+            f"{FIXED_WINDOW_START} to {FIXED_WINDOW_END}"
+        ),
+        "Baseline reproduction        : PASS",
+        (
+            "Frozen non-exit rules      : relaxed entries; "
+            "16% notional target; 1% trade risk; 6% active "
+            "risk; no Kelly; net-realized tax reserve"
+        ),
+        (
+            "Target / initial stop      : 5 ATR / 2.5 ATR "
+            "(unchanged)"
+        ),
+        (
+            "Break-even semantics       : activation is observed "
+            "on a completed bar; raised stop is eligible starting "
+            "the next bar; stop price is adjusted for sell slippage"
+        ),
+        (
+            "No-overnight semantics     : normal intrabar stop/target "
+            "logic runs first; remaining positions exit at the final "
+            "common regular-session bar close; no close-bar signal is "
+            "staged overnight"
+        ),
+        "",
+        (
+            "PROFILE              TRADES   WIN      PF        NET P&L"
+            "      CAGR      MAX DD   EXPOSURE  BE ACT  DAY EXITS  TARGETS"
+        ),
+        "-" * 100,
+    ]
+
+    for row in rows:
+        report_lines.append(
+            f"{row['label']:<20}"
+            f"{row['closed_trades']:>7}  "
+            f"{row['win_rate']:>6.1%}  "
+            f"{_matrix_pf_text(row['profit_factor']):>7}  "
+            f"${row['net_profit']:>10,.2f}  "
+            f"{row['flow_adjusted_cagr']:>8.2%}  "
+            f"{row['maximum_drawdown']:>8.2%}  "
+            f"{row['swing_exposure']:>8.2%}  "
+            f"{row['break_even_stop_activations']:>6}  "
+            f"{row['session_close_exits']:>9}  "
+            f"{row['target_exits']:>7}"
+        )
+
+    report_lines.extend(
+        (
+            "",
+            "DELTA VS BASELINE",
+        )
+    )
+
+    for row in rows[1:]:
+        pf_delta = (
+            "n/a"
+            if row[
+                "delta_profit_factor_vs_baseline"
+            ] is None
+            else (
+                f"{row['delta_profit_factor_vs_baseline']:+.3f}"
+            )
+        )
+        report_lines.append(
+            "  "
+            f"{row['label']:<20} "
+            f"net=${row['delta_net_profit_vs_baseline']:+,.2f}  "
+            f"PF={pf_delta}  "
+            "DD="
+            f"{row['delta_max_drawdown_vs_baseline']:+.2%}"
+        )
+
+    report_lines.extend(
+        (
+            "",
+            "EXIT REASON COUNTS",
+        )
+    )
+
+    for row in rows:
+        reason_text = ", ".join(
+            f"{name}={count}"
+            for name, count
+            in sorted(
+                row[
+                    "exit_reason_counts"
+                ].items()
+            )
+        )
+        report_lines.append(
+            f"  {row['label']:<20} {reason_text}"
+        )
+
+    report_lines.extend(
+        (
+            "",
+            "INTERPRETATION GUARDRAILS",
+            (
+                "  This matrix is in-sample research on the same "
+                "already-examined historical window."
+            ),
+            (
+                "  V18 does not automatically promote any profile "
+                "to live or paper-trading defaults."
+            ),
+            (
+                "  A better in-sample profile must be frozen and "
+                "validated separately before deployment."
+            ),
+            "=" * 100,
+        )
+    )
+
+    report_text = "\n".join(
+        report_lines
+    )
+    report_path = (
+        matrix_directory
+        / "v18_exit_hypothesis_matrix_report.txt"
+    )
+    json_path = (
+        matrix_directory
+        / "v18_exit_hypothesis_matrix.json"
+    )
+    csv_path = (
+        matrix_directory
+        / "v18_exit_hypothesis_matrix.csv"
+    )
+
+    report_path.write_text(
+        report_text + "\n",
+        encoding="utf-8",
+    )
+    _atomic_json(
+        json_path,
+        {
+            "schema_version": 1,
+            "source_v16_result": str(
+                source_path
+            ),
+            "baseline_reproduction": True,
+            "historical_start": (
+                FIXED_WINDOW_START.isoformat()
+            ),
+            "historical_end": (
+                FIXED_WINDOW_END.isoformat()
+            ),
+            "profiles": rows,
+            "strategy_promotion": False,
+            "in_sample_research": True,
+        },
+    )
+
+    with csv_path.open(
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as file:
+        writer = csv.writer(file)
+        writer.writerow(
+            (
+                "Profile",
+                "ClosedTrades",
+                "FilledEntries",
+                "WinRate",
+                "ProfitFactor",
+                "NetProfit",
+                "EndingEquity",
+                "FlowAdjustedCAGR",
+                "MaximumDrawdown",
+                "SwingExposure",
+                "BreakEvenActivations",
+                "SessionCloseExits",
+                "TargetExits",
+                "StopExits",
+                "DeltaNetProfitVsBaseline",
+                "DeltaProfitFactorVsBaseline",
+                "DeltaMaxDrawdownVsBaseline",
+            )
+        )
+
+        for row in rows:
+            writer.writerow(
+                (
+                    row["label"],
+                    row["closed_trades"],
+                    row["filled_entries"],
+                    f"{row['win_rate']:.10f}",
+                    (
+                        ""
+                        if row["profit_factor"] is None
+                        else (
+                            f"{row['profit_factor']:.10f}"
+                        )
+                    ),
+                    f"{row['net_profit']:.8f}",
+                    f"{row['ending_equity']:.8f}",
+                    f"{row['flow_adjusted_cagr']:.10f}",
+                    f"{row['maximum_drawdown']:.10f}",
+                    f"{row['swing_exposure']:.10f}",
+                    row[
+                        "break_even_stop_activations"
+                    ],
+                    row[
+                        "session_close_exits"
+                    ],
+                    row["target_exits"],
+                    row["stop_exits"],
+                    f"{row['delta_net_profit_vs_baseline']:.8f}",
+                    (
+                        ""
+                        if row[
+                            "delta_profit_factor_vs_baseline"
+                        ] is None
+                        else (
+                            f"{row['delta_profit_factor_vs_baseline']:.10f}"
+                        )
+                    ),
+                    f"{row['delta_max_drawdown_vs_baseline']:.10f}",
+                )
+            )
+
+    print(report_text)
+    print("-" * 100)
+    print("Matrix artifacts:")
+    print(f"  report : {report_path}")
+    print(f"  json   : {json_path}")
+    print(f"  csv    : {csv_path}")
+    print()
+    print(
+        "QPX EXIT-HYPOTHESIS RESEARCH MATRIX V18: COMPLETE"
+    )
+    return 0
 
 
 def position_notional_cap_control_main(
