@@ -74,6 +74,11 @@ DEFAULT_FIXED_REPORT_ROOT = (
     / "reports"
     / "qpx_fixed_2024_08_06_to_2026_07_28"
 )
+DEFAULT_SWING_ONLY_REPORT_ROOT = (
+    PROJECT_ROOT
+    / "reports"
+    / "qpx_swing_only_control_2024_08_06_to_2026_07_28"
+)
 PROVIDER_HOSTS = (
     "https://api.massive.com",
     "https://api.polygon.io",
@@ -188,6 +193,7 @@ class BacktestResult:
     warmup_start: date
     fixed_window: bool
     local_only: bool
+    swing_only: bool
     initialization_bars: int
     first_entry_eligible_time: str
     interval: str
@@ -342,7 +348,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.26.1"
+                        "AppleWebKit/537.36 QPXBot/1.27.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1121,7 +1127,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.26.1"
+                    "AppleWebKit/537.36 QPXBot/1.27.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -2118,13 +2124,20 @@ def _format_report(
             "=" * 78,
             (
                 (
-                    "QPX BOT v1.26.1 — FIXED NEAR-TWO-YEAR "
+                    "QPX BOT v1.27.0 — FIXED SWING-ONLY CONTROL "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
-                if result.fixed_window
+                if result.swing_only
                 else (
-                    "QPX BOT v1.26.1 — ACTUAL TWO-YEAR "
-                    "15-MINUTE SIX-POSITION BACKTEST"
+                    (
+                        "QPX BOT v1.27.0 — FIXED NEAR-TWO-YEAR "
+                        "15-MINUTE SIX-POSITION BACKTEST"
+                    )
+                    if result.fixed_window
+                    else (
+                        "QPX BOT v1.27.0 — ACTUAL TWO-YEAR "
+                        "15-MINUTE SIX-POSITION BACKTEST"
+                    )
                 )
             ),
             "=" * 78,
@@ -2143,6 +2156,14 @@ def _format_report(
                 )
             ),
             f"Local-only data            : {result.local_only}",
+            (
+                "Portfolio mode             : "
+                + (
+                    "SWING_ONLY_CONTROL"
+                    if result.swing_only
+                    else "HYBRID_QDTE_PLUS_SWING"
+                )
+            ),
             (
                 "Indicator initialization   : "
                 f"{result.initialization_bars} common bars"
@@ -2166,7 +2187,14 @@ def _format_report(
                 "Swing universe             : "
                 + ", ".join(result.swing_symbols)
             ),
-            f"Income sleeve              : {result.income_symbol}",
+            (
+                "Income sleeve              : "
+                + (
+                    "DISABLED (QDTE retained only for timestamp control)"
+                    if result.swing_only
+                    else result.income_symbol
+                )
+            ),
             f"Volatility series          : {result.vix_symbol}",
             (
                 "VIX observation timing      : "
@@ -2337,6 +2365,7 @@ def run_backtest(
     fixed_end: date | None = None,
     local_only: bool = False,
     initialization_bars: int = 0,
+    swing_only: bool = False,
 ) -> tuple[BacktestResult, RunArtifacts]:
     fixed_window = (
         fixed_start is not None
@@ -2368,6 +2397,11 @@ def run_backtest(
     if local_only and not fixed_window:
         raise ValueError(
             "Local-only mode requires a fixed historical window."
+        )
+
+    if swing_only and not (fixed_window and local_only):
+        raise ValueError(
+            "Swing-only control requires fixed local-only mode."
         )
 
     if not local_only and not api_key.strip():
@@ -2688,7 +2722,14 @@ def run_backtest(
         / "QDTE_DIVIDENDS.csv"
     )
 
-    if local_only:
+    if swing_only:
+        dividends = []
+        dividend_host = "SWING_ONLY_NO_DIVIDEND_INPUT"
+        print(
+            "Swing-only control: QDTE dividends are disabled; "
+            "QDTE bars remain only in the common-timestamp intersection."
+        )
+    elif local_only:
         (
             dividends,
             cached_dividend_path,
@@ -2715,11 +2756,13 @@ def run_backtest(
         )
 
     provider_hosts.add(dividend_host)
-    _write_dividends(
-        dividend_path,
-        dividends,
-    )
-    input_paths["QDTE_DIVIDENDS"] = dividend_path
+
+    if not swing_only:
+        _write_dividends(
+            dividend_path,
+            dividends,
+        )
+        input_paths["QDTE_DIVIDENDS"] = dividend_path
 
     common = _common_times(histories)
     test_times = [
@@ -2895,6 +2938,9 @@ def run_backtest(
         "warmup_start": warmup_start.isoformat(),
         "fixed_window": fixed_window,
         "local_only": local_only,
+        "swing_only": swing_only,
+        "income_sleeve_active": (not swing_only),
+        "qdte_used_for_common_timestamp_control": swing_only,
         "initialization_bars": initialization_bars,
         "first_entry_eligible_time": (
             entry_eligible_time.isoformat()
@@ -2991,18 +3037,6 @@ def run_backtest(
     first_qdte = maps[INCOME_SYMBOL][
         first_test_time
     ]
-    initial_fill = buy_fill(
-        first_qdte.open,
-        config.slippage_rate,
-    )
-    income_shares = (
-        config.starting_cash
-        / initial_fill
-    )
-    income_cost = config.starting_cash
-    portfolio = Portfolio(
-        config.starting_swing_cash
-    )
     total_contributions = (
         config.total_starting_capital
     )
@@ -3030,70 +3064,109 @@ def run_backtest(
         first_test_time.month,
     )
     previous_allocation_years = 0
-    initial_target, _ = contribution_allocation(
-        0,
-        config,
-    )
-    (
-        income_shares,
-        income_cost,
-        initial_rebalance,
-    ) = _apply_rebalance(
-        portfolio=portfolio,
-        income_shares=income_shares,
-        income_cost=income_cost,
-        qdte_price=first_qdte.open,
-        position_prices={},
-        target_income_weight=initial_target,
-        config=config,
-    )
-    allocation_records.append(
-        AllocationRecord(
-            time=first_test_time,
-            event_type="INITIAL_REBALANCE",
-            external_contribution=(
-                config.total_starting_capital
-            ),
-            target_income_weight=initial_target,
-            action=initial_rebalance.action,
-            before_income_weight=(
-                initial_rebalance.before_income_weight
-            ),
-            after_income_weight=(
-                initial_rebalance.after_income_weight
-            ),
-            qdte_market_value_traded=(
-                initial_rebalance.market_value_traded
-            ),
-            realized_pnl=(
-                initial_rebalance.realized_pnl
-            ),
-            tax_reserved=(
-                initial_rebalance.tax_reserved
-            ),
+
+    if swing_only:
+        income_shares = 0.0
+        income_cost = 0.0
+        portfolio = Portfolio(
+            config.total_starting_capital
         )
-    )
+        initial_target = 0.0
+        allocation_records.append(
+            AllocationRecord(
+                time=first_test_time,
+                event_type="SWING_ONLY_INITIAL_CAPITAL",
+                external_contribution=(
+                    config.total_starting_capital
+                ),
+                target_income_weight=0.0,
+                action="ALL_CAPITAL_TO_SWING_CASH",
+                before_income_weight=0.0,
+                after_income_weight=0.0,
+                qdte_market_value_traded=0.0,
+                realized_pnl=0.0,
+                tax_reserved=0.0,
+            )
+        )
+    else:
+        initial_fill = buy_fill(
+            first_qdte.open,
+            config.slippage_rate,
+        )
+        income_shares = (
+            config.starting_cash
+            / initial_fill
+        )
+        income_cost = config.starting_cash
+        portfolio = Portfolio(
+            config.starting_swing_cash
+        )
+        initial_target, _ = contribution_allocation(
+            0,
+            config,
+        )
+        (
+            income_shares,
+            income_cost,
+            initial_rebalance,
+        ) = _apply_rebalance(
+            portfolio=portfolio,
+            income_shares=income_shares,
+            income_cost=income_cost,
+            qdte_price=first_qdte.open,
+            position_prices={},
+            target_income_weight=initial_target,
+            config=config,
+        )
+        allocation_records.append(
+            AllocationRecord(
+                time=first_test_time,
+                event_type="INITIAL_REBALANCE",
+                external_contribution=(
+                    config.total_starting_capital
+                ),
+                target_income_weight=initial_target,
+                action=initial_rebalance.action,
+                before_income_weight=(
+                    initial_rebalance.before_income_weight
+                ),
+                after_income_weight=(
+                    initial_rebalance.after_income_weight
+                ),
+                qdte_market_value_traded=(
+                    initial_rebalance.market_value_traded
+                ),
+                realized_pnl=(
+                    initial_rebalance.realized_pnl
+                ),
+                tax_reserved=(
+                    initial_rebalance.tax_reserved
+                ),
+            )
+        )
+
 
     for bar_time in test_times:
         qdte_bar = maps[INCOME_SYMBOL][bar_time]
 
-        for event in dividend_by_date.get(
-            bar_time.date(),
-            [],
-        ):
-            if event.event_id in processed_dividends:
-                continue
+        if not swing_only:
+            for event in dividend_by_date.get(
+                bar_time.date(),
+                [],
+            ):
+                if event.event_id in processed_dividends:
+                    continue
 
-            cash = (
-                income_shares
-                * event.cash_amount
-            )
-            portfolio.cash += cash
-            distributions_received += cash
-            distribution_count += 1
-            processed_dividends.add(
-                event.event_id
-            )
+                cash = (
+                    income_shares
+                    * event.cash_amount
+                )
+                portfolio.cash += cash
+                distributions_received += cash
+                distribution_count += 1
+                processed_dividends.add(
+                    event.event_id
+                )
 
         month_key = (
             bar_time.year,
@@ -3107,8 +3180,12 @@ def run_backtest(
             month_key != current_month
         )
         phase_changed = (
-            allocation_years
-            != previous_allocation_years
+            False
+            if swing_only
+            else (
+                allocation_years
+                != previous_allocation_years
+            )
         )
         external_contribution = 0.0
 
@@ -3125,7 +3202,10 @@ def run_backtest(
             )
             current_month = month_key
 
-        if month_changed or phase_changed:
+        if (
+            not swing_only
+            and (month_changed or phase_changed)
+        ):
             target, _ = contribution_allocation(
                 allocation_years,
                 config,
@@ -3249,8 +3329,14 @@ def run_backtest(
                 portfolio.equity(
                     open_prices
                 )
-                + income_shares
-                * qdte_bar.open
+                if swing_only
+                else (
+                    portfolio.equity(
+                        open_prices
+                    )
+                    + income_shares
+                    * qdte_bar.open
+                )
             )
             sizing = calculate_position_size(
                 account_equity=account_equity,
@@ -3498,17 +3584,24 @@ def run_backtest(
             close_prices
         )
         income_value = (
-            income_shares
-            * qdte_bar.close
+            0.0
+            if swing_only
+            else (
+                income_shares
+                * qdte_bar.close
+            )
         )
         total_equity = (
             swing_equity
             + income_value
         )
-        target, _ = contribution_allocation(
-            allocation_years,
-            config,
-        )
+        if swing_only:
+            target = 0.0
+        else:
+            target, _ = contribution_allocation(
+                allocation_years,
+                config,
+            )
         investable = (
             income_value
             + portfolio.cash
@@ -3586,8 +3679,12 @@ def run_backtest(
         final_time
     ]
     final_income_value = (
-        income_shares
-        * final_qdte.close
+        0.0
+        if swing_only
+        else (
+            income_shares
+            * final_qdte.close
+        )
     )
     final_swing_equity = (
         portfolio.equity({})
@@ -3600,10 +3697,13 @@ def run_backtest(
         actual_start,
         actual_end,
     )
-    final_target, _ = contribution_allocation(
-        final_years,
-        config,
-    )
+    if swing_only:
+        final_target = 0.0
+    else:
+        final_target, _ = contribution_allocation(
+            final_years,
+            config,
+        )
     final_investable = (
         final_income_value
         + portfolio.cash
@@ -3662,9 +3762,17 @@ def run_backtest(
         ).isoformat(),
         provider=(
             (
-                "Validated local Massive/Polygon actual "
-                "15-minute ETF/QDTE caches + official "
-                "Cboe VIX daily closes"
+                (
+                    "Validated local Massive/Polygon actual "
+                    "15-minute ETF/QDTE timestamp-control caches "
+                    "+ official Cboe VIX daily closes"
+                )
+                if swing_only
+                else (
+                    "Validated local Massive/Polygon actual "
+                    "15-minute ETF/QDTE caches + official "
+                    "Cboe VIX daily closes"
+                )
             )
             if local_only
             else (
@@ -3679,6 +3787,7 @@ def run_backtest(
         warmup_start=warmup_start,
         fixed_window=fixed_window,
         local_only=local_only,
+        swing_only=swing_only,
         initialization_bars=initialization_bars,
         first_entry_eligible_time=(
             entry_eligible_time.isoformat()
@@ -3702,10 +3811,14 @@ def run_backtest(
             maximum_observed_positions
         ),
         starting_income_cash=(
-            config.starting_cash
+            0.0
+            if swing_only
+            else config.starting_cash
         ),
         starting_swing_cash=(
-            config.starting_swing_cash
+            config.total_starting_capital
+            if swing_only
+            else config.starting_swing_cash
         ),
         starting_total_capital=(
             config.total_starting_capital
@@ -3812,7 +3925,9 @@ def run_backtest(
             failed_checks
         ),
         allocation_anniversary_rule=(
-            "EXACT_DATE"
+            "NOT_APPLICABLE_SWING_ONLY"
+            if swing_only
+            else "EXACT_DATE"
         ),
         forced_entries=False,
         placeholder_data=False,
@@ -3820,37 +3935,42 @@ def run_backtest(
         live_broker_enabled=False,
     )
 
+    artifact_prefix = (
+        "swing_only_control"
+        if swing_only
+        else "actual_two_year_15m"
+    )
     report_path = (
         report_directory
-        / "actual_two_year_15m_report.txt"
+        / f"{artifact_prefix}_report.txt"
     )
     result_path = (
         report_directory
-        / "actual_two_year_15m_result.json"
+        / f"{artifact_prefix}_result.json"
     )
     equity_path = (
         report_directory
-        / "actual_two_year_15m_equity.csv"
+        / f"{artifact_prefix}_equity.csv"
     )
     trades_path = (
         report_directory
-        / "actual_two_year_15m_trades.csv"
+        / f"{artifact_prefix}_trades.csv"
     )
     signals_path = (
         report_directory
-        / "actual_two_year_15m_signals.csv"
+        / f"{artifact_prefix}_signals.csv"
     )
     allocations_path = (
         report_directory
-        / "actual_two_year_15m_allocations.csv"
+        / f"{artifact_prefix}_allocations.csv"
     )
     diagnostics_path = (
         report_directory
-        / "actual_two_year_15m_diagnostics.json"
+        / f"{artifact_prefix}_diagnostics.json"
     )
     provenance_path = (
         report_directory
-        / "actual_two_year_15m_provenance.json"
+        / f"{artifact_prefix}_provenance.json"
     )
 
     report_path.write_text(
@@ -3910,6 +4030,7 @@ def run_backtest(
             "counts_overlap": True,
             "fixed_window": fixed_window,
             "local_only": local_only,
+            "swing_only": swing_only,
             "initialization_bars": (
                 initialization_bars
             ),
@@ -3968,6 +4089,13 @@ def run_backtest(
             ),
             "fixed_window": fixed_window,
             "local_only": local_only,
+            "swing_only": swing_only,
+            "income_sleeve_active": (
+                not swing_only
+            ),
+            "qdte_used_for_common_timestamp_control": (
+                swing_only
+            ),
             "initialization_bars": (
                 initialization_bars
             ),
@@ -3984,8 +4112,12 @@ def run_backtest(
                 "qpx_bot.risk.calculate_position_size"
             ),
             "allocation_engine": (
-                "qpx_bot.allocation."
-                "rebalance_income_allocation"
+                "DISABLED_SWING_ONLY"
+                if swing_only
+                else (
+                    "qpx_bot.allocation."
+                    "rebalance_income_allocation"
+                )
             ),
             "simultaneous_signal_tiebreak": (
                 policy.simultaneous_signal_tiebreak
@@ -4141,6 +4273,51 @@ def fixed_window_main(
     print()
     print(
         "QPX FIXED 2024-08-06 TO 2026-07-28 "
+        "LOCAL 15-MINUTE BACKTEST: COMPLETE"
+    )
+    return 0
+
+
+def swing_only_control_main(
+    argv: Sequence[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the fixed local QPX swing-only control "
+            "for 2024-08-06 through 2026-07-28."
+        )
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(DEFAULT_DATA_ROOT),
+    )
+    parser.add_argument(
+        "--report-root",
+        default=str(DEFAULT_SWING_ONLY_REPORT_ROOT),
+    )
+    args = parser.parse_args(argv)
+    result, artifacts = run_backtest(
+        api_key="",
+        data_root=args.data_root,
+        report_root=args.report_root,
+        fixed_start=FIXED_WINDOW_START,
+        fixed_end=FIXED_WINDOW_END,
+        local_only=True,
+        initialization_bars=FIXED_INITIALIZATION_BARS,
+        swing_only=True,
+    )
+    print(_format_report(result))
+    print("-" * 78)
+    print("Artifacts:")
+
+    for name, path in asdict(
+        artifacts
+    ).items():
+        print(f"  {name:<12}: {path}")
+
+    print()
+    print(
+        "QPX SWING-ONLY CONTROL 2024-08-06 TO 2026-07-28 "
         "LOCAL 15-MINUTE BACKTEST: COMPLETE"
     )
     return 0

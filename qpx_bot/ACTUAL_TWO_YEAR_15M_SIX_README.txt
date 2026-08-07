@@ -192,3 +192,24 @@ The fixed study also reports the expected exchange sessions calculated
 from the QPX market calendar and the observed common-session coverage
 percentage. Missing bars are not filled, interpolated, synthesized, or
 replaced.
+
+
+V12 swing-only fixed-window control
+-----------------------------------
+
+The swing-only control uses the same fixed 2024-08-06 through 2026-07-28
+window, the same 200-common-bar initialization, the same eight swing
+symbols, the same common timestamp intersection, the same previous-session
+official Cboe VIX observation policy, the same entry/exit rules, the same
+six-slot policy, the same risk sizing, and the same $2,800 initial total
+capital plus $2,000 monthly contributions.
+
+Control-specific changes:
+- QDTE receives no capital.
+- QDTE distributions are disabled.
+- All initial capital and monthly contributions enter swing cash.
+- QDTE 15-minute bars remain in the common-timestamp intersection solely
+  so the control uses the same timestamp sample as the hybrid study.
+- Allocation rebalancing is disabled.
+- Tax-reserve behavior on profitable swing exits remains active.
+- No market data is downloaded and no provider key is requested.
