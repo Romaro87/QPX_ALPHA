@@ -5,6 +5,7 @@ from qpx_bot.actual_two_year_15m_six import (
     DEFAULT_FIXED_REPORT_ROOT,
     FIXED_INITIALIZATION_BARS,
     FIXED_MINIMUM_COMMON_BARS,
+    FIXED_MINIMUM_COMMON_SESSIONS,
     FIXED_WINDOW_END,
     FIXED_WINDOW_START,
     fixed_window_main,
@@ -19,6 +20,7 @@ assert (
 ).days == 721
 assert FIXED_INITIALIZATION_BARS == 200
 assert FIXED_MINIMUM_COMMON_BARS == 11_500
+assert FIXED_MINIMUM_COMMON_SESSIONS == 450
 assert DEFAULT_FIXED_REPORT_ROOT.name == (
     "qpx_fixed_2024_08_06_to_2026_07_28"
 )
@@ -44,6 +46,10 @@ for marker in (
     "FIXED_WINDOW_START = date(2024, 8, 6)",
     "FIXED_WINDOW_END = date(2026, 7, 28)",
     "FIXED_MINIMUM_COMMON_BARS = 11_500",
+    "FIXED_MINIMUM_COMMON_SESSIONS = 450",
+    "required_common_sessions = (",
+    "expected_market_sessions = sum(",
+    "session_coverage = (",
     "_find_valid_cached_dividends(",
     "LOCAL_VALIDATED_MASSIVE_POLYGON_DIVIDEND_CACHE",
     "Fixed-window local cache:",

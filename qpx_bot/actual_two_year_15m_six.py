@@ -32,6 +32,7 @@ from qpx_bot.intraday_six_paper import (
 )
 from qpx_bot.market_calendar import (
     NEW_YORK,
+    is_market_session,
     latest_completed_session,
 )
 from qpx_bot.performance import ReturnMetrics, metrics_from_returns
@@ -67,6 +68,7 @@ FIXED_WINDOW_START = date(2024, 8, 6)
 FIXED_WINDOW_END = date(2026, 7, 28)
 FIXED_INITIALIZATION_BARS = 200
 FIXED_MINIMUM_COMMON_BARS = 11_500
+FIXED_MINIMUM_COMMON_SESSIONS = 450
 DEFAULT_FIXED_REPORT_ROOT = (
     PROJECT_ROOT
     / "reports"
@@ -191,6 +193,8 @@ class BacktestResult:
     interval: str
     common_test_bars: int
     test_sessions: int
+    expected_market_sessions: int
+    session_coverage: float
     swing_symbols: tuple[str, ...]
     income_symbol: str
     vix_symbol: str
@@ -338,7 +342,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.26.0"
+                        "AppleWebKit/537.36 QPXBot/1.26.1"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1117,7 +1121,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.26.0"
+                    "AppleWebKit/537.36 QPXBot/1.26.1"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -2114,12 +2118,12 @@ def _format_report(
             "=" * 78,
             (
                 (
-                    "QPX BOT v1.26.0 — FIXED NEAR-TWO-YEAR "
+                    "QPX BOT v1.26.1 — FIXED NEAR-TWO-YEAR "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
                 if result.fixed_window
                 else (
-                    "QPX BOT v1.26.0 — ACTUAL TWO-YEAR "
+                    "QPX BOT v1.26.1 — ACTUAL TWO-YEAR "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
             ),
@@ -2150,6 +2154,14 @@ def _format_report(
             f"Interval                   : {result.interval}",
             f"Common 15-minute bars      : {result.common_test_bars}",
             f"Market sessions            : {result.test_sessions}",
+            (
+                "Expected market sessions   : "
+                f"{result.expected_market_sessions}"
+            ),
+            (
+                "Session coverage           : "
+                f"{result.session_coverage:.2%}"
+            ),
             (
                 "Swing universe             : "
                 + ", ".join(result.swing_symbols)
@@ -2408,6 +2420,16 @@ def run_backtest(
             requested_start
             - timedelta(days=WARMUP_DAYS)
         )
+
+    expected_market_sessions = sum(
+        1
+        for offset in range(
+            (end_session - requested_start).days + 1
+        )
+        if is_market_session(
+            requested_start + timedelta(days=offset)
+        )
+    )
 
     if local_only:
         vix_cache_path = (
@@ -2794,12 +2816,24 @@ def run_backtest(
             f"{required_common_bars} required."
         )
 
-    if len(sessions) < MINIMUM_TEST_SESSIONS:
+    required_common_sessions = (
+        FIXED_MINIMUM_COMMON_SESSIONS
+        if fixed_window
+        else MINIMUM_TEST_SESSIONS
+    )
+
+    if len(sessions) < required_common_sessions:
         raise ProviderError(
             "Insufficient common real session coverage: "
             f"{len(sessions)} sessions; "
-            f"{MINIMUM_TEST_SESSIONS} required."
+            f"{required_common_sessions} required."
         )
+
+    session_coverage = (
+        len(sessions) / expected_market_sessions
+        if expected_market_sessions > 0
+        else 0.0
+    )
 
     first_test_time = test_times[0]
 
@@ -2889,6 +2923,13 @@ def run_backtest(
         },
         "common_test_bars": len(test_times),
         "test_sessions": len(sessions),
+        "expected_market_sessions": (
+            expected_market_sessions
+        ),
+        "session_coverage": session_coverage,
+        "required_common_sessions": (
+            required_common_sessions
+        ),
         "dividend_events": len(dividends),
         "files": {
             name: {
@@ -3645,6 +3686,10 @@ def run_backtest(
         interval="15m",
         common_test_bars=len(test_times),
         test_sessions=len(sessions),
+        expected_market_sessions=(
+            expected_market_sessions
+        ),
+        session_coverage=session_coverage,
         swing_symbols=SWING_SYMBOLS,
         income_symbol=INCOME_SYMBOL,
         vix_symbol=VIX_PROVIDER_SYMBOL,
@@ -3908,6 +3953,16 @@ def run_backtest(
             "regular_session_only": True,
             "extended_hours": False,
             "common_timestamp_intersection": True,
+            "expected_market_sessions": (
+                expected_market_sessions
+            ),
+            "observed_common_sessions": (
+                len(sessions)
+            ),
+            "session_coverage": session_coverage,
+            "required_common_sessions": (
+                required_common_sessions
+            ),
             "warmup_bars_required": (
                 config.sma_trend_period
             ),

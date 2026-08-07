@@ -178,3 +178,17 @@ The original rolling provider-backed runner remains available. The
 fixed local runner is:
 
 python QPX_RUN_FIXED_2024_08_06_TO_2026_07_28.py
+
+
+V11 fixed-window observed-session threshold
+-------------------------------------------
+
+The fixed 2024-08-06 through 2026-07-28 local study keeps the existing
+11,500 common 15-minute bar requirement and now uses a fixed-window-only
+minimum of 450 common market sessions. The rolling exact two-year study
+still requires 480 sessions.
+
+The fixed study also reports the expected exchange sessions calculated
+from the QPX market calendar and the observed common-session coverage
+percentage. Missing bars are not filled, interpolated, synthesized, or
+replaced.
