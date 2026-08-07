@@ -3304,6 +3304,16 @@ def run_backtest(
             policy.maximum_gap_atr_multiple
         )
 
+    if (
+        risk_profile
+        == FIXED_ONE_PERCENT_RISK_PROFILE
+    ):
+        config = replace(
+            config,
+            risk_per_trade=0.01,
+            maximum_active_portfolio_risk=0.06,
+        )
+
     config.validate()
     kelly_enabled = (
         risk_profile

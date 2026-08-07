@@ -21,10 +21,10 @@ sizing = calculate_position_size(
 )
 
 assert sizing.is_tradeable
-assert sizing.shares == 20
+assert sizing.shares == 60
 assert abs(sizing.entry_fill - 100.075) < 1e-9
 assert abs(sizing.risk_per_share - 5.0) < 1e-9
-assert abs(sizing.planned_risk - 100.0) < 1e-9
+assert abs(sizing.planned_risk - 300.0) < 1e-9
 assert abs(sizing.stop_price - 95.075) < 1e-9
 assert abs(sizing.target_price - 110.075) < 1e-9
 
@@ -33,13 +33,13 @@ capped = calculate_position_size(
     available_cash=10_000.0,
     entry_price=100.0,
     atr=2.0,
-    active_risk=600.0,
+    active_risk=1_000.0,
     config=config,
 )
 
 assert not capped.is_tradeable
 assert capped.shares == 0
-assert "6%" in (capped.blocked_reason or "")
+assert "10%" in (capped.blocked_reason or "")
 
 portfolio = Portfolio(10_000.0)
 position = portfolio.open_position(
@@ -49,8 +49,8 @@ position = portfolio.open_position(
     entry_atr=2.0,
 )
 
-assert position.shares == 20
-assert abs(portfolio.active_risk() - 100.0) < 1e-9
+assert position.shares == 60
+assert abs(portfolio.active_risk() - 300.0) < 1e-9
 assert portfolio.cash < 10_000.0
 
 original_stop = position.stop_price

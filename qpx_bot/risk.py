@@ -161,7 +161,10 @@ def calculate_position_size(
             risk_per_share=0.0,
             planned_risk=0.0,
             risk_fraction=risk_fraction,
-            blocked_reason="The 6% active-risk cap is full.",
+            blocked_reason=(
+                f"The {config.maximum_active_portfolio_risk:.0%} "
+                "active-risk cap is full."
+            ),
         )
 
     entry_fill = buy_fill(

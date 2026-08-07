@@ -56,8 +56,8 @@ class BotConfig:
     maximum_vix_for_entries: float = 28.0
 
     # Risk
-    risk_per_trade: float = 0.01
-    maximum_active_portfolio_risk: float = 0.06
+    risk_per_trade: float = 0.03
+    maximum_active_portfolio_risk: float = 0.10
     kelly_fraction: float = 0.25
     minimum_kelly_trades: int = 20
 

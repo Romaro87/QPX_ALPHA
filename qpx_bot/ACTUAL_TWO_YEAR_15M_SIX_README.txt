@@ -442,3 +442,14 @@ for every profile. It does not automatically promote any profile to
 paper or live defaults. This remains in-sample research on an already
 examined window; any apparently improved profile must be frozen and
 validated separately.
+
+
+V19 entry-edge stability + 3% / 10% default-risk update
+-------------------------------------------------------
+Default BotConfig risk is now 3% per trade and 10% aggregate active risk.
+The named FIXED_1PCT_NO_KELLY_RESEARCH historical profile remains explicitly
+1% / 6% so V14-V18 fixed-window results remain reproducible. Kelly behavior
+is unchanged. V19 also reports six-month chronological stability of the
+existing V16/V17 baseline trades by symbol, trigger combination, individual
+trigger, and VIX regime. This is in-sample diagnostic research, not a claim
+that higher risk improves returns.
