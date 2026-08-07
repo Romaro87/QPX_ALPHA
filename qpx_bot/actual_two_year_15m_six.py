@@ -88,6 +88,16 @@ DEFAULT_RELAXED_SWING_REPORT_ROOT = (
     / "reports"
     / "qpx_relaxed_swing_frequency_2024_08_06_to_2026_07_28"
 )
+DEFAULT_RELAXED_NO_KELLY_REPORT_ROOT = (
+    PROJECT_ROOT
+    / "reports"
+    / "qpx_relaxed_swing_no_kelly_2024_08_06_to_2026_07_28"
+)
+
+BASELINE_RISK_PROFILE = "KELLY_AFTER_20"
+FIXED_ONE_PERCENT_RISK_PROFILE = (
+    "FIXED_1PCT_NO_KELLY_RESEARCH"
+)
 
 BASELINE_ENTRY_PROFILE = "BASELINE"
 RELAXED_ENTRY_PROFILE = "RELAXED_FREQUENCY_RESEARCH_V1"
@@ -220,6 +230,8 @@ class BacktestResult:
     swing_only: bool
     entry_profile: str
     entry_gap_atr_limit: float
+    risk_profile: str
+    kelly_enabled: bool
     initialization_bars: int
     first_entry_eligible_time: str
     interval: str
@@ -265,6 +277,7 @@ class BacktestResult:
     capacity_deferred: int
     gap_rejections: int
     risk_rejections: int
+    risk_rejection_reasons: Mapping[str, int]
     closed_trades: int
     trades_by_symbol: Mapping[str, int]
     win_rate: float
@@ -374,7 +387,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.28.0"
+                        "AppleWebKit/537.36 QPXBot/1.29.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1153,7 +1166,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.28.0"
+                    "AppleWebKit/537.36 QPXBot/1.29.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -2245,18 +2258,18 @@ def _format_report(
             "=" * 78,
             (
                 (
-                    "QPX BOT v1.28.0 — FIXED SWING-ONLY CONTROL "
+                    "QPX BOT v1.29.0 — FIXED SWING-ONLY CONTROL "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
                 if result.swing_only
                 else (
                     (
-                        "QPX BOT v1.28.0 — FIXED NEAR-TWO-YEAR "
+                        "QPX BOT v1.29.0 — FIXED NEAR-TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                     if result.fixed_window
                     else (
-                        "QPX BOT v1.28.0 — ACTUAL TWO-YEAR "
+                        "QPX BOT v1.29.0 — ACTUAL TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                 )
@@ -2292,6 +2305,18 @@ def _format_report(
             (
                 "Opening gap limit          : "
                 f"{result.entry_gap_atr_limit:.2f} ATR"
+            ),
+            (
+                "Risk profile               : "
+                f"{result.risk_profile}"
+            ),
+            (
+                "Adaptive Kelly sizing      : "
+                + (
+                    "ENABLED"
+                    if result.kelly_enabled
+                    else "DISABLED"
+                )
             ),
             (
                 "Indicator initialization   : "
@@ -2446,6 +2471,18 @@ def _format_report(
                 f"{result.gap_rejections} / "
                 f"{result.risk_rejections}"
             ),
+            "Risk rejection reasons:",
+            *(
+                (
+                    f"  {name}: {count}"
+                    for name, count
+                    in sorted(
+                        result.risk_rejection_reasons.items()
+                    )
+                )
+                if result.risk_rejection_reasons
+                else ("  none",)
+            ),
             (
                 "Closed swing trades        : "
                 f"{result.closed_trades}"
@@ -2496,6 +2533,7 @@ def run_backtest(
     initialization_bars: int = 0,
     swing_only: bool = False,
     entry_profile: str = BASELINE_ENTRY_PROFILE,
+    risk_profile: str = BASELINE_RISK_PROFILE,
 ) -> tuple[BacktestResult, RunArtifacts]:
     fixed_window = (
         fixed_start is not None
@@ -2540,6 +2578,28 @@ def run_backtest(
     ):
         raise ValueError(
             "Unsupported swing entry research profile."
+        )
+
+    if risk_profile not in (
+        BASELINE_RISK_PROFILE,
+        FIXED_ONE_PERCENT_RISK_PROFILE,
+    ):
+        raise ValueError(
+            "Unsupported swing risk research profile."
+        )
+
+    if (
+        risk_profile
+        == FIXED_ONE_PERCENT_RISK_PROFILE
+        and not (
+            swing_only
+            and fixed_window
+            and local_only
+        )
+    ):
+        raise ValueError(
+            "No-Kelly risk mode is restricted to the "
+            "fixed local swing-only research control."
         )
 
     if (
@@ -2591,6 +2651,10 @@ def run_backtest(
         )
 
     config.validate()
+    kelly_enabled = (
+        risk_profile
+        == BASELINE_RISK_PROFILE
+    )
 
     if policy.interval != "15m":
         raise RuntimeError(
@@ -3122,6 +3186,8 @@ def run_backtest(
         "entry_gap_atr_limit": (
             entry_gap_atr_limit
         ),
+        "risk_profile": risk_profile,
+        "kelly_enabled": kelly_enabled,
         "income_sleeve_active": (not swing_only),
         "qdte_used_for_common_timestamp_control": swing_only,
         "initialization_bars": initialization_bars,
@@ -3241,6 +3307,7 @@ def run_backtest(
     capacity_deferred = 0
     gap_rejections = 0
     risk_rejections = 0
+    risk_rejection_reasons = Counter()
     maximum_observed_positions = 0
     current_month = (
         first_test_time.year,
@@ -3528,14 +3595,22 @@ def run_backtest(
                 atr=signal.signal_atr,
                 active_risk=portfolio.active_risk(),
                 config=config,
-                trade_results_r=[
-                    trade.result_r
-                    for trade in trade_records
-                ],
+                trade_results_r=(
+                    [
+                        trade.result_r
+                        for trade in trade_records
+                    ]
+                    if kelly_enabled
+                    else ()
+                ),
             )
 
             if not sizing.is_tradeable:
                 risk_rejections += 1
+                risk_rejection_reasons[
+                    sizing.blocked_reason
+                    or "UNKNOWN_RISK_REJECTION"
+                ] += 1
                 signal_records.append(
                     SignalRecord(
                         time=bar_time,
@@ -3988,6 +4063,8 @@ def run_backtest(
         entry_gap_atr_limit=(
             entry_gap_atr_limit
         ),
+        risk_profile=risk_profile,
+        kelly_enabled=kelly_enabled,
         initialization_bars=initialization_bars,
         first_entry_eligible_time=(
             entry_eligible_time.isoformat()
@@ -4101,6 +4178,9 @@ def run_backtest(
         ),
         risk_rejections=(
             risk_rejections
+        ),
+        risk_rejection_reasons=dict(
+            risk_rejection_reasons
         ),
         closed_trades=len(
             trade_records
@@ -4227,6 +4307,9 @@ def run_backtest(
             "failed_check_counts": dict(
                 failed_checks
             ),
+            "risk_rejection_reasons": dict(
+                risk_rejection_reasons
+            ),
             "counts_overlap": True,
             "fixed_window": fixed_window,
             "local_only": local_only,
@@ -4293,6 +4376,14 @@ def run_backtest(
             "entry_profile": entry_profile,
             "entry_gap_atr_limit": (
                 entry_gap_atr_limit
+            ),
+            "risk_profile": risk_profile,
+            "kelly_enabled": kelly_enabled,
+            "risk_per_trade": (
+                config.risk_per_trade
+            ),
+            "maximum_active_portfolio_risk": (
+                config.maximum_active_portfolio_risk
             ),
             "relaxed_frequency_parameters": (
                 {
@@ -4523,6 +4614,83 @@ def fixed_window_main(
     )
     return 0
 
+
+
+
+def relaxed_swing_no_kelly_control_main(
+    argv: Sequence[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the fixed local relaxed-frequency "
+            "swing-only control with Kelly disabled."
+        )
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(DEFAULT_DATA_ROOT),
+    )
+    parser.add_argument(
+        "--report-root",
+        default=str(
+            DEFAULT_RELAXED_NO_KELLY_REPORT_ROOT
+        ),
+    )
+    args = parser.parse_args(argv)
+
+    print(
+        "RELAXED FREQUENCY + FIXED 1% RISK RESEARCH:"
+    )
+    print(
+        "  entry profile: "
+        f"{RELAXED_ENTRY_PROFILE}"
+    )
+    print(
+        "  risk profile: "
+        f"{FIXED_ONE_PERCENT_RISK_PROFILE}"
+    )
+    print(
+        "  Kelly adaptive shutoff: DISABLED"
+    )
+    print(
+        "  base risk per trade: 1%"
+    )
+    print(
+        "  aggregate active-risk cap: 6%"
+    )
+    print(
+        "  ATR stop/target/trailing remain unchanged."
+    )
+
+    result, artifacts = run_backtest(
+        api_key="",
+        data_root=args.data_root,
+        report_root=args.report_root,
+        fixed_start=FIXED_WINDOW_START,
+        fixed_end=FIXED_WINDOW_END,
+        local_only=True,
+        initialization_bars=FIXED_INITIALIZATION_BARS,
+        swing_only=True,
+        entry_profile=RELAXED_ENTRY_PROFILE,
+        risk_profile=(
+            FIXED_ONE_PERCENT_RISK_PROFILE
+        ),
+    )
+    print(_format_report(result))
+    print("-" * 78)
+    print("Artifacts:")
+
+    for name, path in asdict(
+        artifacts
+    ).items():
+        print(f"  {name:<12}: {path}")
+
+    print()
+    print(
+        "QPX RELAXED SWING NO-KELLY CONTROL "
+        "2024-08-06 TO 2026-07-28: COMPLETE"
+    )
+    return 0
 
 
 def relaxed_swing_frequency_control_main(

@@ -249,3 +249,35 @@ Unchanged:
 - no rankings.
 - no synthetic, interpolated, placeholder, or forced entries.
 - live brokerage remains disabled.
+
+
+V14 relaxed-frequency no-Kelly research control
+-----------------------------------------------
+
+V13 successfully increased qualifying signal bars from the sparse
+baseline to a much larger opportunity set, but the fixed-window run
+stopped at 20 filled trades while recording 1,565 risk-sizing
+rejections.
+
+The risk engine enables Kelly sizing after 20 completed trades. A
+non-positive Kelly result becomes a zero risk fraction and blocks the
+trade.
+
+V14 keeps the V13 relaxed-frequency entry profile but disables adaptive
+Kelly only in this fixed local swing-only research control.
+
+Unchanged protections:
+- 1% base risk per trade.
+- 6% aggregate active-risk cap.
+- 2.5 ATR stop.
+- 5 ATR target.
+- 3 ATR trailing activation.
+- 0.075% slippage.
+- six-position maximum.
+- no rankings.
+- no synthetic, interpolated, placeholder, or forced entries.
+- live brokerage disabled.
+
+V14 also records risk-rejection reasons explicitly so subsequent runs
+show whether any remaining rejections come from cash, active-risk
+capacity, or another sizing rule.
