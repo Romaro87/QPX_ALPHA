@@ -4,4 +4,4 @@ QPX Bot
 Research and paper-trading bot for the Hybrid Dividend + Swing strategy.
 """
 
-__version__ = "1.25.1"
+__version__ = "1.25.3"

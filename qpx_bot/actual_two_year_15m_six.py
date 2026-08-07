@@ -325,7 +325,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.25.1"
+                        "AppleWebKit/537.36 QPXBot/1.25.3"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -499,6 +499,96 @@ def _regular_bar(
     )
 
 
+
+
+def _chunk_id(
+    chunk_start: date,
+    chunk_end: date,
+) -> str:
+    return (
+        f"{chunk_start.isoformat()}_"
+        f"{chunk_end.isoformat()}"
+    )
+
+
+def _chunk_has_end_coverage(
+    *,
+    bars: Sequence[IntradayBar],
+    chunk_start: date,
+    chunk_end: date,
+) -> bool:
+    chunk_dates = [
+        bar.start.date()
+        for bar in bars
+        if (
+            chunk_start
+            <= bar.start.date()
+            <= chunk_end
+        )
+    ]
+
+    if not chunk_dates:
+        return False
+
+    first_day = min(chunk_dates)
+    last_day = max(chunk_dates)
+
+    if (
+        first_day
+        > chunk_start
+        + timedelta(days=MAXIMUM_START_DELAY_DAYS)
+    ):
+        return False
+
+    return (
+        chunk_end - last_day
+    ).days <= MAXIMUM_END_STALE_DAYS
+
+
+def _validated_completed_chunks(
+    *,
+    manifest_payload: Mapping[str, Any],
+    bars: Sequence[IntradayBar],
+    start: date,
+    end: date,
+) -> tuple[set[str], set[str]]:
+    declared = {
+        str(value)
+        for value in manifest_payload.get(
+            "completed_chunks",
+            [],
+        )
+    }
+    valid: set[str] = set()
+    invalid: set[str] = set()
+
+    for chunk_start, chunk_end in chunk_ranges(
+        start,
+        end,
+    ):
+        identifier = _chunk_id(
+            chunk_start,
+            chunk_end,
+        )
+
+        if identifier not in declared:
+            continue
+
+        if _chunk_has_end_coverage(
+            bars=bars,
+            chunk_start=chunk_start,
+            chunk_end=chunk_end,
+        ):
+            valid.add(identifier)
+        else:
+            invalid.add(identifier)
+
+    invalid.update(
+        declared - valid - invalid
+    )
+    return valid, invalid
+
+
 def fetch_aggregate_history(
     *,
     api_key: str,
@@ -540,13 +630,24 @@ def fetch_aggregate_history(
                     encoding="utf-8"
                 )
             )
-            completed_chunks = {
-                str(value)
-                for value in payload.get(
-                    "completed_chunks",
-                    [],
+            (
+                completed_chunks,
+                invalidated_chunks,
+            ) = _validated_completed_chunks(
+                manifest_payload=payload,
+                bars=tuple(
+                    collected.values()
+                ),
+                start=start,
+                end=end,
+            )
+
+            if invalidated_chunks:
+                print(
+                    f"{provider_symbol}: invalidated "
+                    f"{len(invalidated_chunks)} stale or "
+                    "incomplete checkpoint chunk(s)"
                 )
-            }
         except (
             OSError,
             ValueError,
@@ -558,9 +659,9 @@ def fetch_aggregate_history(
         start,
         end,
     ):
-        chunk_id = (
-            f"{chunk_start.isoformat()}_"
-            f"{chunk_end.isoformat()}"
+        chunk_id = _chunk_id(
+            chunk_start,
+            chunk_end,
         )
 
         if chunk_id in completed_chunks:
@@ -620,7 +721,6 @@ def fetch_aggregate_history(
             checkpoint is not None
             and checkpoint_manifest is not None
         ):
-            completed_chunks.add(chunk_id)
             checkpoint.parent.mkdir(
                 parents=True,
                 exist_ok=True,
@@ -629,6 +729,23 @@ def fetch_aggregate_history(
                 collected.values(),
                 key=lambda bar: bar.start,
             )
+            chunk_complete = (
+                _chunk_has_end_coverage(
+                    bars=checkpoint_bars,
+                    chunk_start=chunk_start,
+                    chunk_end=chunk_end,
+                )
+            )
+
+            if chunk_complete:
+                completed_chunks.add(
+                    chunk_id
+                )
+            else:
+                completed_chunks.discard(
+                    chunk_id
+                )
+
             _write_bars(
                 checkpoint,
                 checkpoint_bars,
@@ -636,7 +753,7 @@ def fetch_aggregate_history(
             _atomic_json(
                 checkpoint_manifest,
                 {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "provider_symbol": provider_symbol,
                     "interval_minutes": (
                         INTERVAL_MINUTES
@@ -650,17 +767,39 @@ def fetch_aggregate_history(
                     "completed_chunks": sorted(
                         completed_chunks
                     ),
+                    "last_attempted_chunk": (
+                        chunk_id
+                    ),
+                    "last_attempted_chunk_complete": (
+                        chunk_complete
+                    ),
                     "bar_count": len(
                         checkpoint_bars
+                    ),
+                    "latest_bar": (
+                        checkpoint_bars[-1]
+                        .start
+                        .isoformat()
+                        if checkpoint_bars
+                        else None
                     ),
                     "placeholder_data": False,
                     "synthetic_data": False,
                 },
             )
-            print(
-                f"{provider_symbol}: checkpoint saved "
-                f"after {chunk_end}"
-            )
+
+            if chunk_complete:
+                print(
+                    f"{provider_symbol}: checkpoint saved "
+                    f"after {chunk_end}"
+                )
+            else:
+                print(
+                    f"{provider_symbol}: chunk remains "
+                    f"incomplete after {chunk_end}; "
+                    "it will be requested again on the "
+                    "next run"
+                )
 
         time.sleep(0.05)
 
@@ -965,7 +1104,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.25.1"
+                    "AppleWebKit/537.36 QPXBot/1.25.3"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -1843,7 +1982,7 @@ def _format_report(
         (
             "=" * 78,
             (
-                "QPX BOT v1.25.1 — ACTUAL TWO-YEAR "
+                "QPX BOT v1.25.3 — ACTUAL TWO-YEAR "
                 "15-MINUTE SIX-POSITION BACKTEST"
             ),
             "=" * 78,
@@ -2282,8 +2421,46 @@ def run_backtest(
     if (
         end_session - actual_end
     ).days > MAXIMUM_END_STALE_DAYS:
+        latest_by_symbol = {
+            symbol: (
+                bars[-1].start.isoformat()
+                if bars
+                else "NO_BARS"
+            )
+            for symbol, bars
+            in histories.items()
+        }
+        swing_common = _common_times(
+            {
+                symbol: histories[symbol]
+                for symbol in (
+                    *SWING_SYMBOLS,
+                    "^VIX",
+                )
+            }
+        )
+        swing_common_end = (
+            swing_common[-1].isoformat()
+            if swing_common
+            else "NO_COMMON_SWING_BAR"
+        )
+        details = "; ".join(
+            (
+                f"{symbol}="
+                f"{latest_by_symbol[symbol]}"
+            )
+            for symbol in sorted(
+                latest_by_symbol
+            )
+        )
         raise ProviderError(
-            "The real-data test ends with stale market data."
+            "The real-data test ends with stale market "
+            f"data: expected through {end_session}, "
+            f"latest all-symbol common bar is "
+            f"{test_times[-1].isoformat()}, latest "
+            f"swing/VIX common bar is "
+            f"{swing_common_end}. Per-symbol latest "
+            f"bars: {details}"
         )
 
     if len(test_times) < MINIMUM_TEST_BARS:

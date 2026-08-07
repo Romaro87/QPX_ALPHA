@@ -12,6 +12,8 @@ from qpx_bot.actual_two_year_15m_six import (
     VIX_PROVIDER_SYMBOL,
     IntradayBar,
     chunk_ranges,
+    _chunk_has_end_coverage,
+    _validated_completed_chunks,
     expand_previous_session_vix,
     prepare_cboe_vix_cache,
     subtract_years,
@@ -118,6 +120,34 @@ assert expanded[1].close == 17.25
 assert expanded[2].close == 18.50
 assert all(bar.volume == 0 for bar in expanded)
 
+assert _chunk_has_end_coverage(
+    bars=reference,
+    chunk_start=date(2026, 1, 1),
+    chunk_end=date(2026, 1, 6),
+)
+assert not _chunk_has_end_coverage(
+    bars=reference,
+    chunk_start=date(2026, 1, 1),
+    chunk_end=date(2026, 1, 20),
+)
+
+valid_chunks, invalid_chunks = (
+    _validated_completed_chunks(
+        manifest_payload={
+            "completed_chunks": [
+                "2026-01-01_2026-01-06",
+            ],
+        },
+        bars=reference,
+        start=date(2026, 1, 1),
+        end=date(2026, 1, 6),
+    )
+)
+assert valid_chunks == {
+    "2026-01-01_2026-01-06"
+}
+assert invalid_chunks == set()
+
 source = (
     Path(__file__).resolve().parents[1]
     / "qpx_bot"
@@ -144,6 +174,11 @@ for required in (
     "checkpoint_path: str | Path | None = None",
     "completed_chunks",
     "checkpoint saved",
+    "_chunk_has_end_coverage(",
+    "_validated_completed_chunks(",
+    "invalidated_chunks",
+    "last_attempted_chunk_complete",
+    "chunk_complete =",
     "_seed_aggregate_checkpoint(",
     "Resuming missing aggregate chunks",
     "_mark_all_chunks_complete(",

@@ -109,3 +109,42 @@ checkpoint structures instead:
 - stable aggregate cache import/resume paths
 
 No strategy, provider, VIX, coverage, risk, or execution rule changed.
+
+
+V8 stale-tail checkpoint repair
+-------------------------------
+
+A completed-chunk manifest must now be supported by actual bars that
+reach the end of that requested chunk within the unchanged freshness
+tolerance.
+
+Older manifests could mark the final 90-day request complete even when
+the provider returned a stale tail. That caused every later run to skip
+the exact request needed to refresh the test endpoint.
+
+V8 validates declared chunks against the local CSV, removes stale or
+incomplete declarations, and saves a chunk as complete only after its
+actual bar coverage reaches the chunk endpoint.
+
+QPX_REPAIR_15M_CHECKPOINTS.py performs this manifest repair and prints
+per-symbol endpoint diagnostics without making a network request. The
+next backtest downloads only missing or invalidated chunks.
+
+
+V9 focused-test correction
+--------------------------
+
+V8 used two exact English sentence fragments in its static source test.
+The implementation builds those messages from adjacent source strings,
+so the runtime output was valid while the contiguous source assertions
+were not.
+
+V9 verifies the stable checkpoint structures instead:
+
+- invalidated_chunks
+- last_attempted_chunk_complete
+- chunk_complete
+- _validated_completed_chunks
+
+The stale-tail repair behavior and every strategy, coverage, risk,
+provider, and no-placeholder rule remain unchanged.
