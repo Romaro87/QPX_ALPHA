@@ -58,6 +58,11 @@ DEFAULT_VIX_CACHE = (
     / "shared"
     / "CBOE_VIX_DAILY.csv"
 )
+DEFAULT_AGGREGATE_CACHE = (
+    DEFAULT_DATA_ROOT
+    / "shared"
+    / "aggregate_15m"
+)
 PROVIDER_HOSTS = (
     "https://api.massive.com",
     "https://api.polygon.io",
@@ -320,7 +325,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.24.0"
+                        "AppleWebKit/537.36 QPXBot/1.25.1"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -501,14 +506,70 @@ def fetch_aggregate_history(
     start: date,
     end: date,
     require_volume: bool,
+    checkpoint_path: str | Path | None = None,
+    seed_bars: Sequence[IntradayBar] = (),
 ) -> tuple[list[IntradayBar], str]:
-    collected: dict[str, IntradayBar] = {}
+    collected: dict[str, IntradayBar] = {
+        bar.start.isoformat(): bar
+        for bar in seed_bars
+    }
     provider_host = ""
+    checkpoint = (
+        Path(checkpoint_path)
+        .expanduser()
+        .resolve()
+        if checkpoint_path is not None
+        else None
+    )
+    checkpoint_manifest = (
+        checkpoint.with_suffix(
+            checkpoint.suffix + ".manifest.json"
+        )
+        if checkpoint is not None
+        else None
+    )
+    completed_chunks: set[str] = set()
+
+    if (
+        checkpoint_manifest is not None
+        and checkpoint_manifest.exists()
+    ):
+        try:
+            payload = json.loads(
+                checkpoint_manifest.read_text(
+                    encoding="utf-8"
+                )
+            )
+            completed_chunks = {
+                str(value)
+                for value in payload.get(
+                    "completed_chunks",
+                    [],
+                )
+            }
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+        ):
+            completed_chunks = set()
 
     for chunk_start, chunk_end in chunk_ranges(
         start,
         end,
     ):
+        chunk_id = (
+            f"{chunk_start.isoformat()}_"
+            f"{chunk_end.isoformat()}"
+        )
+
+        if chunk_id in completed_chunks:
+            print(
+                f"{provider_symbol}: reusing completed "
+                f"checkpoint chunk {chunk_start} "
+                f"to {chunk_end}"
+            )
+            continue
         encoded = urllib.parse.quote(
             provider_symbol,
             safe=":",
@@ -554,6 +615,53 @@ def fetch_aggregate_history(
             f"{chunk_start} to {chunk_end} "
             f"({len(results)} raw aggregates)"
         )
+
+        if (
+            checkpoint is not None
+            and checkpoint_manifest is not None
+        ):
+            completed_chunks.add(chunk_id)
+            checkpoint.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+            checkpoint_bars = sorted(
+                collected.values(),
+                key=lambda bar: bar.start,
+            )
+            _write_bars(
+                checkpoint,
+                checkpoint_bars,
+            )
+            _atomic_json(
+                checkpoint_manifest,
+                {
+                    "schema_version": 1,
+                    "provider_symbol": provider_symbol,
+                    "interval_minutes": (
+                        INTERVAL_MINUTES
+                    ),
+                    "requested_start": (
+                        start.isoformat()
+                    ),
+                    "requested_end": (
+                        end.isoformat()
+                    ),
+                    "completed_chunks": sorted(
+                        completed_chunks
+                    ),
+                    "bar_count": len(
+                        checkpoint_bars
+                    ),
+                    "placeholder_data": False,
+                    "synthetic_data": False,
+                },
+            )
+            print(
+                f"{provider_symbol}: checkpoint saved "
+                f"after {chunk_end}"
+            )
+
         time.sleep(0.05)
 
     bars = sorted(
@@ -669,8 +777,8 @@ def _find_valid_cached_history(
     )
     candidates = [
         path
-        for path in data_root.glob(
-            f"*/{filename}"
+        for path in data_root.rglob(
+            filename
         )
         if (
             path.is_file()
@@ -708,6 +816,142 @@ def _find_valid_cached_history(
     return None
 
 
+
+
+def _aggregate_cache_path(
+    logical_symbol: str,
+) -> Path:
+    filename = (
+        logical_symbol
+        .replace("^", "")
+        .replace(":", "_")
+        + "_15M.csv"
+    )
+    return (
+        DEFAULT_AGGREGATE_CACHE
+        / filename
+    )
+
+
+def _aggregate_manifest_path(
+    cache_path: Path,
+) -> Path:
+    return cache_path.with_suffix(
+        cache_path.suffix + ".manifest.json"
+    )
+
+
+def _mark_all_chunks_complete(
+    *,
+    cache_path: Path,
+    provider_symbol: str,
+    start: date,
+    end: date,
+    bars: Sequence[IntradayBar],
+) -> None:
+    _atomic_json(
+        _aggregate_manifest_path(
+            cache_path
+        ),
+        {
+            "schema_version": 1,
+            "provider_symbol": provider_symbol,
+            "interval_minutes": (
+                INTERVAL_MINUTES
+            ),
+            "requested_start": (
+                start.isoformat()
+            ),
+            "requested_end": (
+                end.isoformat()
+            ),
+            "completed_chunks": [
+                (
+                    f"{chunk_start.isoformat()}_"
+                    f"{chunk_end.isoformat()}"
+                )
+                for chunk_start, chunk_end
+                in chunk_ranges(start, end)
+            ],
+            "bar_count": len(bars),
+            "imported_complete_history": True,
+            "placeholder_data": False,
+            "synthetic_data": False,
+        },
+    )
+
+
+def _seed_aggregate_checkpoint(
+    *,
+    data_root: Path,
+    logical_symbol: str,
+    provider_symbol: str,
+    start: date,
+    end: date,
+    exclude_directory: Path,
+) -> tuple[list[IntradayBar], Path] | None:
+    stable = _aggregate_cache_path(
+        logical_symbol
+    )
+    valid = _find_valid_cached_history(
+        data_root=data_root,
+        logical_symbol=logical_symbol,
+        start=start,
+        end=end,
+        exclude_directory=(
+            exclude_directory
+        ),
+    )
+
+    if valid is not None:
+        bars, source_path = valid
+
+        if (
+            source_path.resolve()
+            != stable.resolve()
+        ):
+            stable.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+            shutil.copy2(
+                source_path,
+                stable,
+            )
+            print(
+                "Imported completed aggregate "
+                f"history into stable cache: "
+                f"{logical_symbol} ({source_path})"
+            )
+
+        _mark_all_chunks_complete(
+            cache_path=stable,
+            provider_symbol=provider_symbol,
+            start=start,
+            end=end,
+            bars=bars,
+        )
+        return bars, stable
+
+    if stable.exists():
+        try:
+            bars = _read_cached_bars(
+                stable
+            )
+        except OSError:
+            bars = []
+
+        if bars:
+            print(
+                "Found resumable aggregate checkpoint: "
+                f"{logical_symbol} "
+                f"({len(bars)} bars)"
+            )
+            return bars, stable
+
+    return None
+
+
 def _download_text(
     url: str,
     *,
@@ -721,7 +965,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.24.0"
+                    "AppleWebKit/537.36 QPXBot/1.25.1"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -1599,7 +1843,7 @@ def _format_report(
         (
             "=" * 78,
             (
-                "QPX BOT v1.24.0 — ACTUAL TWO-YEAR "
+                "QPX BOT v1.25.1 — ACTUAL TWO-YEAR "
                 "15-MINUTE SIX-POSITION BACKTEST"
             ),
             "=" * 78,
@@ -1891,30 +2135,69 @@ def run_backtest(
                 + "_15M.csv"
             )
         )
-        cached = _find_valid_cached_history(
+        stable_cache = _aggregate_cache_path(
+            logical_symbol
+        )
+        seeded = _seed_aggregate_checkpoint(
             data_root=data_root_path,
             logical_symbol=logical_symbol,
+            provider_symbol=provider_symbol,
             start=warmup_start,
             end=end_session,
             exclude_directory=data_directory,
         )
+        seed_bars: Sequence[IntradayBar] = ()
 
-        if cached is not None:
-            bars, cached_path = cached
-            print(
-                f"Reusing validated actual 15-minute cache: "
-                f"{logical_symbol} ({cached_path})"
+        if seeded is not None:
+            seed_bars, seeded_path = seeded
+            valid_seed = _find_valid_cached_history(
+                data_root=data_root_path,
+                logical_symbol=logical_symbol,
+                start=warmup_start,
+                end=end_session,
+                exclude_directory=data_directory,
             )
-            shutil.copy2(
-                cached_path,
-                path,
-            )
-            provider_hosts.add(
-                "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE"
-            )
+
+            if valid_seed is not None:
+                bars, _ = valid_seed
+                print(
+                    "Reusing validated complete aggregate "
+                    f"cache: {logical_symbol} "
+                    f"({seeded_path})"
+                )
+                provider_hosts.add(
+                    "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE"
+                )
+                _write_bars(
+                    stable_cache,
+                    bars,
+                )
+                _mark_all_chunks_complete(
+                    cache_path=stable_cache,
+                    provider_symbol=provider_symbol,
+                    start=warmup_start,
+                    end=end_session,
+                    bars=bars,
+                )
+            else:
+                print(
+                    "Resuming missing aggregate chunks: "
+                    f"{logical_symbol}"
+                )
+                bars, host = fetch_aggregate_history(
+                    api_key=api_key,
+                    provider_symbol=provider_symbol,
+                    start=warmup_start,
+                    end=end_session,
+                    require_volume=True,
+                    checkpoint_path=stable_cache,
+                    seed_bars=seed_bars,
+                )
+                provider_hosts.add(host)
         else:
             print(
-                f"Downloading actual 15-minute history: "
+                "Downloading actual 15-minute history "
+                f"with chunk checkpoints: "
                 f"{logical_symbol} ({provider_symbol})"
             )
             bars, host = fetch_aggregate_history(
@@ -1923,10 +2206,11 @@ def run_backtest(
                 start=warmup_start,
                 end=end_session,
                 require_volume=True,
+                checkpoint_path=stable_cache,
             )
             provider_hosts.add(host)
-            _write_bars(path, bars)
 
+        _write_bars(path, bars)
         histories[logical_symbol] = bars
         input_paths[logical_symbol] = path
 

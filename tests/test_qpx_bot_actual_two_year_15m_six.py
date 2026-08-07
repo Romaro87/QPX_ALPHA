@@ -4,6 +4,7 @@ from pathlib import Path
 from qpx_bot.actual_two_year_15m_six import (
     CBOE_VIX_HISTORY_URL,
     CHUNK_DAYS,
+    DEFAULT_AGGREGATE_CACHE,
     DEFAULT_VIX_CACHE,
     INTERVAL_MINUTES,
     SWING_SYMBOLS,
@@ -44,6 +45,9 @@ assert CBOE_VIX_HISTORY_URL.endswith(
 )
 assert DEFAULT_VIX_CACHE.name == (
     "CBOE_VIX_DAILY.csv"
+)
+assert DEFAULT_AGGREGATE_CACHE.name == (
+    "aggregate_15m"
 )
 assert callable(prepare_cboe_vix_cache)
 
@@ -136,7 +140,14 @@ for required in (
     "minimum_bars: int = MINIMUM_TEST_BARS",
     "if len(expanded) < minimum_bars",
     "_find_valid_cached_history(",
-    "Reusing validated actual 15-minute cache",
+    "data_root.rglob(",
+    "checkpoint_path: str | Path | None = None",
+    "completed_chunks",
+    "checkpoint saved",
+    "_seed_aggregate_checkpoint(",
+    "Resuming missing aggregate chunks",
+    "_mark_all_chunks_complete(",
+    "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE",
     "evaluate_entry(",
     "evaluate_exit(",
     "calculate_position_size(",

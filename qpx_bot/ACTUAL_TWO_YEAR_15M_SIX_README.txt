@@ -71,3 +71,41 @@ does it request or reuse ETF and QDTE data.
 
 Market-data CSV files remain local and are excluded from Git. Reports
 record their paths, provenance, and SHA-256 hashes.
+
+
+V6 resumable aggregate checkpoints
+----------------------------------
+
+The long provider download now persists each completed 90-day symbol
+chunk immediately in:
+
+research_data/qpx_actual_two_year_15m_six/shared/aggregate_15m/
+
+Every stable symbol CSV has a companion manifest listing completed
+chunks. If Termux is interrupted or a later input fails, the next run
+skips those completed chunks.
+
+Before any new provider request, QPX recursively scans all earlier
+timestamped research directories. A complete valid symbol history is
+imported into the stable cache and marked complete.
+
+The installer runs a no-network cache audit and then the separate Cboe
+VIX preflight. It does not launch the long Massive/Polygon backtest.
+
+
+V7 focused-test correction
+--------------------------
+
+The V6 focused test searched for one display sentence that Python builds
+from two adjacent source strings. The runtime message was valid, but the
+combined sentence was not a contiguous source substring.
+
+V7 removes that brittle presentation-text check and verifies the actual
+checkpoint structures instead:
+
+- _mark_all_chunks_complete
+- LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE
+- completed chunk manifests
+- stable aggregate cache import/resume paths
+
+No strategy, provider, VIX, coverage, risk, or execution rule changed.
