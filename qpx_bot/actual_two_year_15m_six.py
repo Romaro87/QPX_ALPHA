@@ -98,6 +98,17 @@ DEFAULT_NET_TAX_RESERVE_REPORT_ROOT = (
     / "reports"
     / "qpx_net_realized_tax_reserve_2024_08_06_to_2026_07_28"
 )
+DEFAULT_NOTIONAL_CAP_REPORT_ROOT = (
+    PROJECT_ROOT
+    / "reports"
+    / "qpx_16pct_notional_cap_2024_08_06_to_2026_07_28"
+)
+
+BASELINE_NOTIONAL_PROFILE = "NO_POSITION_NOTIONAL_CAP"
+NOTIONAL_CAP_16PCT_PROFILE = (
+    "MAX_16PCT_ACCOUNT_EQUITY_ONE_SHARE_FLOOR_RESEARCH"
+)
+RESEARCH_MAXIMUM_POSITION_NOTIONAL_FRACTION = 0.16
 
 BASELINE_TAX_RESERVE_PROFILE = "PER_WINNING_TRADE"
 NET_REALIZED_TAX_RESERVE_PROFILE = (
@@ -245,6 +256,10 @@ class BacktestResult:
     tax_reserve_profile: str
     tax_reserve_released: float
     realized_swing_pnl: float
+    notional_profile: str
+    maximum_position_notional_fraction: float
+    notional_cap_adjustments: int
+    one_share_floor_uses: int
     initialization_bars: int
     first_entry_eligible_time: str
     interval: str
@@ -401,7 +416,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.30.0"
+                        "AppleWebKit/537.36 QPXBot/1.31.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1180,7 +1195,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.30.0"
+                    "AppleWebKit/537.36 QPXBot/1.31.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -1979,6 +1994,82 @@ def _reconcile_net_realized_tax_reserve(
     return released
 
 
+
+def _apply_position_notional_cap(
+    *,
+    sizing: Any,
+    account_equity: float,
+    notional_profile: str,
+) -> tuple[Any, bool, bool]:
+    """
+    Apply the research-only position-notional cap after the normal
+    risk engine has sized the trade.
+
+    The one-share floor prevents high-priced ETFs from being excluded
+    solely because 16% of a small account is below one whole share.
+    """
+    if (
+        notional_profile
+        == BASELINE_NOTIONAL_PROFILE
+        or not sizing.is_tradeable
+    ):
+        return sizing, False, False
+
+    if (
+        notional_profile
+        != NOTIONAL_CAP_16PCT_PROFILE
+    ):
+        raise ValueError(
+            "Unsupported notional-cap research profile."
+        )
+
+    if (
+        account_equity <= 0
+        or sizing.entry_fill <= 0
+    ):
+        return sizing, False, False
+
+    raw_share_cap = math.floor(
+        (
+            account_equity
+            * RESEARCH_MAXIMUM_POSITION_NOTIONAL_FRACTION
+        )
+        / sizing.entry_fill
+    )
+    one_share_floor_used = (
+        raw_share_cap < 1
+    )
+    share_cap = max(
+        1,
+        raw_share_cap,
+    )
+    capped_shares = min(
+        sizing.shares,
+        share_cap,
+    )
+
+    if capped_shares >= sizing.shares:
+        return (
+            sizing,
+            False,
+            one_share_floor_used,
+        )
+
+    capped = replace(
+        sizing,
+        shares=capped_shares,
+        planned_risk=(
+            capped_shares
+            * sizing.risk_per_share
+        ),
+    )
+    return (
+        capped,
+        True,
+        one_share_floor_used,
+    )
+
+
 def _position_size_rejection_diagnostic(
     *,
     account_equity: float,
@@ -2396,18 +2487,18 @@ def _format_report(
             "=" * 78,
             (
                 (
-                    "QPX BOT v1.30.0 — FIXED SWING-ONLY CONTROL "
+                    "QPX BOT v1.31.0 — FIXED SWING-ONLY CONTROL "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
                 if result.swing_only
                 else (
                     (
-                        "QPX BOT v1.30.0 — FIXED NEAR-TWO-YEAR "
+                        "QPX BOT v1.31.0 — FIXED NEAR-TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                     if result.fixed_window
                     else (
-                        "QPX BOT v1.30.0 — ACTUAL TWO-YEAR "
+                        "QPX BOT v1.31.0 — ACTUAL TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                 )
@@ -2459,6 +2550,14 @@ def _format_report(
             (
                 "Tax reserve profile        : "
                 f"{result.tax_reserve_profile}"
+            ),
+            (
+                "Position notional profile  : "
+                f"{result.notional_profile}"
+            ),
+            (
+                "Position notional target   : "
+                f"{result.maximum_position_notional_fraction:.2%}"
             ),
             (
                 "Indicator initialization   : "
@@ -2617,6 +2716,14 @@ def _format_report(
                 f"{result.capacity_deferred}"
             ),
             (
+                "Notional cap adjustments   : "
+                f"{result.notional_cap_adjustments}"
+            ),
+            (
+                "One-share floor uses       : "
+                f"{result.one_share_floor_uses}"
+            ),
+            (
                 "Gap / risk rejections      : "
                 f"{result.gap_rejections} / "
                 f"{result.risk_rejections}"
@@ -2697,6 +2804,7 @@ def run_backtest(
     entry_profile: str = BASELINE_ENTRY_PROFILE,
     risk_profile: str = BASELINE_RISK_PROFILE,
     tax_reserve_profile: str = BASELINE_TAX_RESERVE_PROFILE,
+    notional_profile: str = BASELINE_NOTIONAL_PROFILE,
 ) -> tuple[BacktestResult, RunArtifacts]:
     fixed_window = (
         fixed_start is not None
@@ -2757,6 +2865,28 @@ def run_backtest(
     ):
         raise ValueError(
             "Unsupported tax-reserve research profile."
+        )
+
+    if notional_profile not in (
+        BASELINE_NOTIONAL_PROFILE,
+        NOTIONAL_CAP_16PCT_PROFILE,
+    ):
+        raise ValueError(
+            "Unsupported position-notional research profile."
+        )
+
+    if (
+        notional_profile
+        == NOTIONAL_CAP_16PCT_PROFILE
+        and not (
+            swing_only
+            and fixed_window
+            and local_only
+        )
+    ):
+        raise ValueError(
+            "The 16% notional cap is restricted to the "
+            "fixed local swing-only research control."
         )
 
     if (
@@ -3376,6 +3506,19 @@ def run_backtest(
         "tax_reserve_profile": (
             tax_reserve_profile
         ),
+        "notional_profile": notional_profile,
+        "maximum_position_notional_fraction": (
+            RESEARCH_MAXIMUM_POSITION_NOTIONAL_FRACTION
+            if (
+                notional_profile
+                == NOTIONAL_CAP_16PCT_PROFILE
+            )
+            else 1.0
+        ),
+        "one_share_floor_enabled": (
+            notional_profile
+            == NOTIONAL_CAP_16PCT_PROFILE
+        ),
         "income_sleeve_active": (not swing_only),
         "qdte_used_for_common_timestamp_control": swing_only,
         "initialization_bars": initialization_bars,
@@ -3498,6 +3641,8 @@ def run_backtest(
     risk_rejection_reasons = Counter()
     risk_rejection_diagnostics = Counter()
     tax_reserve_released = 0.0
+    notional_cap_adjustments = 0
+    one_share_floor_uses = 0
     maximum_observed_positions = 0
     current_month = (
         first_test_time.year,
@@ -3800,6 +3945,19 @@ def run_backtest(
                     else ()
                 ),
             )
+            (
+                sizing,
+                notional_adjusted,
+                one_share_floor_used,
+            ) = _apply_position_notional_cap(
+                sizing=sizing,
+                account_equity=account_equity,
+                notional_profile=notional_profile,
+            )
+            if notional_adjusted:
+                notional_cap_adjustments += 1
+            if one_share_floor_used:
+                one_share_floor_uses += 1
 
             if not sizing.is_tradeable:
                 risk_rejections += 1
@@ -4320,6 +4478,21 @@ def run_backtest(
         realized_swing_pnl=(
             portfolio.realized_pnl
         ),
+        notional_profile=notional_profile,
+        maximum_position_notional_fraction=(
+            RESEARCH_MAXIMUM_POSITION_NOTIONAL_FRACTION
+            if (
+                notional_profile
+                == NOTIONAL_CAP_16PCT_PROFILE
+            )
+            else 1.0
+        ),
+        notional_cap_adjustments=(
+            notional_cap_adjustments
+        ),
+        one_share_floor_uses=(
+            one_share_floor_uses
+        ),
         initialization_bars=initialization_bars,
         first_entry_eligible_time=(
             entry_eligible_time.isoformat()
@@ -4580,6 +4753,21 @@ def run_backtest(
             "realized_swing_pnl": (
                 portfolio.realized_pnl
             ),
+            "notional_profile": notional_profile,
+            "maximum_position_notional_fraction": (
+                RESEARCH_MAXIMUM_POSITION_NOTIONAL_FRACTION
+                if (
+                    notional_profile
+                    == NOTIONAL_CAP_16PCT_PROFILE
+                )
+                else 1.0
+            ),
+            "notional_cap_adjustments": (
+                notional_cap_adjustments
+            ),
+            "one_share_floor_uses": (
+                one_share_floor_uses
+            ),
             "counts_overlap": True,
             "fixed_window": fixed_window,
             "local_only": local_only,
@@ -4651,6 +4839,25 @@ def run_backtest(
             "kelly_enabled": kelly_enabled,
             "tax_reserve_profile": (
                 tax_reserve_profile
+            ),
+            "notional_profile": notional_profile,
+            "maximum_position_notional_fraction": (
+                RESEARCH_MAXIMUM_POSITION_NOTIONAL_FRACTION
+                if (
+                    notional_profile
+                    == NOTIONAL_CAP_16PCT_PROFILE
+                )
+                else 1.0
+            ),
+            "one_share_floor_enabled": (
+                notional_profile
+                == NOTIONAL_CAP_16PCT_PROFILE
+            ),
+            "notional_cap_adjustments": (
+                notional_cap_adjustments
+            ),
+            "one_share_floor_uses": (
+                one_share_floor_uses
             ),
             "tax_reserve_model_note": (
                 "Research cash-reserve model only; "
@@ -4902,6 +5109,93 @@ def fixed_window_main(
 
 
 
+
+
+
+def position_notional_cap_control_main(
+    argv: Sequence[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the fixed local V15 swing research "
+            "with a 16% per-position notional target."
+        )
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(DEFAULT_DATA_ROOT),
+    )
+    parser.add_argument(
+        "--report-root",
+        default=str(
+            DEFAULT_NOTIONAL_CAP_REPORT_ROOT
+        ),
+    )
+    args = parser.parse_args(argv)
+
+    print(
+        "16% POSITION-NOTIONAL RESEARCH CONTROL:"
+    )
+    print(
+        "  V15 relaxed entries: unchanged"
+    )
+    print(
+        "  fixed 1% risk / 6% active-risk cap: unchanged"
+    )
+    print(
+        "  Kelly: disabled"
+    )
+    print(
+        "  net-realized tax reserve: unchanged"
+    )
+    print(
+        "  target max position notional: 16% of account equity"
+    )
+    print(
+        "  one-share floor: enabled for whole-share practicality"
+    )
+    print(
+        "  exits/slippage/six slots: unchanged"
+    )
+    print(
+        "  live/paper defaults: unchanged"
+    )
+
+    result, artifacts = run_backtest(
+        api_key="",
+        data_root=args.data_root,
+        report_root=args.report_root,
+        fixed_start=FIXED_WINDOW_START,
+        fixed_end=FIXED_WINDOW_END,
+        local_only=True,
+        initialization_bars=FIXED_INITIALIZATION_BARS,
+        swing_only=True,
+        entry_profile=RELAXED_ENTRY_PROFILE,
+        risk_profile=(
+            FIXED_ONE_PERCENT_RISK_PROFILE
+        ),
+        tax_reserve_profile=(
+            NET_REALIZED_TAX_RESERVE_PROFILE
+        ),
+        notional_profile=(
+            NOTIONAL_CAP_16PCT_PROFILE
+        ),
+    )
+    print(_format_report(result))
+    print("-" * 78)
+    print("Artifacts:")
+
+    for name, path in asdict(
+        artifacts
+    ).items():
+        print(f"  {name:<12}: {path}")
+
+    print()
+    print(
+        "QPX 16% POSITION-NOTIONAL CONTROL "
+        "2024-08-06 TO 2026-07-28: COMPLETE"
+    )
+    return 0
 
 
 def net_realized_tax_reserve_control_main(

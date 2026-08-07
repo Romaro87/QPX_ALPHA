@@ -317,3 +317,32 @@ too small for one share" rejection into:
 
 Live/paper defaults, qpx_bot/config.py, qpx_bot/risk.py, and
 qpx_bot/portfolio.py are not modified by this workflow.
+
+
+V16 16% position-notional research control
+------------------------------------------
+
+V15 showed that every remaining one-share sizing rejection was caused by
+insufficient investable cash, not the 1% per-trade risk budget or the
+6% aggregate active-risk ceiling.
+
+V16 keeps the V15 entry, exit, risk, tax-reserve, slippage, symbol,
+date, and actual-data behavior unchanged. It adds a research-only
+per-position notional target of 16% of account equity after normal
+risk sizing.
+
+Whole-share practicality:
+- if 16% of account equity is less than the price of one share, V16
+  permits one share rather than automatically excluding a high-priced
+  ETF;
+- this exception is counted separately in the report as a one-share
+  floor use;
+- therefore the 16% value is a target cap with a one-share minimum,
+  not an absolute leverage guarantee for a small whole-share account.
+
+The objective is to prevent one low-ATR signal from consuming most
+available cash while preserving the original 1% trade-risk and 6%
+aggregate active-risk limits.
+
+Live/paper defaults, qpx_bot/config.py, qpx_bot/risk.py, and
+qpx_bot/portfolio.py are not modified by this workflow.
