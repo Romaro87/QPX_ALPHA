@@ -93,6 +93,16 @@ DEFAULT_RELAXED_NO_KELLY_REPORT_ROOT = (
     / "reports"
     / "qpx_relaxed_swing_no_kelly_2024_08_06_to_2026_07_28"
 )
+DEFAULT_NET_TAX_RESERVE_REPORT_ROOT = (
+    PROJECT_ROOT
+    / "reports"
+    / "qpx_net_realized_tax_reserve_2024_08_06_to_2026_07_28"
+)
+
+BASELINE_TAX_RESERVE_PROFILE = "PER_WINNING_TRADE"
+NET_REALIZED_TAX_RESERVE_PROFILE = (
+    "NET_REALIZED_PNL_RESEARCH"
+)
 
 BASELINE_RISK_PROFILE = "KELLY_AFTER_20"
 FIXED_ONE_PERCENT_RISK_PROFILE = (
@@ -232,6 +242,9 @@ class BacktestResult:
     entry_gap_atr_limit: float
     risk_profile: str
     kelly_enabled: bool
+    tax_reserve_profile: str
+    tax_reserve_released: float
+    realized_swing_pnl: float
     initialization_bars: int
     first_entry_eligible_time: str
     interval: str
@@ -278,6 +291,7 @@ class BacktestResult:
     gap_rejections: int
     risk_rejections: int
     risk_rejection_reasons: Mapping[str, int]
+    risk_rejection_diagnostics: Mapping[str, int]
     closed_trades: int
     trades_by_symbol: Mapping[str, int]
     win_rate: float
@@ -387,7 +401,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.29.0"
+                        "AppleWebKit/537.36 QPXBot/1.30.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1166,7 +1180,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.29.0"
+                    "AppleWebKit/537.36 QPXBot/1.30.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -1929,6 +1943,130 @@ def _evaluate_entry_relaxed_frequency(
     )
 
 
+
+def _reconcile_net_realized_tax_reserve(
+    *,
+    portfolio: Portfolio,
+    config: BotConfig,
+) -> float:
+    """
+    Research-only cash treatment.
+
+    Keep the reserve equal to the configured tax rate times positive
+    cumulative net realized swing P&L. If later realized losses reduce
+    that net gain, release the excess reserve back to investable cash.
+
+    This is a research cash-reserve model, not tax advice or a complete
+    tax-accounting engine.
+    """
+    target = (
+        max(0.0, portfolio.realized_pnl)
+        * config.annual_tax_reserve_rate
+    )
+    current = portfolio.tax_reserve_cash
+
+    if target > current + 1e-8:
+        # close_position already reserves tax on every profitable exit.
+        # Under a net-realized model that gross reserve should never be
+        # below the cumulative-net target.
+        raise RuntimeError(
+            "Net-realized tax target exceeded the gross trade reserve."
+        )
+
+    released = max(0.0, current - target)
+    portfolio.tax_reserve_cash = target
+    portfolio.cash += released
+    return released
+
+
+def _position_size_rejection_diagnostic(
+    *,
+    account_equity: float,
+    available_cash: float,
+    active_risk: float,
+    sizing: Any,
+    config: BotConfig,
+) -> str:
+    """
+    Split the risk engine's combined one-share failure into its actual
+    capital constraint for research diagnostics.
+    """
+    reason = (
+        sizing.blocked_reason
+        or "UNKNOWN_RISK_REJECTION"
+    )
+
+    if (
+        reason
+        != "Risk budget or cash is too small for one share."
+    ):
+        return reason
+
+    if (
+        sizing.entry_fill <= 0
+        or sizing.risk_per_share <= 0
+        or sizing.risk_fraction <= 0
+    ):
+        return "UNCLASSIFIED_ONE_SHARE_REJECTION"
+
+    requested_risk = (
+        account_equity
+        * sizing.risk_fraction
+    )
+    maximum_total_risk = (
+        account_equity
+        * config.maximum_active_portfolio_risk
+    )
+    remaining_risk_capacity = max(
+        0.0,
+        maximum_total_risk - active_risk,
+    )
+    risk_budget = min(
+        requested_risk,
+        remaining_risk_capacity,
+    )
+    shares_by_risk = math.floor(
+        risk_budget
+        / sizing.risk_per_share
+    )
+    shares_by_cash = math.floor(
+        available_cash
+        / sizing.entry_fill
+    )
+
+    risk_failure = shares_by_risk < 1
+    cash_failure = shares_by_cash < 1
+
+    if risk_failure:
+        if (
+            remaining_risk_capacity
+            < requested_risk
+        ):
+            risk_label = (
+                "ACTIVE_RISK_CAP_BELOW_ONE_SHARE"
+            )
+        else:
+            risk_label = (
+                "BASE_RISK_BUDGET_BELOW_ONE_SHARE"
+            )
+    else:
+        risk_label = ""
+
+    if cash_failure and risk_failure:
+        return (
+            "CASH_BELOW_ONE_SHARE_AND_"
+            + risk_label
+        )
+
+    if cash_failure:
+        return "CASH_BELOW_ONE_SHARE"
+
+    if risk_failure:
+        return risk_label
+
+    return "UNCLASSIFIED_ONE_SHARE_REJECTION"
+
+
 def _position_prices(
     *,
     portfolio: Portfolio,
@@ -2258,18 +2396,18 @@ def _format_report(
             "=" * 78,
             (
                 (
-                    "QPX BOT v1.29.0 — FIXED SWING-ONLY CONTROL "
+                    "QPX BOT v1.30.0 — FIXED SWING-ONLY CONTROL "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
                 if result.swing_only
                 else (
                     (
-                        "QPX BOT v1.29.0 — FIXED NEAR-TWO-YEAR "
+                        "QPX BOT v1.30.0 — FIXED NEAR-TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                     if result.fixed_window
                     else (
-                        "QPX BOT v1.29.0 — ACTUAL TWO-YEAR "
+                        "QPX BOT v1.30.0 — ACTUAL TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                 )
@@ -2317,6 +2455,10 @@ def _format_report(
                     if result.kelly_enabled
                     else "DISABLED"
                 )
+            ),
+            (
+                "Tax reserve profile        : "
+                f"{result.tax_reserve_profile}"
             ),
             (
                 "Indicator initialization   : "
@@ -2445,6 +2587,14 @@ def _format_report(
                 f"${result.ending_tax_reserve:,.2f}"
             ),
             (
+                "Tax reserve released       : "
+                f"${result.tax_reserve_released:,.2f}"
+            ),
+            (
+                "Realized swing P&L         : "
+                f"${result.realized_swing_pnl:,.2f}"
+            ),
+            (
                 "Actual QDTE distributions  : "
                 f"${result.qdte_distributions_received:,.2f} "
                 f"({result.qdte_distribution_events} events)"
@@ -2481,6 +2631,18 @@ def _format_report(
                     )
                 )
                 if result.risk_rejection_reasons
+                else ("  none",)
+            ),
+            "Risk rejection diagnostics:",
+            *(
+                (
+                    f"  {name}: {count}"
+                    for name, count
+                    in sorted(
+                        result.risk_rejection_diagnostics.items()
+                    )
+                )
+                if result.risk_rejection_diagnostics
                 else ("  none",)
             ),
             (
@@ -2534,6 +2696,7 @@ def run_backtest(
     swing_only: bool = False,
     entry_profile: str = BASELINE_ENTRY_PROFILE,
     risk_profile: str = BASELINE_RISK_PROFILE,
+    tax_reserve_profile: str = BASELINE_TAX_RESERVE_PROFILE,
 ) -> tuple[BacktestResult, RunArtifacts]:
     fixed_window = (
         fixed_start is not None
@@ -2586,6 +2749,28 @@ def run_backtest(
     ):
         raise ValueError(
             "Unsupported swing risk research profile."
+        )
+
+    if tax_reserve_profile not in (
+        BASELINE_TAX_RESERVE_PROFILE,
+        NET_REALIZED_TAX_RESERVE_PROFILE,
+    ):
+        raise ValueError(
+            "Unsupported tax-reserve research profile."
+        )
+
+    if (
+        tax_reserve_profile
+        == NET_REALIZED_TAX_RESERVE_PROFILE
+        and not (
+            swing_only
+            and fixed_window
+            and local_only
+        )
+    ):
+        raise ValueError(
+            "Net-realized tax reserve is restricted "
+            "to the fixed local swing-only research control."
         )
 
     if (
@@ -3188,6 +3373,9 @@ def run_backtest(
         ),
         "risk_profile": risk_profile,
         "kelly_enabled": kelly_enabled,
+        "tax_reserve_profile": (
+            tax_reserve_profile
+        ),
         "income_sleeve_active": (not swing_only),
         "qdte_used_for_common_timestamp_control": swing_only,
         "initialization_bars": initialization_bars,
@@ -3308,6 +3496,8 @@ def run_backtest(
     gap_rejections = 0
     risk_rejections = 0
     risk_rejection_reasons = Counter()
+    risk_rejection_diagnostics = Counter()
+    tax_reserve_released = 0.0
     maximum_observed_positions = 0
     current_month = (
         first_test_time.year,
@@ -3588,12 +3778,18 @@ def run_backtest(
                     * qdte_bar.open
                 )
             )
+            sizing_active_risk = (
+                portfolio.active_risk()
+            )
+            sizing_available_cash = (
+                portfolio.cash
+            )
             sizing = calculate_position_size(
                 account_equity=account_equity,
-                available_cash=portfolio.cash,
+                available_cash=sizing_available_cash,
                 entry_price=bar.open,
                 atr=signal.signal_atr,
-                active_risk=portfolio.active_risk(),
+                active_risk=sizing_active_risk,
                 config=config,
                 trade_results_r=(
                     [
@@ -3607,9 +3803,24 @@ def run_backtest(
 
             if not sizing.is_tradeable:
                 risk_rejections += 1
-                risk_rejection_reasons[
+                raw_risk_reason = (
                     sizing.blocked_reason
                     or "UNKNOWN_RISK_REJECTION"
+                )
+                risk_rejection_reasons[
+                    raw_risk_reason
+                ] += 1
+                risk_diagnostic = (
+                    _position_size_rejection_diagnostic(
+                        account_equity=account_equity,
+                        available_cash=sizing_available_cash,
+                        active_risk=sizing_active_risk,
+                        sizing=sizing,
+                        config=config,
+                    )
+                )
+                risk_rejection_diagnostics[
+                    risk_diagnostic
                 ] += 1
                 signal_records.append(
                     SignalRecord(
@@ -3617,8 +3828,9 @@ def run_backtest(
                         symbol=signal.symbol,
                         action="REJECTED_POSITION_SIZING",
                         detail=(
-                            sizing.blocked_reason
-                            or "Not tradeable."
+                            raw_risk_reason
+                            + " | diagnostic="
+                            + risk_diagnostic
                         ),
                         tie_key=signal.tie_key,
                     )
@@ -3690,6 +3902,20 @@ def run_backtest(
                     ),
                     config=config,
                 )
+                tax_release_on_close = 0.0
+                if (
+                    tax_reserve_profile
+                    == NET_REALIZED_TAX_RESERVE_PROFILE
+                ):
+                    tax_release_on_close = (
+                        _reconcile_net_realized_tax_reserve(
+                            portfolio=portfolio,
+                            config=config,
+                        )
+                    )
+                    tax_reserve_released += (
+                        tax_release_on_close
+                    )
                 entry_time = entry_times.pop(
                     symbol
                 )
@@ -3702,7 +3928,10 @@ def run_backtest(
                         entry_price=closed.entry_price,
                         exit_price=closed.exit_price,
                         pnl=closed.pnl,
-                        tax_reserved=closed.tax_reserved,
+                        tax_reserved=(
+                            closed.tax_reserved
+                            - tax_release_on_close
+                        ),
                         reason=closed.reason,
                         result_r=closed.result_r,
                     )
@@ -3928,6 +4157,20 @@ def run_backtest(
             reason="END_OF_TEST",
             config=config,
         )
+        tax_release_on_close = 0.0
+        if (
+            tax_reserve_profile
+            == NET_REALIZED_TAX_RESERVE_PROFILE
+        ):
+            tax_release_on_close = (
+                _reconcile_net_realized_tax_reserve(
+                    portfolio=portfolio,
+                    config=config,
+                )
+            )
+            tax_reserve_released += (
+                tax_release_on_close
+            )
         entry_time = entry_times.pop(
             symbol
         )
@@ -3940,7 +4183,10 @@ def run_backtest(
                 entry_price=closed.entry_price,
                 exit_price=closed.exit_price,
                 pnl=closed.pnl,
-                tax_reserved=closed.tax_reserved,
+                tax_reserved=(
+                    closed.tax_reserved
+                    - tax_release_on_close
+                ),
                 reason=closed.reason,
                 result_r=closed.result_r,
             )
@@ -4065,6 +4311,15 @@ def run_backtest(
         ),
         risk_profile=risk_profile,
         kelly_enabled=kelly_enabled,
+        tax_reserve_profile=(
+            tax_reserve_profile
+        ),
+        tax_reserve_released=(
+            tax_reserve_released
+        ),
+        realized_swing_pnl=(
+            portfolio.realized_pnl
+        ),
         initialization_bars=initialization_bars,
         first_entry_eligible_time=(
             entry_eligible_time.isoformat()
@@ -4181,6 +4436,9 @@ def run_backtest(
         ),
         risk_rejection_reasons=dict(
             risk_rejection_reasons
+        ),
+        risk_rejection_diagnostics=dict(
+            risk_rejection_diagnostics
         ),
         closed_trades=len(
             trade_records
@@ -4310,6 +4568,18 @@ def run_backtest(
             "risk_rejection_reasons": dict(
                 risk_rejection_reasons
             ),
+            "risk_rejection_diagnostics": dict(
+                risk_rejection_diagnostics
+            ),
+            "tax_reserve_profile": (
+                tax_reserve_profile
+            ),
+            "tax_reserve_released": (
+                tax_reserve_released
+            ),
+            "realized_swing_pnl": (
+                portfolio.realized_pnl
+            ),
             "counts_overlap": True,
             "fixed_window": fixed_window,
             "local_only": local_only,
@@ -4379,6 +4649,22 @@ def run_backtest(
             ),
             "risk_profile": risk_profile,
             "kelly_enabled": kelly_enabled,
+            "tax_reserve_profile": (
+                tax_reserve_profile
+            ),
+            "tax_reserve_model_note": (
+                "Research cash-reserve model only; "
+                "not complete tax accounting or tax advice."
+            ),
+            "tax_reserve_released": (
+                tax_reserve_released
+            ),
+            "realized_swing_pnl": (
+                portfolio.realized_pnl
+            ),
+            "risk_rejection_diagnostics": dict(
+                risk_rejection_diagnostics
+            ),
             "risk_per_trade": (
                 config.risk_per_trade
             ),
@@ -4615,6 +4901,88 @@ def fixed_window_main(
     return 0
 
 
+
+
+
+def net_realized_tax_reserve_control_main(
+    argv: Sequence[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the fixed local V14 swing research "
+            "with net-realized tax-reserve cash treatment."
+        )
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(DEFAULT_DATA_ROOT),
+    )
+    parser.add_argument(
+        "--report-root",
+        default=str(
+            DEFAULT_NET_TAX_RESERVE_REPORT_ROOT
+        ),
+    )
+    args = parser.parse_args(argv)
+
+    print(
+        "NET-REALIZED TAX RESERVE RESEARCH CONTROL:"
+    )
+    print(
+        "  relaxed V13 entry profile: unchanged"
+    )
+    print(
+        "  fixed 1% no-Kelly risk profile: unchanged"
+    )
+    print(
+        "  aggregate active-risk cap: 6%"
+    )
+    print(
+        "  tax reserve: 37% of positive cumulative "
+        "net realized swing P&L"
+    )
+    print(
+        "  excess reserve released after realized losses"
+    )
+    print(
+        "  rejection diagnostics split cash vs risk capacity"
+    )
+    print(
+        "  live/paper defaults: unchanged"
+    )
+
+    result, artifacts = run_backtest(
+        api_key="",
+        data_root=args.data_root,
+        report_root=args.report_root,
+        fixed_start=FIXED_WINDOW_START,
+        fixed_end=FIXED_WINDOW_END,
+        local_only=True,
+        initialization_bars=FIXED_INITIALIZATION_BARS,
+        swing_only=True,
+        entry_profile=RELAXED_ENTRY_PROFILE,
+        risk_profile=(
+            FIXED_ONE_PERCENT_RISK_PROFILE
+        ),
+        tax_reserve_profile=(
+            NET_REALIZED_TAX_RESERVE_PROFILE
+        ),
+    )
+    print(_format_report(result))
+    print("-" * 78)
+    print("Artifacts:")
+
+    for name, path in asdict(
+        artifacts
+    ).items():
+        print(f"  {name:<12}: {path}")
+
+    print()
+    print(
+        "QPX NET-REALIZED TAX RESERVE CONTROL "
+        "2024-08-06 TO 2026-07-28: COMPLETE"
+    )
+    return 0
 
 
 def relaxed_swing_no_kelly_control_main(

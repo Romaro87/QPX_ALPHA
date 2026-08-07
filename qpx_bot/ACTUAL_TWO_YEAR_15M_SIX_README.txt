@@ -281,3 +281,39 @@ Unchanged protections:
 V14 also records risk-rejection reasons explicitly so subsequent runs
 show whether any remaining rejections come from cash, active-risk
 capacity, or another sizing rule.
+
+
+V15 net-realized tax-reserve research control
+---------------------------------------------
+
+V14 produced 486 swing trades with the relaxed-frequency entry profile,
+fixed 1% risk per trade, 6% aggregate active-risk cap, and Kelly
+disabled. It also accumulated a large tax-reserve balance because the
+shared portfolio logic reserves 37% of every profitable exit
+independently.
+
+V15 is a research-only cash-management control. It keeps the V14
+strategy, entries, exits, position risk, aggregate risk, slippage,
+symbols, dates, and real-data inputs unchanged.
+
+The only cash-reserve change is:
+- after each closed swing trade, research tax reserve is reconciled to
+  37% of positive cumulative net realized swing P&L;
+- if later realized losses reduce that cumulative net gain, the excess
+  reserve is released back to investable swing cash;
+- if cumulative net realized P&L is zero or negative, the research
+  reserve is zero.
+
+This is not complete tax accounting and is not tax advice. It is an
+explicit research control for measuring whether the prior per-winning-
+trade reserve was unnecessarily constraining investable cash.
+
+V15 also decomposes the risk engine's combined "risk budget or cash is
+too small for one share" rejection into:
+- CASH_BELOW_ONE_SHARE;
+- BASE_RISK_BUDGET_BELOW_ONE_SHARE;
+- ACTIVE_RISK_CAP_BELOW_ONE_SHARE;
+- combined cash/risk causes when both apply.
+
+Live/paper defaults, qpx_bot/config.py, qpx_bot/risk.py, and
+qpx_bot/portfolio.py are not modified by this workflow.
