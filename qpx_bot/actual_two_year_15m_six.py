@@ -16,7 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -38,7 +38,11 @@ from qpx_bot.market_calendar import (
 from qpx_bot.performance import ReturnMetrics, metrics_from_returns
 from qpx_bot.portfolio import ClosedTrade, Portfolio, contribution_allocation
 from qpx_bot.risk import buy_fill, calculate_position_size
-from qpx_bot.strategy import evaluate_entry, evaluate_exit
+from qpx_bot.strategy import (
+    EntryEvaluation,
+    evaluate_entry,
+    evaluate_exit,
+)
 from qpx_bot.time_rules import elapsed_complete_years
 
 
@@ -79,6 +83,26 @@ DEFAULT_SWING_ONLY_REPORT_ROOT = (
     / "reports"
     / "qpx_swing_only_control_2024_08_06_to_2026_07_28"
 )
+DEFAULT_RELAXED_SWING_REPORT_ROOT = (
+    PROJECT_ROOT
+    / "reports"
+    / "qpx_relaxed_swing_frequency_2024_08_06_to_2026_07_28"
+)
+
+BASELINE_ENTRY_PROFILE = "BASELINE"
+RELAXED_ENTRY_PROFILE = "RELAXED_FREQUENCY_RESEARCH_V1"
+
+# The original 2,000,000 threshold is named daily volume but the
+# 15-minute engine feeds it 15-minute candle volume. 2,000,000 / 26
+# regular-session 15-minute bars is about 76,923 shares per bar.
+RELAXED_MINIMUM_AVERAGE_15M_VOLUME = 75_000
+RELAXED_BREAKOUT_VOLUME_MULTIPLIER = 1.05
+RELAXED_BREAKOUT_LOOKBACK = 10
+RELAXED_MAXIMUM_VIX = 32.0
+RELAXED_RSI_OVERBOUGHT = 75.0
+RELAXED_MOMENTUM_PERSISTENCE_LEVEL = 52.0
+RELAXED_MAXIMUM_GAP_ATR_MULTIPLE = 2.0
+
 PROVIDER_HOSTS = (
     "https://api.massive.com",
     "https://api.polygon.io",
@@ -194,6 +218,8 @@ class BacktestResult:
     fixed_window: bool
     local_only: bool
     swing_only: bool
+    entry_profile: str
+    entry_gap_atr_limit: float
     initialization_bars: int
     first_entry_eligible_time: str
     interval: str
@@ -348,7 +374,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.27.0"
+                        "AppleWebKit/537.36 QPXBot/1.28.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1127,7 +1153,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.27.0"
+                    "AppleWebKit/537.36 QPXBot/1.28.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -1795,6 +1821,101 @@ def _to_candles(
     ]
 
 
+
+def _evaluate_entry_relaxed_frequency(
+    *,
+    candles: Sequence[Candle],
+    indicators: IndicatorSet,
+    index: int,
+    vix: float,
+    config: BotConfig,
+) -> EntryEvaluation:
+    """
+    Research-only entry evaluation that keeps the baseline filters but
+    permits an established bullish momentum state in addition to an
+    exact same-bar crossover.
+
+    This function is never used by the live/paper runner.
+    """
+    baseline = evaluate_entry(
+        candles=candles,
+        indicators=indicators,
+        index=index,
+        vix=vix,
+        config=config,
+    )
+
+    if not baseline.checks.get(
+        "data_ready",
+        False,
+    ):
+        return baseline
+
+    try:
+        fast = float(
+            indicators.ema_fast[index]
+        )
+        slow = float(
+            indicators.ema_slow[index]
+        )
+        rsi = float(
+            indicators.rsi[index]
+        )
+        rmi = float(
+            indicators.rmi[index]
+        )
+    except (TypeError, ValueError):
+        return baseline
+
+    persistent_momentum = (
+        fast > slow
+        and (
+            rsi
+            >= RELAXED_MOMENTUM_PERSISTENCE_LEVEL
+            or rmi
+            >= RELAXED_MOMENTUM_PERSISTENCE_LEVEL
+        )
+    )
+
+    checks = dict(
+        baseline.checks
+    )
+    checks["momentum_trigger"] = (
+        checks.get(
+            "momentum_trigger",
+            False,
+        )
+        or persistent_momentum
+    )
+    triggers = list(
+        baseline.triggers
+    )
+
+    if (
+        persistent_momentum
+        and "MOMENTUM_PERSISTENCE"
+        not in triggers
+    ):
+        triggers.append(
+            "MOMENTUM_PERSISTENCE"
+        )
+
+    failed = tuple(
+        name
+        for name, passed
+        in checks.items()
+        if not passed
+    )
+
+    return EntryEvaluation(
+        index=index,
+        should_enter=not failed,
+        checks=checks,
+        triggers=tuple(triggers),
+        failed_checks=failed,
+    )
+
+
 def _position_prices(
     *,
     portfolio: Portfolio,
@@ -2124,18 +2245,18 @@ def _format_report(
             "=" * 78,
             (
                 (
-                    "QPX BOT v1.27.0 — FIXED SWING-ONLY CONTROL "
+                    "QPX BOT v1.28.0 — FIXED SWING-ONLY CONTROL "
                     "15-MINUTE SIX-POSITION BACKTEST"
                 )
                 if result.swing_only
                 else (
                     (
-                        "QPX BOT v1.27.0 — FIXED NEAR-TWO-YEAR "
+                        "QPX BOT v1.28.0 — FIXED NEAR-TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                     if result.fixed_window
                     else (
-                        "QPX BOT v1.27.0 — ACTUAL TWO-YEAR "
+                        "QPX BOT v1.28.0 — ACTUAL TWO-YEAR "
                         "15-MINUTE SIX-POSITION BACKTEST"
                     )
                 )
@@ -2163,6 +2284,14 @@ def _format_report(
                     if result.swing_only
                     else "HYBRID_QDTE_PLUS_SWING"
                 )
+            ),
+            (
+                "Entry profile              : "
+                f"{result.entry_profile}"
+            ),
+            (
+                "Opening gap limit          : "
+                f"{result.entry_gap_atr_limit:.2f} ATR"
             ),
             (
                 "Indicator initialization   : "
@@ -2366,6 +2495,7 @@ def run_backtest(
     local_only: bool = False,
     initialization_bars: int = 0,
     swing_only: bool = False,
+    entry_profile: str = BASELINE_ENTRY_PROFILE,
 ) -> tuple[BacktestResult, RunArtifacts]:
     fixed_window = (
         fixed_start is not None
@@ -2404,14 +2534,63 @@ def run_backtest(
             "Swing-only control requires fixed local-only mode."
         )
 
+    if entry_profile not in (
+        BASELINE_ENTRY_PROFILE,
+        RELAXED_ENTRY_PROFILE,
+    ):
+        raise ValueError(
+            "Unsupported swing entry research profile."
+        )
+
+    if (
+        entry_profile == RELAXED_ENTRY_PROFILE
+        and not (
+            swing_only
+            and fixed_window
+            and local_only
+        )
+    ):
+        raise ValueError(
+            "The relaxed entry profile is restricted "
+            "to the fixed local swing-only research control."
+        )
+
     if not local_only and not api_key.strip():
         raise ProviderError(
             "A Massive/Polygon API key is required."
         )
 
     config = BotConfig()
-    config.validate()
     policy = load_policy()
+
+    if entry_profile == RELAXED_ENTRY_PROFILE:
+        config = replace(
+            config,
+            minimum_average_daily_volume=(
+                RELAXED_MINIMUM_AVERAGE_15M_VOLUME
+            ),
+            breakout_volume_multiplier=(
+                RELAXED_BREAKOUT_VOLUME_MULTIPLIER
+            ),
+            breakout_lookback=(
+                RELAXED_BREAKOUT_LOOKBACK
+            ),
+            maximum_vix_for_entries=(
+                RELAXED_MAXIMUM_VIX
+            ),
+            rsi_overbought=(
+                RELAXED_RSI_OVERBOUGHT
+            ),
+        )
+        entry_gap_atr_limit = (
+            RELAXED_MAXIMUM_GAP_ATR_MULTIPLE
+        )
+    else:
+        entry_gap_atr_limit = (
+            policy.maximum_gap_atr_multiple
+        )
+
+    config.validate()
 
     if policy.interval != "15m":
         raise RuntimeError(
@@ -2939,6 +3118,10 @@ def run_backtest(
         "fixed_window": fixed_window,
         "local_only": local_only,
         "swing_only": swing_only,
+        "entry_profile": entry_profile,
+        "entry_gap_atr_limit": (
+            entry_gap_atr_limit
+        ),
         "income_sleeve_active": (not swing_only),
         "qdte_used_for_common_timestamp_control": swing_only,
         "initialization_bars": initialization_bars,
@@ -3305,7 +3488,7 @@ def run_backtest(
 
             if (
                 gap_atr
-                > policy.maximum_gap_atr_multiple
+                > entry_gap_atr_limit
             ):
                 gap_rejections += 1
                 signal_records.append(
@@ -3468,12 +3651,25 @@ def run_backtest(
 
             for symbol in SWING_SYMBOLS:
                 index = indices[symbol][bar_time]
-                evaluation = evaluate_entry(
-                    candles=candles[symbol],
-                    indicators=indicators[symbol],
-                    index=index,
-                    vix=maps["^VIX"][bar_time].close,
-                    config=config,
+                evaluation = (
+                    _evaluate_entry_relaxed_frequency(
+                        candles=candles[symbol],
+                        indicators=indicators[symbol],
+                        index=index,
+                        vix=maps["^VIX"][bar_time].close,
+                        config=config,
+                    )
+                    if (
+                        entry_profile
+                        == RELAXED_ENTRY_PROFILE
+                    )
+                    else evaluate_entry(
+                        candles=candles[symbol],
+                        indicators=indicators[symbol],
+                        index=index,
+                        vix=maps["^VIX"][bar_time].close,
+                        config=config,
+                    )
                 )
                 all_evaluations += 1
 
@@ -3788,6 +3984,10 @@ def run_backtest(
         fixed_window=fixed_window,
         local_only=local_only,
         swing_only=swing_only,
+        entry_profile=entry_profile,
+        entry_gap_atr_limit=(
+            entry_gap_atr_limit
+        ),
         initialization_bars=initialization_bars,
         first_entry_eligible_time=(
             entry_eligible_time.isoformat()
@@ -4090,6 +4290,52 @@ def run_backtest(
             "fixed_window": fixed_window,
             "local_only": local_only,
             "swing_only": swing_only,
+            "entry_profile": entry_profile,
+            "entry_gap_atr_limit": (
+                entry_gap_atr_limit
+            ),
+            "relaxed_frequency_parameters": (
+                {
+                    "minimum_average_15m_volume": (
+                        RELAXED_MINIMUM_AVERAGE_15M_VOLUME
+                    ),
+                    "breakout_volume_multiplier": (
+                        RELAXED_BREAKOUT_VOLUME_MULTIPLIER
+                    ),
+                    "breakout_lookback": (
+                        RELAXED_BREAKOUT_LOOKBACK
+                    ),
+                    "maximum_vix": (
+                        RELAXED_MAXIMUM_VIX
+                    ),
+                    "rsi_overbought": (
+                        RELAXED_RSI_OVERBOUGHT
+                    ),
+                    "momentum_persistence_level": (
+                        RELAXED_MOMENTUM_PERSISTENCE_LEVEL
+                    ),
+                    "maximum_gap_atr_multiple": (
+                        RELAXED_MAXIMUM_GAP_ATR_MULTIPLE
+                    ),
+                    "risk_per_trade": (
+                        config.risk_per_trade
+                    ),
+                    "maximum_active_portfolio_risk": (
+                        config.maximum_active_portfolio_risk
+                    ),
+                    "stop_atr_multiple": (
+                        config.stop_atr_multiple
+                    ),
+                    "target_atr_multiple": (
+                        config.target_atr_multiple
+                    ),
+                }
+                if (
+                    entry_profile
+                    == RELAXED_ENTRY_PROFILE
+                )
+                else None
+            ),
             "income_sleeve_active": (
                 not swing_only
             ),
@@ -4274,6 +4520,92 @@ def fixed_window_main(
     print(
         "QPX FIXED 2024-08-06 TO 2026-07-28 "
         "LOCAL 15-MINUTE BACKTEST: COMPLETE"
+    )
+    return 0
+
+
+
+def relaxed_swing_frequency_control_main(
+    argv: Sequence[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the fixed local relaxed-frequency "
+            "swing-only research control."
+        )
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(DEFAULT_DATA_ROOT),
+    )
+    parser.add_argument(
+        "--report-root",
+        default=str(
+            DEFAULT_RELAXED_SWING_REPORT_ROOT
+        ),
+    )
+    args = parser.parse_args(argv)
+
+    print(
+        "RELAXED FREQUENCY RESEARCH PROFILE:"
+    )
+    print(
+        "  average 15m volume >= "
+        f"{RELAXED_MINIMUM_AVERAGE_15M_VOLUME:,}"
+    )
+    print(
+        "  breakout volume >= "
+        f"{RELAXED_BREAKOUT_VOLUME_MULTIPLIER:.2f}x"
+    )
+    print(
+        "  breakout lookback = "
+        f"{RELAXED_BREAKOUT_LOOKBACK} bars"
+    )
+    print(
+        "  VIX <= "
+        f"{RELAXED_MAXIMUM_VIX:.1f}"
+    )
+    print(
+        "  RSI overbought ceiling = "
+        f"{RELAXED_RSI_OVERBOUGHT:.1f}"
+    )
+    print(
+        "  momentum persistence >= "
+        f"{RELAXED_MOMENTUM_PERSISTENCE_LEVEL:.1f}"
+    )
+    print(
+        "  opening gap <= "
+        f"{RELAXED_MAXIMUM_GAP_ATR_MULTIPLE:.1f} ATR"
+    )
+    print(
+        "  risk/trade, portfolio risk, ATR stop "
+        "and ATR target remain BASELINE."
+    )
+
+    result, artifacts = run_backtest(
+        api_key="",
+        data_root=args.data_root,
+        report_root=args.report_root,
+        fixed_start=FIXED_WINDOW_START,
+        fixed_end=FIXED_WINDOW_END,
+        local_only=True,
+        initialization_bars=FIXED_INITIALIZATION_BARS,
+        swing_only=True,
+        entry_profile=RELAXED_ENTRY_PROFILE,
+    )
+    print(_format_report(result))
+    print("-" * 78)
+    print("Artifacts:")
+
+    for name, path in asdict(
+        artifacts
+    ).items():
+        print(f"  {name:<12}: {path}")
+
+    print()
+    print(
+        "QPX RELAXED SWING FREQUENCY CONTROL "
+        "2024-08-06 TO 2026-07-28: COMPLETE"
     )
     return 0
 

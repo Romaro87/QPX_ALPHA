@@ -213,3 +213,39 @@ Control-specific changes:
 - Allocation rebalancing is disabled.
 - Tax-reserve behavior on profitable swing exits remains active.
 - No market data is downloaded and no provider key is requested.
+
+
+V13 relaxed swing-frequency research control
+--------------------------------------------
+
+This is a research-only swing-only profile. It does not change the
+live/paper default strategy.
+
+The prior swing-only control showed only one opening-gap rejection and
+one risk-sizing rejection. Therefore increasing risk-per-trade or the
+6% portfolio-risk ceiling would primarily increase position size, not
+trade count.
+
+The relaxed-frequency profile changes only entry-frequency gates:
+- 15-minute average-volume floor: 75,000 shares. The original 2,000,000
+  field is defined as daily volume but was being compared directly to
+  15-minute candle volume. 2,000,000 / 26 is approximately 76,923.
+- breakout-volume multiplier: 1.20x -> 1.05x.
+- breakout lookback: 20 -> 10 completed 15-minute bars.
+- maximum VIX: 28 -> 32.
+- RSI overbought ceiling: 70 -> 75.
+- momentum: exact EMA/RSI/RMI crosses still count, plus an established
+  bullish EMA state with RSI or RMI >= 52.
+- opening-gap rejection: 1.5 ATR -> 2.0 ATR.
+
+Unchanged:
+- 1% base risk per trade.
+- 6% maximum active portfolio risk.
+- 2.5 ATR stop.
+- 5 ATR target.
+- 3 ATR trailing activation.
+- 0.075% slippage.
+- six concurrent slots.
+- no rankings.
+- no synthetic, interpolated, placeholder, or forced entries.
+- live brokerage remains disabled.
