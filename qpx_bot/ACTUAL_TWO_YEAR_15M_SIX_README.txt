@@ -346,3 +346,45 @@ aggregate active-risk limits.
 
 Live/paper defaults, qpx_bot/config.py, qpx_bot/risk.py, and
 qpx_bot/portfolio.py are not modified by this workflow.
+
+
+V17 V16 exit / expectancy diagnostic study
+-------------------------------------------
+
+V17 is diagnostic-only. It does not rerun the strategy and does not
+change entry, exit, sizing, tax-reserve, notional-cap, allocation, or
+market-data rules.
+
+It locates the latest completed V16 16%-notional run and reconstructs
+each closed trade from the same validated local 15-minute caches. It
+verifies the reconstructed common-bar and session counts against the
+saved V16 result before producing diagnostics.
+
+Per-trade diagnostics include:
+- exit reason;
+- conservative maximum favorable excursion (MFE) in initial-R units;
+- conservative maximum adverse excursion (MAE) in initial-R units;
+- whether +1R, +2R, or +3R was reached before exit;
+- whether a losing trade had been sell-side-slippage-adjusted profitable
+  on a completed bar before its exit bar;
+- holding bars and holding sessions;
+- entry VIX regime;
+- reconstructed relaxed-entry trigger(s).
+
+The exit-bar excursion method is intentionally conservative: full OHLC
+is used only for completed bars before the exit bar. On stop/target exit
+bars, the known trigger/open is used instead of the full exit-bar high
+or low, avoiding post-exit lookahead.
+
+Summaries are produced overall and by exit reason, symbol, VIX regime,
+individual entry trigger, and trigger combination. Trigger counts can
+overlap when one entry has multiple triggers.
+
+V17 writes text, JSON, and per-trade CSV diagnostic artifacts into the
+source V16 report directory. It makes no provider request and needs no
+API key.
+
+These are in-sample diagnostics of an already-examined historical
+window. They are intended to formulate a small number of explicit exit
+hypotheses for later frozen validation, not to claim independent
+performance validation.
