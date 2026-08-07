@@ -148,3 +148,33 @@ V9 verifies the stable checkpoint structures instead:
 
 The stale-tail repair behavior and every strategy, coverage, risk,
 provider, and no-placeholder rule remain unchanged.
+
+
+V10 fixed local near-two-year backtest
+--------------------------------------
+
+This revision adds a separate, local-only historical validation window:
+
+- fixed start: 2024-08-06;
+- fixed end: 2026-07-28;
+- calendar span: 721 days;
+- real 15-minute DIA, IWM, QQQ, SPY, XLE, XLF, XLK, XLV, and QDTE
+  cache files already present on the device;
+- official Cboe daily VIX closes using the previous completed session;
+- actual cached QDTE distribution events;
+- first 200 common 15-minute bars reserved for indicator
+  initialization, with swing entries disabled;
+- minimum 11,500 common bars and 480 sessions;
+- no network requests;
+- no API key;
+- no synthetic, interpolated, placeholder, or forced data.
+
+This is deliberately labeled a fixed near-two-year study, not an exact
+two-year study. It ends nine calendar days before 2026-08-06. Therefore,
+the exact second-anniversary 40/60 allocation phase is not reached
+inside this window; the 65/35 phase remains active through the end.
+
+The original rolling provider-backed runner remains available. The
+fixed local runner is:
+
+python QPX_RUN_FIXED_2024_08_06_TO_2026_07_28.py

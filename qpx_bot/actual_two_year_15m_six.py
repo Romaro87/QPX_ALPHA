@@ -63,6 +63,15 @@ DEFAULT_AGGREGATE_CACHE = (
     / "shared"
     / "aggregate_15m"
 )
+FIXED_WINDOW_START = date(2024, 8, 6)
+FIXED_WINDOW_END = date(2026, 7, 28)
+FIXED_INITIALIZATION_BARS = 200
+FIXED_MINIMUM_COMMON_BARS = 11_500
+DEFAULT_FIXED_REPORT_ROOT = (
+    PROJECT_ROOT
+    / "reports"
+    / "qpx_fixed_2024_08_06_to_2026_07_28"
+)
 PROVIDER_HOSTS = (
     "https://api.massive.com",
     "https://api.polygon.io",
@@ -175,6 +184,10 @@ class BacktestResult:
     actual_start: date
     actual_end: date
     warmup_start: date
+    fixed_window: bool
+    local_only: bool
+    initialization_bars: int
+    first_entry_eligible_time: str
     interval: str
     common_test_bars: int
     test_sessions: int
@@ -325,7 +338,7 @@ def _provider_json(
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Linux; Android 14) "
-                        "AppleWebKit/537.36 QPXBot/1.25.3"
+                        "AppleWebKit/537.36 QPXBot/1.26.0"
                     ),
                     "Accept": "application/json",
                     "Accept-Encoding": "identity",
@@ -1104,7 +1117,7 @@ def _download_text(
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Linux; Android 14) "
-                    "AppleWebKit/537.36 QPXBot/1.25.3"
+                    "AppleWebKit/537.36 QPXBot/1.26.0"
                 ),
                 "Accept": "text/csv,text/plain,*/*",
                 "Accept-Encoding": "identity",
@@ -1553,6 +1566,124 @@ def fetch_qdte_dividends(
     return events, host
 
 
+
+def _read_cached_dividends(
+    path: Path,
+) -> list[DividendEvent]:
+    events: list[DividendEvent] = []
+
+    with path.open(
+        "r",
+        newline="",
+        encoding="utf-8-sig",
+    ) as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            try:
+                event_id = str(
+                    row.get(
+                        "EventId",
+                        "",
+                    )
+                ).strip()
+                ex_date = date.fromisoformat(
+                    str(
+                        row["ExDividendDate"]
+                    )
+                )
+                cash_amount = float(
+                    row["CashAmount"]
+                )
+            except (
+                KeyError,
+                TypeError,
+                ValueError,
+            ):
+                continue
+
+            if (
+                not event_id
+                or not math.isfinite(cash_amount)
+                or cash_amount <= 0
+            ):
+                continue
+
+            events.append(
+                DividendEvent(
+                    event_id=event_id,
+                    ex_date=ex_date,
+                    cash_amount=cash_amount,
+                )
+            )
+
+    deduplicated = {
+        event.event_id: event
+        for event in events
+    }
+    return sorted(
+        deduplicated.values(),
+        key=lambda event: (
+            event.ex_date,
+            event.event_id,
+        ),
+    )
+
+
+def _find_valid_cached_dividends(
+    *,
+    data_root: Path,
+    start: date,
+    end: date,
+) -> tuple[list[DividendEvent], Path]:
+    candidates = [
+        path
+        for path in data_root.rglob(
+            "QDTE_DIVIDENDS.csv"
+        )
+        if path.is_file()
+    ]
+    candidates.sort(
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+    for path in candidates:
+        try:
+            events = _read_cached_dividends(
+                path
+            )
+        except OSError:
+            continue
+
+        filtered = [
+            event
+            for event in events
+            if start <= event.ex_date <= end
+        ]
+
+        if len(filtered) < 80:
+            continue
+
+        if (
+            filtered[0].ex_date
+            > start + timedelta(days=21)
+        ):
+            continue
+
+        if (
+            end - filtered[-1].ex_date
+        ).days > 21:
+            continue
+
+        return filtered, path
+
+    raise ProviderError(
+        "No validated local QDTE dividend cache "
+        "covers the fixed historical window."
+    )
+
+
 def _write_bars(
     path: Path,
     bars: Sequence[IntradayBar],
@@ -1982,8 +2113,15 @@ def _format_report(
         (
             "=" * 78,
             (
-                "QPX BOT v1.25.3 — ACTUAL TWO-YEAR "
-                "15-MINUTE SIX-POSITION BACKTEST"
+                (
+                    "QPX BOT v1.26.0 — FIXED NEAR-TWO-YEAR "
+                    "15-MINUTE SIX-POSITION BACKTEST"
+                )
+                if result.fixed_window
+                else (
+                    "QPX BOT v1.26.0 — ACTUAL TWO-YEAR "
+                    "15-MINUTE SIX-POSITION BACKTEST"
+                )
             ),
             "=" * 78,
             f"Actual provider            : {result.provider}",
@@ -1992,6 +2130,23 @@ def _format_report(
                 f"{result.actual_start} to {result.actual_end}"
             ),
             f"Warmup begins              : {result.warmup_start}",
+            (
+                "Window mode                : "
+                + (
+                    "FIXED_LOCAL_NEAR_TWO_YEAR"
+                    if result.fixed_window
+                    else "ROLLING_TWO_YEAR"
+                )
+            ),
+            f"Local-only data            : {result.local_only}",
+            (
+                "Indicator initialization   : "
+                f"{result.initialization_bars} common bars"
+            ),
+            (
+                "First swing entry eligible : "
+                f"{result.first_entry_eligible_time}"
+            ),
             f"Interval                   : {result.interval}",
             f"Common 15-minute bars      : {result.common_test_bars}",
             f"Market sessions            : {result.test_sessions}",
@@ -2163,11 +2318,47 @@ def _format_report(
 
 def run_backtest(
     *,
-    api_key: str,
+    api_key: str = "",
     data_root: str | Path = DEFAULT_DATA_ROOT,
     report_root: str | Path = DEFAULT_REPORT_ROOT,
+    fixed_start: date | None = None,
+    fixed_end: date | None = None,
+    local_only: bool = False,
+    initialization_bars: int = 0,
 ) -> tuple[BacktestResult, RunArtifacts]:
-    if not api_key.strip():
+    fixed_window = (
+        fixed_start is not None
+        or fixed_end is not None
+    )
+
+    if (
+        (fixed_start is None)
+        != (fixed_end is None)
+    ):
+        raise ValueError(
+            "Fixed start and end must be supplied together."
+        )
+
+    if (
+        fixed_start is not None
+        and fixed_end is not None
+        and fixed_end < fixed_start
+    ):
+        raise ValueError(
+            "Fixed end cannot precede fixed start."
+        )
+
+    if initialization_bars < 0:
+        raise ValueError(
+            "Initialization bars cannot be negative."
+        )
+
+    if local_only and not fixed_window:
+        raise ValueError(
+            "Local-only mode requires a fixed historical window."
+        )
+
+    if not local_only and not api_key.strip():
         raise ProviderError(
             "A Massive/Polygon API key is required."
         )
@@ -2196,30 +2387,70 @@ def run_backtest(
             "Rankings must remain disabled."
         )
 
-    end_session, end_status = latest_completed_session(
-        datetime.now(tz=NEW_YORK)
-    )
-    requested_start = subtract_years(
-        end_session,
-        2,
-    )
-    warmup_start = (
-        requested_start
-        - timedelta(days=WARMUP_DAYS)
-    )
+    if fixed_window:
+        assert fixed_start is not None
+        assert fixed_end is not None
+        end_session = fixed_end
+        end_status = "FIXED_HISTORICAL_WINDOW"
+        requested_start = fixed_start
+        warmup_start = requested_start
+    else:
+        end_session, end_status = (
+            latest_completed_session(
+                datetime.now(tz=NEW_YORK)
+            )
+        )
+        requested_start = subtract_years(
+            end_session,
+            2,
+        )
+        warmup_start = (
+            requested_start
+            - timedelta(days=WARMUP_DAYS)
+        )
 
-    print(
-        "VIX preflight: validating official Cboe "
-        "history before any Massive/Polygon requests..."
-    )
-    (
-        vix_closes,
-        vix_source,
-        vix_cache_path,
-    ) = prepare_cboe_vix_cache(
-        start=warmup_start,
-        end=end_session,
-    )
+    if local_only:
+        vix_cache_path = (
+            Path(DEFAULT_VIX_CACHE)
+            .expanduser()
+            .resolve()
+        )
+
+        if not vix_cache_path.exists():
+            raise ProviderError(
+                "The validated local Cboe VIX cache "
+                "is missing."
+            )
+
+        vix_closes = (
+            _validate_vix_daily_coverage(
+                closes=_read_vix_daily_cache(
+                    vix_cache_path
+                ),
+                start=requested_start,
+                end=end_session,
+            )
+        )
+        vix_source = (
+            "LOCAL_VALIDATED_CBOE_CACHE"
+        )
+        print(
+            "Fixed-window local mode: reusing "
+            f"official Cboe VIX cache {vix_cache_path}"
+        )
+    else:
+        print(
+            "VIX preflight: validating official Cboe "
+            "history before any Massive/Polygon requests..."
+        )
+        (
+            vix_closes,
+            vix_source,
+            vix_cache_path,
+        ) = prepare_cboe_vix_cache(
+            start=warmup_start,
+            end=end_session,
+        )
 
     run_id = datetime.now().strftime(
         "%Y%m%d_%H%M%S"
@@ -2264,64 +2495,133 @@ def run_backtest(
         .resolve()
     )
 
-    for logical_symbol, provider_symbol in provider_symbols.items():
-        path = (
-            data_directory
-            / (
+    if local_only:
+        for logical_symbol in provider_symbols:
+            cache_path = _aggregate_cache_path(
                 logical_symbol
-                .replace("^", "")
-                .replace(":", "_")
-                + "_15M.csv"
             )
-        )
-        stable_cache = _aggregate_cache_path(
-            logical_symbol
-        )
-        seeded = _seed_aggregate_checkpoint(
-            data_root=data_root_path,
-            logical_symbol=logical_symbol,
-            provider_symbol=provider_symbol,
-            start=warmup_start,
-            end=end_session,
-            exclude_directory=data_directory,
-        )
-        seed_bars: Sequence[IntradayBar] = ()
 
-        if seeded is not None:
-            seed_bars, seeded_path = seeded
-            valid_seed = _find_valid_cached_history(
+            if not cache_path.exists():
+                raise ProviderError(
+                    "Missing local aggregate cache for "
+                    f"{logical_symbol}: {cache_path}"
+                )
+
+            bars = [
+                bar
+                for bar in _read_cached_bars(
+                    cache_path
+                )
+                if (
+                    requested_start
+                    <= bar.start.date()
+                    <= end_session
+                )
+            ]
+
+            if not bars:
+                raise ProviderError(
+                    "No local fixed-window bars for "
+                    f"{logical_symbol}."
+                )
+
+            path = (
+                data_directory
+                / (
+                    logical_symbol
+                    .replace("^", "")
+                    .replace(":", "_")
+                    + "_15M.csv"
+                )
+            )
+            _write_bars(path, bars)
+            histories[logical_symbol] = bars
+            input_paths[logical_symbol] = path
+            provider_hosts.add(
+                "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE"
+            )
+            print(
+                "Fixed-window local cache: "
+                f"{logical_symbol} "
+                f"({bars[0].start.date()} to "
+                f"{bars[-1].start.date()}, "
+                f"{len(bars)} bars)"
+            )
+    else:
+        for logical_symbol, provider_symbol in provider_symbols.items():
+            path = (
+                data_directory
+                / (
+                    logical_symbol
+                    .replace("^", "")
+                    .replace(":", "_")
+                    + "_15M.csv"
+                )
+            )
+            stable_cache = _aggregate_cache_path(
+                logical_symbol
+            )
+            seeded = _seed_aggregate_checkpoint(
                 data_root=data_root_path,
                 logical_symbol=logical_symbol,
+                provider_symbol=provider_symbol,
                 start=warmup_start,
                 end=end_session,
                 exclude_directory=data_directory,
             )
+            seed_bars: Sequence[IntradayBar] = ()
 
-            if valid_seed is not None:
-                bars, _ = valid_seed
-                print(
-                    "Reusing validated complete aggregate "
-                    f"cache: {logical_symbol} "
-                    f"({seeded_path})"
-                )
-                provider_hosts.add(
-                    "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE"
-                )
-                _write_bars(
-                    stable_cache,
-                    bars,
-                )
-                _mark_all_chunks_complete(
-                    cache_path=stable_cache,
-                    provider_symbol=provider_symbol,
+            if seeded is not None:
+                seed_bars, seeded_path = seeded
+                valid_seed = _find_valid_cached_history(
+                    data_root=data_root_path,
+                    logical_symbol=logical_symbol,
                     start=warmup_start,
                     end=end_session,
-                    bars=bars,
+                    exclude_directory=data_directory,
                 )
+
+                if valid_seed is not None:
+                    bars, _ = valid_seed
+                    print(
+                        "Reusing validated complete aggregate "
+                        f"cache: {logical_symbol} "
+                        f"({seeded_path})"
+                    )
+                    provider_hosts.add(
+                        "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE"
+                    )
+                    _write_bars(
+                        stable_cache,
+                        bars,
+                    )
+                    _mark_all_chunks_complete(
+                        cache_path=stable_cache,
+                        provider_symbol=provider_symbol,
+                        start=warmup_start,
+                        end=end_session,
+                        bars=bars,
+                    )
+                else:
+                    print(
+                        "Resuming missing aggregate chunks: "
+                        f"{logical_symbol}"
+                    )
+                    bars, host = fetch_aggregate_history(
+                        api_key=api_key,
+                        provider_symbol=provider_symbol,
+                        start=warmup_start,
+                        end=end_session,
+                        require_volume=True,
+                        checkpoint_path=stable_cache,
+                        seed_bars=seed_bars,
+                    )
+                    provider_hosts.add(host)
             else:
                 print(
-                    "Resuming missing aggregate chunks: "
-                    f"{logical_symbol}"
+                    "Downloading actual 15-minute history "
+                    f"with chunk checkpoints: "
+                    f"{logical_symbol} ({provider_symbol})"
                 )
                 bars, host = fetch_aggregate_history(
                     api_key=api_key,
@@ -2330,28 +2630,12 @@ def run_backtest(
                     end=end_session,
                     require_volume=True,
                     checkpoint_path=stable_cache,
-                    seed_bars=seed_bars,
                 )
                 provider_hosts.add(host)
-        else:
-            print(
-                "Downloading actual 15-minute history "
-                f"with chunk checkpoints: "
-                f"{logical_symbol} ({provider_symbol})"
-            )
-            bars, host = fetch_aggregate_history(
-                api_key=api_key,
-                provider_symbol=provider_symbol,
-                start=warmup_start,
-                end=end_session,
-                require_volume=True,
-                checkpoint_path=stable_cache,
-            )
-            provider_hosts.add(host)
 
-        _write_bars(path, bars)
-        histories[logical_symbol] = bars
-        input_paths[logical_symbol] = path
+            _write_bars(path, bars)
+            histories[logical_symbol] = bars
+            input_paths[logical_symbol] = path
 
     print(
         "Expanding the validated previous-session "
@@ -2360,6 +2644,11 @@ def run_backtest(
     vix_bars = expand_previous_session_vix(
         reference_bars=histories["SPY"],
         closes=vix_closes,
+        minimum_bars=(
+            FIXED_MINIMUM_COMMON_BARS
+            if fixed_window
+            else MINIMUM_TEST_BARS
+        ),
     )
     histories["^VIX"] = vix_bars
     vix_path = (
@@ -2372,16 +2661,38 @@ def run_backtest(
     )
     input_paths["^VIX"] = vix_path
 
-    dividends, dividend_host = fetch_qdte_dividends(
-        api_key=api_key,
-        start=requested_start,
-        end=end_session,
-    )
-    provider_hosts.add(dividend_host)
     dividend_path = (
         data_directory
         / "QDTE_DIVIDENDS.csv"
     )
+
+    if local_only:
+        (
+            dividends,
+            cached_dividend_path,
+        ) = _find_valid_cached_dividends(
+            data_root=data_root_path,
+            start=requested_start,
+            end=end_session,
+        )
+        dividend_host = (
+            "LOCAL_VALIDATED_MASSIVE_POLYGON_DIVIDEND_CACHE"
+        )
+        print(
+            "Fixed-window local QDTE dividends: "
+            f"{cached_dividend_path} "
+            f"({len(dividends)} events)"
+        )
+    else:
+        dividends, dividend_host = (
+            fetch_qdte_dividends(
+                api_key=api_key,
+                start=requested_start,
+                end=end_session,
+            )
+        )
+
+    provider_hosts.add(dividend_host)
     _write_dividends(
         dividend_path,
         dividends,
@@ -2410,7 +2721,14 @@ def run_backtest(
         for value in test_times
     }
 
-    if (
+    if fixed_window:
+        if actual_start != requested_start:
+            raise ProviderError(
+                "The fixed-window common data does not "
+                f"begin on {requested_start}; "
+                f"it begins on {actual_start}."
+            )
+    elif (
         actual_start - requested_start
     ).days > MAXIMUM_START_DELAY_DAYS:
         raise ProviderError(
@@ -2463,11 +2781,17 @@ def run_backtest(
             f"bars: {details}"
         )
 
-    if len(test_times) < MINIMUM_TEST_BARS:
+    required_common_bars = (
+        FIXED_MINIMUM_COMMON_BARS
+        if fixed_window
+        else MINIMUM_TEST_BARS
+    )
+
+    if len(test_times) < required_common_bars:
         raise ProviderError(
             "Insufficient common real 15-minute coverage: "
             f"{len(test_times)} bars; "
-            f"{MINIMUM_TEST_BARS} required."
+            f"{required_common_bars} required."
         )
 
     if len(sessions) < MINIMUM_TEST_SESSIONS:
@@ -2479,17 +2803,44 @@ def run_backtest(
 
     first_test_time = test_times[0]
 
-    for symbol in histories:
-        warmup_count = sum(
-            bar.start < first_test_time
-            for bar in histories[symbol]
-        )
-
-        if warmup_count < config.sma_trend_period:
+    if initialization_bars:
+        if (
+            initialization_bars
+            < config.sma_trend_period
+        ):
             raise ProviderError(
-                f"{symbol} has only {warmup_count} warmup bars; "
-                f"{config.sma_trend_period} required."
+                "The fixed-window initialization must "
+                f"contain at least {config.sma_trend_period} "
+                "common bars."
             )
+
+        if (
+            len(test_times)
+            <= initialization_bars
+        ):
+            raise ProviderError(
+                "The fixed window does not contain enough "
+                "bars after initialization."
+            )
+
+        entry_eligible_time = test_times[
+            initialization_bars
+        ]
+    else:
+        entry_eligible_time = first_test_time
+
+        for symbol in histories:
+            warmup_count = sum(
+                bar.start < first_test_time
+                for bar in histories[symbol]
+            )
+
+            if warmup_count < config.sma_trend_period:
+                raise ProviderError(
+                    f"{symbol} has only {warmup_count} "
+                    "warmup bars; "
+                    f"{config.sma_trend_period} required."
+                )
 
     manifest_path = (
         data_directory
@@ -2508,6 +2859,17 @@ def run_backtest(
         "actual_start": actual_start.isoformat(),
         "actual_end": actual_end.isoformat(),
         "warmup_start": warmup_start.isoformat(),
+        "fixed_window": fixed_window,
+        "local_only": local_only,
+        "initialization_bars": initialization_bars,
+        "first_entry_eligible_time": (
+            entry_eligible_time.isoformat()
+        ),
+        "window_label": (
+            "FIXED_NEAR_TWO_YEAR"
+            if fixed_window
+            else "ROLLING_TWO_YEAR"
+        ),
         "regular_session_only": True,
         "extended_hours": False,
         "rankings_enabled": False,
@@ -2968,99 +3330,115 @@ def run_backtest(
                     evaluation.highest_price
                 )
 
-        qualifying: list[str] = []
-        open_symbols = set(
-            portfolio.positions
-        )
-        pending_symbols = set(
-            pending
-        )
-
-        for symbol in SWING_SYMBOLS:
-            index = indices[symbol][bar_time]
-            evaluation = evaluate_entry(
-                candles=candles[symbol],
-                indicators=indicators[symbol],
-                index=index,
-                vix=maps["^VIX"][bar_time].close,
-                config=config,
+        if bar_time >= entry_eligible_time:
+            qualifying: list[str] = []
+            open_symbols = set(
+                portfolio.positions
             )
-            all_evaluations += 1
+            pending_symbols = set(
+                pending
+            )
 
-            for name in evaluation.failed_checks:
-                failed_checks[name] += 1
+            for symbol in SWING_SYMBOLS:
+                index = indices[symbol][bar_time]
+                evaluation = evaluate_entry(
+                    candles=candles[symbol],
+                    indicators=indicators[symbol],
+                    index=index,
+                    vix=maps["^VIX"][bar_time].close,
+                    config=config,
+                )
+                all_evaluations += 1
 
-            if evaluation.should_enter:
-                qualifying_by_symbol[symbol] += 1
+                for name in evaluation.failed_checks:
+                    failed_checks[name] += 1
 
-                if (
-                    symbol not in open_symbols
-                    and symbol not in pending_symbols
-                    and bar_time != test_times[-1]
-                ):
-                    qualifying.append(symbol)
+                if evaluation.should_enter:
+                    qualifying_by_symbol[symbol] += 1
 
-        available_slots = max(
-            0,
-            policy.maximum_concurrent_positions
-            - len(portfolio.positions)
-            - len(pending),
-        )
-        accepted, deferred = choose_without_ranking(
-            signal_bar=bar_time,
-            qualifying=qualifying,
-            available_slots=available_slots,
-        )
-        capacity_deferred += len(deferred)
+                    if (
+                        symbol not in open_symbols
+                        and symbol not in pending_symbols
+                        and bar_time != test_times[-1]
+                    ):
+                        qualifying.append(symbol)
 
-        for symbol in deferred:
-            tie_key = hashlib.sha256(
-                (
-                    bar_time.isoformat()
-                    + "|"
-                    + symbol
-                ).encode("utf-8")
-            ).hexdigest()
-            signal_records.append(
-                SignalRecord(
-                    time=bar_time,
+            available_slots = max(
+                0,
+                policy.maximum_concurrent_positions
+                - len(portfolio.positions)
+                - len(pending),
+            )
+            accepted, deferred = choose_without_ranking(
+                signal_bar=bar_time,
+                qualifying=qualifying,
+                available_slots=available_slots,
+            )
+            capacity_deferred += len(deferred)
+
+            for symbol in deferred:
+                tie_key = hashlib.sha256(
+                    (
+                        bar_time.isoformat()
+                        + "|"
+                        + symbol
+                    ).encode("utf-8")
+                ).hexdigest()
+                signal_records.append(
+                    SignalRecord(
+                        time=bar_time,
+                        symbol=symbol,
+                        action="DEFERRED_CAPACITY",
+                        detail="More signals than available slots.",
+                        tie_key=tie_key,
+                    )
+                )
+
+            for symbol in accepted:
+                index = indices[symbol][bar_time]
+                atr = indicators[symbol].atr[index]
+
+                if atr is None or atr <= 0:
+                    continue
+
+                bar = maps[symbol][bar_time]
+                tie_key = hashlib.sha256(
+                    (
+                        bar_time.isoformat()
+                        + "|"
+                        + symbol
+                    ).encode("utf-8")
+                ).hexdigest()
+                pending[symbol] = PendingSignal(
                     symbol=symbol,
-                    action="DEFERRED_CAPACITY",
-                    detail="More signals than available slots.",
+                    signal_time=bar_time,
+                    signal_atr=atr,
+                    prior_close=bar.close,
                     tie_key=tie_key,
                 )
-            )
+                staged_signals += 1
+                signal_records.append(
+                    SignalRecord(
+                        time=bar_time,
+                        symbol=symbol,
+                        action="STAGED",
+                        detail="Next common 15-minute bar open.",
+                        tie_key=tie_key,
+                    )
+                )
 
-        for symbol in accepted:
-            index = indices[symbol][bar_time]
-            atr = indicators[symbol].atr[index]
-
-            if atr is None or atr <= 0:
-                continue
-
-            bar = maps[symbol][bar_time]
-            tie_key = hashlib.sha256(
-                (
-                    bar_time.isoformat()
-                    + "|"
-                    + symbol
-                ).encode("utf-8")
-            ).hexdigest()
-            pending[symbol] = PendingSignal(
-                symbol=symbol,
-                signal_time=bar_time,
-                signal_atr=atr,
-                prior_close=bar.close,
-                tie_key=tie_key,
-            )
-            staged_signals += 1
+        elif bar_time == first_test_time:
             signal_records.append(
                 SignalRecord(
                     time=bar_time,
-                    symbol=symbol,
-                    action="STAGED",
-                    detail="Next common 15-minute bar open.",
-                    tie_key=tie_key,
+                    symbol="PORTFOLIO",
+                    action="INITIALIZATION_ONLY",
+                    detail=(
+                        f"{initialization_bars} common bars "
+                        "reserved for indicator initialization; "
+                        "swing entries disabled."
+                    ),
+                    tie_key="",
                 )
             )
 
@@ -3242,14 +3620,28 @@ def run_backtest(
             timezone.utc
         ).isoformat(),
         provider=(
-            "Massive/Polygon actual 15-minute ETF bars "
-            "+ official Cboe VIX daily closes"
+            (
+                "Validated local Massive/Polygon actual "
+                "15-minute ETF/QDTE caches + official "
+                "Cboe VIX daily closes"
+            )
+            if local_only
+            else (
+                "Massive/Polygon actual 15-minute ETF bars "
+                "+ official Cboe VIX daily closes"
+            )
         ),
         actual_data=True,
         requested_start=requested_start,
         actual_start=actual_start,
         actual_end=actual_end,
         warmup_start=warmup_start,
+        fixed_window=fixed_window,
+        local_only=local_only,
+        initialization_bars=initialization_bars,
+        first_entry_eligible_time=(
+            entry_eligible_time.isoformat()
+        ),
         interval="15m",
         common_test_bars=len(test_times),
         test_sessions=len(sessions),
@@ -3471,6 +3863,14 @@ def run_backtest(
                 failed_checks
             ),
             "counts_overlap": True,
+            "fixed_window": fixed_window,
+            "local_only": local_only,
+            "initialization_bars": (
+                initialization_bars
+            ),
+            "first_entry_eligible_time": (
+                entry_eligible_time.isoformat()
+            ),
         },
     )
     _atomic_json(
@@ -3510,6 +3910,14 @@ def run_backtest(
             "common_timestamp_intersection": True,
             "warmup_bars_required": (
                 config.sma_trend_period
+            ),
+            "fixed_window": fixed_window,
+            "local_only": local_only,
+            "initialization_bars": (
+                initialization_bars
+            ),
+            "first_entry_eligible_time": (
+                entry_eligible_time.isoformat()
             ),
             "entry_engine": (
                 "qpx_bot.strategy.evaluate_entry"
@@ -3631,6 +4039,54 @@ def main(
     print(
         "QPX ACTUAL TWO-YEAR 15-MINUTE "
         "SIX-POSITION CBOE-VIX BACKTEST V4: COMPLETE"
+    )
+    return 0
+
+
+
+
+def fixed_window_main(
+    argv: Sequence[str] | None = None,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the fixed local QPX near-two-year "
+            "15-minute six-position backtest."
+        )
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(DEFAULT_DATA_ROOT),
+    )
+    parser.add_argument(
+        "--report-root",
+        default=str(DEFAULT_FIXED_REPORT_ROOT),
+    )
+    args = parser.parse_args(argv)
+    result, artifacts = run_backtest(
+        api_key="",
+        data_root=args.data_root,
+        report_root=args.report_root,
+        fixed_start=FIXED_WINDOW_START,
+        fixed_end=FIXED_WINDOW_END,
+        local_only=True,
+        initialization_bars=(
+            FIXED_INITIALIZATION_BARS
+        ),
+    )
+    print(_format_report(result))
+    print("-" * 78)
+    print("Artifacts:")
+
+    for name, path in asdict(
+        artifacts
+    ).items():
+        print(f"  {name:<12}: {path}")
+
+    print()
+    print(
+        "QPX FIXED 2024-08-06 TO 2026-07-28 "
+        "LOCAL 15-MINUTE BACKTEST: COMPLETE"
     )
     return 0
 
