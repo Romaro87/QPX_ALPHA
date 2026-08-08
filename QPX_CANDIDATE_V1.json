@@ -1,0 +1,56 @@
+{
+  "candidate": "QPX_XLE_CANDIDATE_V1",
+  "status": "FORWARD_PAPER_VALIDATION_ONLY",
+  "research_window": {
+    "start": "2024-08-06",
+    "end": "2026-07-28"
+  },
+  "portfolio": {
+    "qdte_allocation": 0.125,
+    "swing_allocation": 0.875,
+    "monthly_rebalance": true
+  },
+  "swing": {
+    "entry_symbol": "XLE",
+    "maximum_positions": 6,
+    "risk_per_trade": 0.03,
+    "maximum_active_portfolio_risk": 0.1,
+    "kelly_enabled": false,
+    "maximum_position_notional_fraction": 0.9
+  },
+  "entry": {
+    "profile": "RELAXED_FREQUENCY_RESEARCH_V1",
+    "minimum_average_15m_volume": 75000,
+    "breakout_volume_multiplier": 1.05,
+    "breakout_lookback": 10,
+    "maximum_vix": 32.0,
+    "rsi_overbought": 75.0,
+    "momentum_persistence_level": 52.0,
+    "maximum_gap_atr_multiple": 2.0
+  },
+  "vix": {
+    "observation": "PREVIOUS_COMPLETED_SESSION_DAILY_CLOSE",
+    "excluded_regime": "20 < VIX < 25",
+    "allowed": "VIX <= 20 OR 25 <= VIX <= 32"
+  },
+  "exit": {
+    "profile": "BASELINE_EXIT",
+    "stop_atr": 2.5,
+    "target_atr": 5.0,
+    "trailing_activation_atr": 3.0
+  },
+  "tax_reserve": {
+    "profile": "NET_REALIZED_PNL_RESEARCH",
+    "rate": 0.37
+  },
+  "research_result": {
+    "swing_pnl": 6770.46,
+    "profit_factor": 2.023,
+    "closed_trades": 84,
+    "win_rate": 0.5476,
+    "average_pnl_per_trade": 80.6,
+    "maximum_drawdown": 0.0772,
+    "notional_cap_adjustments": 0,
+    "risk_rejections": 0
+  }
+}
