@@ -122,12 +122,13 @@ class BotConfig:
             )
 
         if self.allocation_rebalance_frequency not in {
-            "monthly",
+            "daily",
             "weekly",
+            "monthly",
         }:
             raise ValueError(
                 "Allocation rebalance frequency must be "
-                "'monthly' or 'weekly'."
+                "'daily', 'weekly', or 'monthly'."
             )
 
         if not 0.0 <= self.allocation_rebalance_tolerance < 0.10:
@@ -140,9 +141,9 @@ class BotConfig:
                 "Minimum rebalance trade cannot be negative."
             )
 
-        if self.maximum_swing_positions != 6:
+        if self.maximum_swing_positions <= 0:
             raise ValueError(
-                "This strategy requires exactly six swing slots."
+                "Maximum swing positions must be positive."
             )
 
         period_values = {

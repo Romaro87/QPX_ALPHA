@@ -4002,7 +4002,9 @@ def run_backtest(
         first_test_time.month,
     )
 
-    if config.allocation_rebalance_frequency == "weekly":
+    if config.allocation_rebalance_frequency == "daily":
+        current_rebalance_key = first_test_time.date()
+    elif config.allocation_rebalance_frequency == "weekly":
         iso = first_test_time.isocalendar()
         current_rebalance_key = (
             iso.year,
@@ -4133,7 +4135,9 @@ def run_backtest(
             bar_time.month,
         )
 
-        if config.allocation_rebalance_frequency == "weekly":
+        if config.allocation_rebalance_frequency == "daily":
+            rebalance_key = bar_time.date()
+        elif config.allocation_rebalance_frequency == "weekly":
             iso = bar_time.isocalendar()
             rebalance_key = (
                 iso.year,
