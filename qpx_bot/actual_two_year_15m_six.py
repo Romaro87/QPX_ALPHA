@@ -4001,6 +4001,16 @@ def run_backtest(
         first_test_time.year,
         first_test_time.month,
     )
+
+    if config.allocation_rebalance_frequency == "weekly":
+        iso = first_test_time.isocalendar()
+        current_rebalance_key = (
+            iso.year,
+            iso.week,
+        )
+    else:
+        current_rebalance_key = current_month
+
     previous_allocation_years = 0
 
     if swing_only:
@@ -4122,6 +4132,21 @@ def run_backtest(
             bar_time.year,
             bar_time.month,
         )
+
+        if config.allocation_rebalance_frequency == "weekly":
+            iso = bar_time.isocalendar()
+            rebalance_key = (
+                iso.year,
+                iso.week,
+            )
+        else:
+            rebalance_key = month_key
+
+        rebalance_changed = (
+            rebalance_key != current_rebalance_key
+        )
+        current_rebalance_key = rebalance_key
+
         allocation_years = elapsed_complete_years(
             actual_start,
             bar_time.date(),
@@ -4140,21 +4165,23 @@ def run_backtest(
         external_contribution = 0.0
 
         if month_changed:
-            portfolio.deposit(
-                config.monthly_contribution
-            )
-            total_contributions += (
-                config.monthly_contribution
-            )
-            contribution_count += 1
-            external_contribution = (
-                config.monthly_contribution
-            )
+            if config.monthly_contribution > 0.0:
+                portfolio.deposit(
+                    config.monthly_contribution
+                )
+                total_contributions += (
+                    config.monthly_contribution
+                )
+                contribution_count += 1
+                external_contribution = (
+                    config.monthly_contribution
+                )
+
             current_month = month_key
 
         if (
             not swing_only
-            and (month_changed or phase_changed)
+            and (rebalance_changed or phase_changed)
         ):
             target, _ = contribution_allocation(
                 allocation_years,

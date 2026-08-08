@@ -21,7 +21,7 @@ class BotConfig:
     dividend_allocation_later: float = 0.40
     swing_allocation_later: float = 0.60
 
-    # Rebalance on the first processed market session of each month.
+    # Rebalance on the first processed market session of the configured period.
     allocation_rebalance_frequency: str = "monthly"
     allocation_rebalance_tolerance: float = 0.0025
     minimum_rebalance_trade: float = 1.0
@@ -121,9 +121,13 @@ class BotConfig:
                 "Monthly contribution cannot be negative."
             )
 
-        if self.allocation_rebalance_frequency != "monthly":
+        if self.allocation_rebalance_frequency not in {
+            "monthly",
+            "weekly",
+        }:
             raise ValueError(
-                "Only monthly allocation rebalancing is supported."
+                "Allocation rebalance frequency must be "
+                "'monthly' or 'weekly'."
             )
 
         if not 0.0 <= self.allocation_rebalance_tolerance < 0.10:

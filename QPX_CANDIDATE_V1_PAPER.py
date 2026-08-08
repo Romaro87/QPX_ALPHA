@@ -107,6 +107,9 @@ _ORIGINAL_BOT_CONFIG = paper.BotConfig
 
 def _candidate_config():
     config = _ORIGINAL_BOT_CONFIG(
+        monthly_contribution=0.0,
+        allocation_rebalance_frequency="weekly",
+
         dividend_allocation_years_1_2=0.125,
         swing_allocation_years_1_2=0.875,
         dividend_allocation_later=0.125,
@@ -524,6 +527,12 @@ def self_test():
         - 0.125
     ) < 1e-12
 
+    assert config.monthly_contribution == 0.0
+    assert (
+        config.allocation_rebalance_frequency
+        == "weekly"
+    )
+
     assert abs(
         config.risk_per_trade
         - 0.03
@@ -560,6 +569,12 @@ def self_test():
     print(
         "Income / swing target: "
         "12.5% / 87.5%"
+    )
+    print(
+        "External contribution: $0"
+    )
+    print(
+        "Rebalance cadence    : WEEKLY"
     )
     print(
         "Risk                 : "

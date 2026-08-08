@@ -1273,6 +1273,39 @@ def run_cycle(
             month_changed = (
                 account.last_contribution_month != month_key
             )
+
+            current_iso_week = bar_time.isocalendar()
+            current_week_key = (
+                current_iso_week.year,
+                current_iso_week.week,
+            )
+
+            previous_week_key = None
+
+            if account.last_processed_bar:
+                previous_bar_time = datetime.fromisoformat(
+                    account.last_processed_bar
+                )
+                previous_iso_week = (
+                    previous_bar_time.isocalendar()
+                )
+                previous_week_key = (
+                    previous_iso_week.year,
+                    previous_iso_week.week,
+                )
+
+            week_changed = (
+                previous_week_key is not None
+                and previous_week_key != current_week_key
+            )
+
+            rebalance_changed = (
+                week_changed
+                if config.allocation_rebalance_frequency
+                == "weekly"
+                else month_changed
+            )
+
             phase_changed = (
                 allocation_years != account.last_allocation_years
             )
@@ -1283,23 +1316,27 @@ def run_cycle(
             }
 
             if month_changed:
-                portfolio.deposit(
-                    config.monthly_contribution
-                )
-                account.total_contributions += (
-                    config.monthly_contribution
-                )
-                account.last_contribution_month = month_key
-                store.event(
-                    "MONTHLY_CONTRIBUTION",
-                    bar_time,
-                    {
-                        "amount": config.monthly_contribution,
-                        "month": month_key,
-                    },
-                )
+                if config.monthly_contribution > 0.0:
+                    portfolio.deposit(
+                        config.monthly_contribution
+                    )
+                    account.total_contributions += (
+                        config.monthly_contribution
+                    )
+                    store.event(
+                        "MONTHLY_CONTRIBUTION",
+                        bar_time,
+                        {
+                            "amount": (
+                                config.monthly_contribution
+                            ),
+                            "month": month_key,
+                        },
+                    )
 
-            if month_changed or phase_changed:
+                account.last_contribution_month = month_key
+
+            if rebalance_changed or phase_changed:
                 target, _ = contribution_allocation(
                     allocation_years,
                     config,
