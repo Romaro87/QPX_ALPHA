@@ -4,16 +4,16 @@ set -u
 
 cd "$(dirname "$0")" || exit 1
 
-LOG_DIR="logs/qpx_xle_candidate_v1"
+LOG_DIR="logs/qpx_candidate_v1"
 mkdir -p "$LOG_DIR"
 
 LOG_FILE="$LOG_DIR/forward_paper.log"
 
 echo "============================================================"
-echo "QPX XLE CANDIDATE V1 — CONTINUOUS PAPER MODE"
+echo "QPX CANDIDATE V1 — CONTINUOUS PAPER MODE"
 echo "============================================================"
-echo "XLE only"
-echo "87.5% swing / 12.5% QDTE"
+echo "Symbols: loaded from qpx_bot/candidate_v1_policy.json"
+echo "87.5% swing / 12.5% income sleeve"
 echo "3% risk / 10% active-risk ceiling"
 echo "Kelly disabled"
 echo "VIX 20-25 excluded"

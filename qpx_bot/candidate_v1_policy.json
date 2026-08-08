@@ -8,16 +8,6 @@
   "regular_session_close": "16:00",
   "maximum_concurrent_positions": 6,
   "maximum_gap_atr_multiple": 2.0,
-  "candidates": [
-    "DIA",
-    "IWM",
-    "QQQ",
-    "SPY",
-    "XLE",
-    "XLF",
-    "XLK",
-    "XLV"
-  ],
   "rankings_enabled": false,
   "signal_evaluation": "all_candidates_each_completed_15m_bar",
   "signal_execution": "next_completed_15m_bar_open",

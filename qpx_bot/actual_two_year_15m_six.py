@@ -44,6 +44,7 @@ from qpx_bot.strategy import (
     evaluate_exit,
 )
 from qpx_bot.time_rules import elapsed_complete_years
+from qpx_bot.symbol_config import load_symbol_config
 
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -158,17 +159,11 @@ PROVIDER_HOSTS = (
     "https://api.massive.com",
     "https://api.polygon.io",
 )
-SWING_SYMBOLS = (
-    "DIA",
-    "IWM",
-    "QQQ",
-    "SPY",
-    "XLE",
-    "XLF",
-    "XLK",
-    "XLV",
-)
-INCOME_SYMBOL = "QDTE"
+_SYMBOL_CONFIG = load_symbol_config()
+SWING_SYMBOLS = _SYMBOL_CONFIG.candidate_symbols
+TRADABLE_SYMBOLS = _SYMBOL_CONFIG.tradable_symbols
+INCOME_SYMBOL = _SYMBOL_CONFIG.income_symbol
+VOLATILITY_SYMBOL = _SYMBOL_CONFIG.volatility_symbol
 VIX_PROVIDER_SYMBOL = "CBOE_VIX_PREVIOUS_SESSION_CLOSE"
 CBOE_VIX_HISTORY_URL = (
     "https://cdn.cboe.com/api/global/us_indices/"
@@ -3605,7 +3600,7 @@ def run_backtest(
         "Cboe VIX cache onto common 15-minute timestamps..."
     )
     vix_bars = expand_previous_session_vix(
-        reference_bars=histories["SPY"],
+        reference_bars=histories[SWING_SYMBOLS[0]],
         closes=vix_closes,
         minimum_bars=(
             FIXED_MINIMUM_COMMON_BARS
@@ -3613,7 +3608,7 @@ def run_backtest(
             else MINIMUM_TEST_BARS
         ),
     )
-    histories["^VIX"] = vix_bars
+    histories[VOLATILITY_SYMBOL] = vix_bars
     vix_path = (
         data_directory
         / "VIX_PREVIOUS_SESSION_DAILY_CLOSE_15M.csv"
@@ -3622,7 +3617,7 @@ def run_backtest(
         vix_path,
         vix_bars,
     )
-    input_paths["^VIX"] = vix_path
+    input_paths[VOLATILITY_SYMBOL] = vix_path
 
     dividend_path = (
         data_directory

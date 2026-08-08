@@ -1,4 +1,4 @@
-"""Restart-safe 15-minute, eight-symbol, six-position paper engine."""
+"""Restart-safe configurable-symbol 15-minute paper engine."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from qpx_bot.paper_state import StateStore
 from qpx_bot.portfolio import ClosedTrade, Portfolio, Position, contribution_allocation
 from qpx_bot.risk import buy_fill, calculate_position_size
 from qpx_bot.strategy import evaluate_entry, evaluate_exit
+from qpx_bot.symbol_config import load_symbol_config
 from qpx_bot.time_rules import elapsed_complete_years
 from qpx_bot.yahoo_data import YAHOO_HOSTS
 
@@ -51,6 +52,9 @@ class IntradayPolicy:
     maximum_concurrent_positions: int
     maximum_gap_atr_multiple: float
     candidates: tuple[str, ...]
+    tradable_symbols: tuple[str, ...]
+    income_symbol: str
+    volatility_symbol: str
     rankings_enabled: bool
     signal_evaluation: str
     signal_execution: str
@@ -71,17 +75,46 @@ class IntradayPolicy:
         if self.market_timezone != "America/New_York":
             raise ValueError("The market timezone must be America/New_York.")
 
-        if self.maximum_concurrent_positions != 6:
-            raise ValueError("Exactly six concurrent swing slots are required.")
+        if self.maximum_concurrent_positions <= 0:
+            raise ValueError(
+                "Maximum concurrent positions must be positive."
+            )
 
-        if len(self.candidates) != 8 or len(set(self.candidates)) != 8:
-            raise ValueError("Exactly eight unique swing symbols are required.")
+        if (
+            not self.candidates
+            or len(set(self.candidates)) != len(self.candidates)
+        ):
+            raise ValueError(
+                "Candidate symbols must be non-empty and unique."
+            )
+
+        if (
+            not self.tradable_symbols
+            or len(set(self.tradable_symbols))
+            != len(self.tradable_symbols)
+        ):
+            raise ValueError(
+                "Tradable symbols must be non-empty and unique."
+            )
+
+        if not set(self.tradable_symbols).issubset(
+            self.candidates
+        ):
+            raise ValueError(
+                "Every tradable symbol must also be a candidate."
+            )
+
+        if not self.income_symbol.strip():
+            raise ValueError("Income symbol cannot be empty.")
+
+        if not self.volatility_symbol.strip():
+            raise ValueError("Volatility symbol cannot be empty.")
 
         if self.rankings_enabled:
             raise ValueError("Rankings must remain disabled.")
 
         if self.signal_evaluation != "all_candidates_each_completed_15m_bar":
-            raise ValueError("All eight symbols must be evaluated each bar.")
+            raise ValueError("All configured candidates must be evaluated each bar.")
 
         if self.signal_execution != "next_completed_15m_bar_open":
             raise ValueError("Signals must execute at the next 15-minute open.")
@@ -188,6 +221,7 @@ def load_policy(
     payload = json.loads(
         Path(filename).read_text(encoding="utf-8")
     )
+    symbols = load_symbol_config()
     policy = IntradayPolicy(
         schema_version=int(payload["schema_version"]),
         interval=str(payload["interval"]),
@@ -202,10 +236,10 @@ def load_policy(
         maximum_gap_atr_multiple=float(
             payload["maximum_gap_atr_multiple"]
         ),
-        candidates=tuple(
-            str(symbol).strip().upper()
-            for symbol in payload["candidates"]
-        ),
+        candidates=symbols.candidate_symbols,
+        tradable_symbols=symbols.tradable_symbols,
+        income_symbol=symbols.income_symbol,
+        volatility_symbol=symbols.volatility_symbol,
         rankings_enabled=bool(payload["rankings_enabled"]),
         signal_evaluation=str(payload["signal_evaluation"]),
         signal_execution=str(payload["signal_execution"]),
@@ -449,7 +483,7 @@ def fetch_intraday(
     )
 
 
-def fetch_qdte_dividends() -> list[tuple[str, date, float]]:
+def fetch_income_dividends(income_symbol: str) -> list[tuple[str, date, float]]:
     last_error: Exception | None = None
 
     for host in YAHOO_HOSTS:
@@ -457,7 +491,7 @@ def fetch_qdte_dividends() -> list[tuple[str, date, float]]:
             result = _open_json(
                 _chart_url(
                     host,
-                    "QDTE",
+                    income_symbol,
                     interval="1d",
                     range_name="1y",
                 )
@@ -508,7 +542,7 @@ def fetch_qdte_dividends() -> list[tuple[str, date, float]]:
             last_error = exc
 
     raise RuntimeError(
-        f"Unable to download QDTE dividends: {last_error}"
+        f"Unable to download income-symbol dividends: {last_error}"
     )
 
 
@@ -858,12 +892,12 @@ def _sync(
 
 def _fresh_account(
     *,
-    qdte_price: float,
+    income_price: float,
     first_bar: datetime,
     config: BotConfig,
 ) -> PaperAccount:
     fill = buy_fill(
-        qdte_price,
+        income_price,
         config.slippage_rate,
     )
     income_shares = config.starting_cash / fill
@@ -898,7 +932,7 @@ def _fresh_account(
     _rebalance(
         account=account,
         portfolio=_portfolio(account),
-        qdte_price=qdte_price,
+        income_price=income_price,
         position_prices={},
         target_income_weight=(
             config.dividend_allocation_years_1_2
@@ -974,7 +1008,7 @@ def _rebalance(
     *,
     account: PaperAccount,
     portfolio: Portfolio,
-    qdte_price: float,
+    income_price: float,
     position_prices: Mapping[str, float],
     target_income_weight: float,
     config: BotConfig,
@@ -987,7 +1021,7 @@ def _rebalance(
         income_cost=account.income_cost,
         swing_cash=portfolio.cash,
         swing_market_value=swing_market_value,
-        income_price=qdte_price,
+        income_price=income_price,
         target_income_weight=target_income_weight,
         slippage_rate=config.slippage_rate,
         tax_reserve_rate=config.annual_tax_reserve_rate,
@@ -1045,9 +1079,13 @@ def run_cycle(
     config = BotConfig()
     config.validate()
 
-    if config.maximum_swing_positions != 6:
+    if (
+        config.maximum_swing_positions
+        < policy.maximum_concurrent_positions
+    ):
         raise RuntimeError(
-            "BotConfig maximum_swing_positions must be six."
+            "BotConfig maximum_swing_positions is below "
+            "the active policy maximum."
         )
 
     now_market = (
@@ -1061,14 +1099,18 @@ def run_cycle(
             "status": "OUTSIDE_REGULAR_SCAN_WINDOW",
             "market_time": now_market.isoformat(),
             "rankings_enabled": False,
-            "maximum_positions": 6,
+            "maximum_positions": policy.maximum_concurrent_positions,
             "live_broker_enabled": False,
         }
 
-    symbols = (
-        *policy.candidates,
-        "QDTE",
-        "^VIX",
+    symbols = tuple(
+        dict.fromkeys(
+            (
+                *policy.candidates,
+                policy.income_symbol,
+                policy.volatility_symbol,
+            )
+        )
     )
     histories = {
         symbol: fetch_intraday(
@@ -1082,7 +1124,7 @@ def run_cycle(
 
     if not common_times:
         raise RuntimeError(
-            "The ten actual intraday histories have no common bar."
+            "The configured intraday histories have no common bar."
         )
 
     maps = _bar_maps(histories)
@@ -1108,7 +1150,7 @@ def run_cycle(
 
             if account is None:
                 account = _fresh_account(
-                    qdte_price=maps["QDTE"][latest].close,
+                    income_price=maps[policy.income_symbol][latest].close,
                     first_bar=latest,
                     config=config,
                 )
@@ -1126,7 +1168,7 @@ def run_cycle(
                 {
                     "source": migration,
                     "legacy_state_unchanged": True,
-                    "maximum_positions": 6,
+                    "maximum_positions": policy.maximum_concurrent_positions,
                     "rankings_enabled": False,
                 },
             )
@@ -1149,7 +1191,7 @@ def run_cycle(
                 "latest_completed_bar": latest.isoformat(),
                 "open_positions": len(account.positions),
                 "pending_entries": len(account.pending),
-                "maximum_positions": 6,
+                "maximum_positions": policy.maximum_concurrent_positions,
                 "rankings_enabled": False,
                 "live_broker_enabled": False,
             }
@@ -1192,9 +1234,10 @@ def run_cycle(
         rejected_gap = 0
         rejected_risk = 0
         deferred_capacity = 0
+        tradable_symbols = set(policy.tradable_symbols)
 
         for bar_time in new_times:
-            qdte_bar = maps["QDTE"][bar_time]
+            income_bar = maps[policy.income_symbol][bar_time]
             portfolio = _portfolio(account)
 
             for key, event_date, amount in dividends:
@@ -1207,7 +1250,7 @@ def run_cycle(
                     account.dividends_received += cash
                     processed_dividends.add(key)
                     store.event(
-                        "QDTE_DISTRIBUTION",
+                        "INCOME_DISTRIBUTION",
                         bar_time,
                         {
                             "event_key": key,
@@ -1264,7 +1307,7 @@ def run_cycle(
                 _rebalance(
                     account=account,
                     portfolio=portfolio,
-                    qdte_price=qdte_bar.open,
+                    income_price=income_bar.open,
                     position_prices=position_open_prices,
                     target_income_weight=target,
                     config=config,
@@ -1339,7 +1382,7 @@ def run_cycle(
                 }
                 total_equity = (
                     portfolio.equity(open_prices)
-                    + account.income_shares * qdte_bar.open
+                    + account.income_shares * income_bar.open
                 )
                 sizing = calculate_position_size(
                     account_equity=total_equity,
@@ -1448,13 +1491,14 @@ def run_cycle(
                     candles=candle_sets[symbol],
                     indicators=indicators[symbol],
                     index=index,
-                    vix=maps["^VIX"][bar_time].close,
+                    vix=maps[policy.volatility_symbol][bar_time].close,
                     config=config,
                 )
                 evaluations += 1
 
                 if (
                     evaluation.should_enter
+                    and symbol in tradable_symbols
                     and symbol not in open_symbols
                     and symbol not in pending_symbols
                 ):
@@ -1532,7 +1576,7 @@ def run_cycle(
         swing_equity = portfolio.equity(latest_prices)
         income_value = (
             account.income_shares
-            * maps["QDTE"][latest].close
+            * maps[policy.income_symbol][latest].close
         )
         summary = {
             "schema_version": 1,
@@ -1543,7 +1587,11 @@ def run_cycle(
             "market_time": now_market.isoformat(),
             "latest_completed_bar": latest.isoformat(),
             "bars_processed": len(new_times),
-            "eight_symbol_evaluations": evaluations,
+            "symbol_evaluations": evaluations,
+            "candidate_symbols": list(policy.candidates),
+            "tradable_symbols": list(policy.tradable_symbols),
+            "income_symbol": policy.income_symbol,
+            "volatility_symbol": policy.volatility_symbol,
             "qualifying_signals": qualifying_count,
             "filled_entries": filled,
             "closed_positions": closed,
@@ -1552,7 +1600,7 @@ def run_cycle(
             "capacity_deferred": deferred_capacity,
             "open_positions": len(account.positions),
             "pending_entries": len(account.pending),
-            "maximum_positions": 6,
+            "maximum_positions": policy.maximum_concurrent_positions,
             "position_symbols": sorted(account.positions),
             "swing_equity": swing_equity,
             "income_value": income_value,
@@ -1606,9 +1654,9 @@ def run_cycle(
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Check all eight QPX ETFs on every completed "
+            "Evaluate configured candidates on every completed "
             "regular-session 15-minute bar and paper-trade "
-            "up to six positions."
+            "up to the configured position limit."
         )
     )
     parser.add_argument(
@@ -1640,8 +1688,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     print("=" * 78)
     print(
-        "QPX BOT v1.22.1 — 15-MINUTE EIGHT-TICKER "
-        "SIX-POSITION PAPER ENGINE"
+        "QPX BOT — CONFIGURABLE-SYMBOL "
+        "15-MINUTE PAPER ENGINE"
     )
     print("=" * 78)
 

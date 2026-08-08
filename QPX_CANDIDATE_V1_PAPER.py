@@ -7,7 +7,6 @@ import math
 import sys
 import urllib.request
 
-from bisect import bisect_left
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +14,8 @@ from pathlib import Path
 import qpx_bot.intraday_six_paper as paper
 import qpx_bot.actual_two_year_15m_six as research
 
+from qpx_bot.market_calendar import previous_market_session
+from qpx_bot.symbol_config import load_symbol_config
 from qpx_bot.portfolio import Portfolio as BasePortfolio
 from qpx_bot.strategy import EntryEvaluation
 
@@ -24,25 +25,25 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 CANDIDATE_POLICY = (
     PROJECT_ROOT
     / "qpx_bot"
-    / "xle_candidate_v1_policy.json"
+    / "candidate_v1_policy.json"
 )
 
 CANDIDATE_RUNTIME = (
     PROJECT_ROOT
     / "qpx_bot"
-    / "xle_candidate_v1_runtime"
+    / "candidate_v1_runtime"
 )
 
 CANDIDATE_LEGACY_RUNTIME = (
     PROJECT_ROOT
     / "qpx_bot"
-    / "xle_candidate_v1_legacy_runtime"
+    / "candidate_v1_legacy_runtime"
 )
 
 CANDIDATE_REPORTS = (
     PROJECT_ROOT
     / "reports"
-    / "qpx_xle_candidate_v1_forward"
+    / "qpx_candidate_v1_forward"
 )
 
 LOCAL_VIX_CACHE = (
@@ -253,25 +254,40 @@ def _load_official_vix():
 
 def _previous_session_vix(signal_date):
     values = _load_official_vix()
-    dates = sorted(values)
 
-    i = bisect_left(
-        dates,
-        signal_date,
-    ) - 1
+    required_date = previous_market_session(
+        signal_date
+    )
 
-    if i < 0:
-        raise RuntimeError(
-            "No completed VIX session exists "
-            f"before {signal_date}."
+    if required_date not in values:
+        prior_dates = [
+            day
+            for day in values
+            if day < signal_date
+        ]
+
+        latest_available = (
+            max(prior_dates)
+            if prior_dates
+            else None
         )
 
-    previous_date = dates[i]
+        raise RuntimeError(
+            "VIX_FRESHNESS_FAIL_CLOSED: "
+            "required previous completed CBOE "
+            f"session {required_date} for signal "
+            f"date {signal_date}, but that exact "
+            "VIX close is unavailable. "
+            "Latest available prior VIX date: "
+            f"{latest_available}. "
+            "Candidate V1 will not enter a trade."
+        )
 
     return (
-        previous_date,
-        values[previous_date],
+        required_date,
+        values[required_date],
     )
+
 
 
 # ---------------------------------------------------------
@@ -334,35 +350,6 @@ def _candidate_evaluate_entry(
 
 
 paper.evaluate_entry = _candidate_evaluate_entry
-
-
-# ---------------------------------------------------------
-# XLE-ONLY EXECUTION
-# ---------------------------------------------------------
-
-_ORIGINAL_CHOOSE = paper.choose_without_ranking
-
-
-def _xle_only_choose(
-    *,
-    signal_bar,
-    qualifying,
-    available_slots,
-):
-    filtered = tuple(
-        symbol
-        for symbol in qualifying
-        if symbol.strip().upper() == "XLE"
-    )
-
-    return _ORIGINAL_CHOOSE(
-        signal_bar=signal_bar,
-        qualifying=filtered,
-        available_slots=available_slots,
-    )
-
-
-paper.choose_without_ranking = _xle_only_choose
 
 
 # ---------------------------------------------------------
@@ -519,7 +506,13 @@ def self_test():
         policy["live_broker_enabled"]
         is False
     )
-    assert len(policy["candidates"]) == 8
+    assert load_symbol_config().candidate_symbols
+    assert load_symbol_config().tradable_symbols
+    assert set(
+        load_symbol_config().tradable_symbols
+    ).issubset(load_symbol_config().candidate_symbols)
+    assert load_symbol_config().income_symbol
+    assert load_symbol_config().volatility_symbol
 
     assert abs(
         config.swing_allocation_years_1_2
@@ -542,17 +535,30 @@ def self_test():
     ) < 1e-12
 
     print("=" * 72)
-    print("QPX XLE CANDIDATE V1 — SELF TEST PASSED")
+    print("QPX CANDIDATE V1 — SELF TEST PASSED")
     print("=" * 72)
     print(
         "Mode                 : "
         "FORWARD PAPER ONLY"
     )
     print(
-        "Actual entry symbol  : XLE"
+        "Candidate symbols    : "
+        + ", ".join(load_symbol_config().candidate_symbols)
     )
     print(
-        "QDTE / swing target  : "
+        "Tradable symbols     : "
+        + ", ".join(load_symbol_config().tradable_symbols)
+    )
+    print(
+        "Income symbol        : "
+        + load_symbol_config().income_symbol
+    )
+    print(
+        "Volatility symbol    : "
+        + load_symbol_config().volatility_symbol
+    )
+    print(
+        "Income / swing target: "
         "12.5% / 87.5%"
     )
     print(
@@ -622,13 +628,13 @@ def main():
 
     print("=" * 78)
     print(
-        "QPX XLE CANDIDATE V1 — "
+        "QPX CANDIDATE V1 — "
         "FORWARD PAPER VALIDATION"
     )
     print("=" * 78)
     print(
-        "XLE only | 87.5% swing | "
-        "12.5% QDTE"
+        "Symbols loaded from policy | "
+        "87.5% swing | 12.5% income"
     )
     print(
         "3% risk | 10% active risk | "

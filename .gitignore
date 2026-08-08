@@ -81,7 +81,7 @@ reports/qpx_intraday_six/
 # QPX actual two-year 15-minute six-position research
 research_data/qpx_actual_two_year_15m_six/
 reports/qpx_actual_two_year_15m_six/
-qpx_bot/xle_candidate_v1_runtime/
-qpx_bot/xle_candidate_v1_legacy_runtime/
-reports/qpx_xle_candidate_v1_forward/
-logs/qpx_xle_candidate_v1/
+qpx_bot/candidate_v1_runtime/
+qpx_bot/candidate_v1_legacy_runtime/
+reports/qpx_candidate_v1_forward/
+logs/qpx_candidate_v1/

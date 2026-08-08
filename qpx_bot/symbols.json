@@ -1,0 +1,10 @@
+{
+  "candidate_symbols": [
+    "XLE"
+  ],
+  "tradable_symbols": [
+    "XLE"
+  ],
+  "income_symbol": "QDTE",
+  "volatility_symbol": "^VIX"
+}
