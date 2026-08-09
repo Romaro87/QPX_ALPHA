@@ -273,6 +273,49 @@ def scan_window_open(
     )
 
 
+def allocation_rebalance_changed(
+    previous_bar_time: datetime | None,
+    current_bar_time: datetime,
+    frequency: str,
+) -> bool:
+    """Return whether the configured allocation period changed."""
+    if previous_bar_time is None:
+        return False
+
+    cadence = frequency.strip().lower()
+
+    if cadence == "daily":
+        return (
+            previous_bar_time.date()
+            != current_bar_time.date()
+        )
+
+    if cadence == "weekly":
+        previous_week = (
+            previous_bar_time.isocalendar().year,
+            previous_bar_time.isocalendar().week,
+        )
+        current_week = (
+            current_bar_time.isocalendar().year,
+            current_bar_time.isocalendar().week,
+        )
+        return previous_week != current_week
+
+    if cadence == "monthly":
+        return (
+            previous_bar_time.year,
+            previous_bar_time.month,
+        ) != (
+            current_bar_time.year,
+            current_bar_time.month,
+        )
+
+    raise ValueError(
+        "Allocation rebalance frequency must be "
+        "'daily', 'weekly', or 'monthly'."
+    )
+
+
 def _chart_url(
     host: str,
     symbol: str,
@@ -1456,36 +1499,20 @@ def run_cycle(
                 account.last_contribution_month != month_key
             )
 
-            current_iso_week = bar_time.isocalendar()
-            current_week_key = (
-                current_iso_week.year,
-                current_iso_week.week,
-            )
-
-            previous_week_key = None
-
-            if account.last_processed_bar:
-                previous_bar_time = datetime.fromisoformat(
+            previous_bar_time = (
+                datetime.fromisoformat(
                     account.last_processed_bar
                 )
-                previous_iso_week = (
-                    previous_bar_time.isocalendar()
-                )
-                previous_week_key = (
-                    previous_iso_week.year,
-                    previous_iso_week.week,
-                )
-
-            week_changed = (
-                previous_week_key is not None
-                and previous_week_key != current_week_key
+                if account.last_processed_bar
+                else None
             )
 
             rebalance_changed = (
-                week_changed
-                if config.allocation_rebalance_frequency
-                == "weekly"
-                else month_changed
+                allocation_rebalance_changed(
+                    previous_bar_time,
+                    bar_time,
+                    config.allocation_rebalance_frequency,
+                )
             )
 
             phase_changed = (
@@ -1531,16 +1558,24 @@ def run_cycle(
                     target_income_weight=target,
                     config=config,
                 )
-                store.event(
+                rebalance_event = (
                     (
-                        "MONTHLY_ALLOCATION_REBALANCE"
-                        if month_changed
-                        else "ALLOCATION_PHASE_REBALANCE"
-                    ),
+                        config.allocation_rebalance_frequency.upper()
+                        + "_ALLOCATION_REBALANCE"
+                    )
+                    if rebalance_changed
+                    else "ALLOCATION_PHASE_REBALANCE"
+                )
+
+                store.event(
+                    rebalance_event,
                     bar_time,
                     {
                         "target_income_weight": target,
                         "allocation_years": allocation_years,
+                        "rebalance_frequency": (
+                            config.allocation_rebalance_frequency
+                        ),
                     },
                 )
 
