@@ -464,6 +464,13 @@ qpx.load_policy = _scenario_policy
         ),
     )
 
+    # Replace misleading XLE-only summary label.
+    source = source.replace(
+        'f"Closed XLE trades     : "',
+        'f"Closed swing trades   : "',
+        1,
+    )
+
     # Replace misleading XLE-only banner text.
     candidate_text = ", ".join(
         symbols["candidate_symbols"]
@@ -696,6 +703,11 @@ def adapt_source_for_provider(
         1,
     )
 
+    source = source.replace(
+        "Validated local Massive/Polygon actual 15-minute ETF/QDTE caches + official Cboe VIX daily closes",
+        "Alpaca SIP historical 15-minute stock/ETF bars + Alpaca corporate actions + official Cboe VIX daily closes",
+    )
+
     inspect_marker = (
         "source = inspect.getsource(\n"
         "    qpx.run_backtest\n"
@@ -714,6 +726,11 @@ def adapt_source_for_provider(
         + '    "LOCAL_VALIDATED_MASSIVE_POLYGON_DIVIDEND_CACHE",\n'
         + '    "ALPACA_CORPORATE_ACTIONS_CACHE",\n'
         + ")\n"
+        + "\n"
+        + "source = source.replace(\n"
+        + '    "Validated local Massive/Polygon actual 15-minute ETF/QDTE caches + official Cboe VIX daily closes",\n'
+        + '    "Alpaca SIP historical 15-minute stock/ETF bars + Alpaca corporate actions + official Cboe VIX daily closes",\n'
+        + ")\n"
     )
 
     if inspect_marker not in source:
@@ -727,6 +744,72 @@ def adapt_source_for_provider(
         provider_patch,
         1,
     )
+
+    runner_assignment = (
+        'qpx.run_backtest = (\n'
+        '    namespace["run_backtest"]\n'
+        ')\n'
+    )
+
+    alpaca_wrapper = (
+        runner_assignment
+        + "\n"
+        + "_qpx_alpaca_inner_run_backtest = qpx.run_backtest\n"
+        + "\n"
+        + "def _qpx_alpaca_run_backtest(*args, **kwargs):\n"
+        + "    result, artifacts = _qpx_alpaca_inner_run_backtest(\n"
+        + "        *args,\n"
+        + "        **kwargs,\n"
+        + "    )\n"
+        + "\n"
+        + "    result = dataclass_replace(\n"
+        + "        result,\n"
+        + "        provider=(\n"
+        + '            "Alpaca SIP historical 15-minute stock/ETF bars "\n'
+        + '            "+ Alpaca corporate actions "\n'
+        + '            "+ official CboE VIX daily closes"\n'
+        + "        ),\n"
+        + "    )\n"
+        + "\n"
+        + "    artifacts.report.write_text(\n"
+        + "        qpx._format_report(result) + \"\\n\",\n"
+        + '        encoding="utf-8",\n'
+        + "    )\n"
+        + "\n"
+        + "    result_payload = qpx.asdict(result)\n"
+        + "\n"
+        + "    for field in (\n"
+        + '        "requested_start",\n'
+        + '        "actual_start",\n'
+        + '        "actual_end",\n'
+        + '        "warmup_start",\n'
+        + "    ):\n"
+        + "        result_payload[field] = getattr(\n"
+        + "            result,\n"
+        + "            field,\n"
+        + "        ).isoformat()\n"
+        + "\n"
+        + "    qpx._atomic_json(\n"
+        + "        artifacts.result,\n"
+        + "        result_payload,\n"
+        + "    )\n"
+        + "\n"
+        + "    return result, artifacts\n"
+        + "\n"
+        + "qpx.run_backtest = _qpx_alpaca_run_backtest\n"
+    )
+
+    if runner_assignment not in source:
+        raise RuntimeError(
+            "Could not locate generated run_backtest assignment."
+        )
+
+    source = source.replace(
+        runner_assignment,
+        alpaca_wrapper,
+        1,
+    )
+
 
     old_summary = (
         'print(\n'
