@@ -38,6 +38,7 @@ DEFAULT_RUNTIME = PACKAGE_DIR / "intraday_six_runtime"
 DEFAULT_LEGACY_RUNTIME = PACKAGE_DIR / "paper_runtime"
 DEFAULT_REPORTS = PROJECT_ROOT / "reports" / "qpx_intraday_six"
 STATE_SCHEMA_VERSION = 1
+LEGACY_STATE_INCOME_SYMBOL = "QDTE"
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,6 +175,7 @@ class PaperAccount:
     pending: dict[str, PendingSignal]
     closed_trades: list[ClosedTrade]
     trade_results_r: list[float]
+    income_symbol: str = LEGACY_STATE_INCOME_SYMBOL
     revision: int = 0
     schema_version: int = STATE_SCHEMA_VERSION
 
@@ -186,6 +188,32 @@ class PaperAccount:
 
         if not self.account_id.strip():
             raise ValueError("Account ID cannot be empty.")
+
+        persisted_income_symbol = (
+            self.income_symbol.strip().upper()
+        )
+        configured_income_symbol = (
+            policy.income_symbol.strip().upper()
+        )
+
+        if not persisted_income_symbol:
+            raise ValueError(
+                "Persisted income symbol cannot be empty."
+            )
+
+        if (
+            persisted_income_symbol
+            != configured_income_symbol
+        ):
+            raise ValueError(
+                "INCOME_SYMBOL_IDENTITY_MISMATCH: "
+                f"paper state owns {persisted_income_symbol}, "
+                f"but configuration requests "
+                f"{configured_income_symbol}. "
+                "Existing income shares cannot be "
+                "reinterpreted as another security. "
+                "Use an explicit migration or new account."
+            )
 
         # A hot configuration change may lower the position
         # limit below the number of positions that were already
@@ -781,6 +809,9 @@ def account_to_dict(account: PaperAccount) -> dict[str, Any]:
         "tax_reserve_cash": account.tax_reserve_cash,
         "total_contributions": account.total_contributions,
         "realized_pnl": account.realized_pnl,
+        "income_symbol": (
+            account.income_symbol.strip().upper()
+        ),
         "income_shares": account.income_shares,
         "income_cost": account.income_cost,
         "dividends_received": account.dividends_received,
@@ -824,6 +855,12 @@ def account_from_dict(payload: Mapping[str, Any]) -> PaperAccount:
         tax_reserve_cash=float(payload["tax_reserve_cash"]),
         total_contributions=float(payload["total_contributions"]),
         realized_pnl=float(payload["realized_pnl"]),
+        income_symbol=str(
+            payload.get(
+                "income_symbol",
+                LEGACY_STATE_INCOME_SYMBOL,
+            )
+        ).strip().upper(),
         income_shares=float(payload["income_shares"]),
         income_cost=float(payload["income_cost"]),
         dividends_received=float(payload["dividends_received"]),
@@ -1035,6 +1072,7 @@ def _fresh_account(
     income_price: float,
     first_bar: datetime,
     config: BotConfig,
+    income_symbol: str = LEGACY_STATE_INCOME_SYMBOL,
 ) -> PaperAccount:
     fill = buy_fill(
         income_price,
@@ -1055,6 +1093,9 @@ def _fresh_account(
         tax_reserve_cash=0.0,
         total_contributions=config.total_starting_capital,
         realized_pnl=0.0,
+        income_symbol=(
+            income_symbol.strip().upper()
+        ),
         income_shares=income_shares,
         income_cost=config.starting_cash,
         dividends_received=0.0,
@@ -1122,6 +1163,9 @@ def _migrate_legacy(
         tax_reserve_cash=state.tax_reserve_cash,
         total_contributions=state.total_contributions,
         realized_pnl=state.realized_pnl,
+        income_symbol=(
+            state.income_symbol.strip().upper()
+        ),
         income_shares=state.income_shares,
         income_cost=state.income_cost,
         dividends_received=state.dividends_received,
@@ -1287,6 +1331,7 @@ def run_cycle(
                     income_price=maps[policy.income_symbol][latest].close,
                     first_bar=latest,
                     config=config,
+                    income_symbol=policy.income_symbol,
                 )
                 migration = "FRESH_15M_ACCOUNT"
 
@@ -1436,7 +1481,9 @@ def run_cycle(
             }
             for symbol in strategy_symbols
         }
-        dividends = fetch_qdte_dividends()
+        dividends = fetch_income_dividends(
+            policy.income_symbol
+        )
         processed_dividends = set(
             account.processed_dividend_keys
         )
