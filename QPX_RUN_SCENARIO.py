@@ -3,12 +3,21 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 from datetime import date
 from pathlib import Path
 
 from qpx_bot.scenario_config import (
     DEFAULT_SCENARIO,
     load_scenario,
+)
+
+from qpx_bot.alpaca_provider import (
+    sync as sync_alpaca,
+)
+
+from qpx_bot.alpaca_dividends import (
+    sync_dividends as sync_alpaca_dividends,
 )
 
 
@@ -494,6 +503,257 @@ qpx.load_policy = _scenario_policy
     return source
 
 
+
+def prepare_scenario_data(
+    scenario,
+    *,
+    start: date,
+    end: date,
+) -> tuple[Path, str]:
+    provider = str(
+        scenario.data["provider"]
+    ).strip().lower()
+
+    massive_root = (
+        ROOT
+        / "research_data"
+        / "qpx_actual_two_year_15m_six"
+    ).resolve()
+
+    if provider == "massive_cache":
+        return (
+            massive_root,
+            "MASSIVE VALIDATED CACHE",
+        )
+
+    if provider != "alpaca_sip":
+        raise ValueError(
+            f"Unsupported data provider: {provider}"
+        )
+
+    volatility_symbol = str(
+        scenario.symbols[
+            "volatility_symbol"
+        ]
+    ).strip().upper()
+
+    if volatility_symbol != "^VIX":
+        raise ValueError(
+            "Current historical VIX adapter "
+            "requires volatility_symbol='^VIX'."
+        )
+
+    symbols = []
+
+    for raw in (
+        *scenario.symbols[
+            "candidate_symbols"
+        ],
+        scenario.symbols[
+            "income_symbol"
+        ],
+    ):
+        symbol = str(
+            raw
+        ).strip().upper()
+
+        if (
+            symbol
+            and symbol not in symbols
+        ):
+            symbols.append(symbol)
+
+    print()
+    print("=" * 92)
+    print("QPX DATA PREFLIGHT — ALPACA SIP")
+    print("=" * 92)
+    print(
+        "Symbols               : "
+        + ", ".join(symbols)
+    )
+
+    sync_alpaca(
+        symbols=symbols,
+        start=start,
+        end=end,
+    )
+
+    income_symbol = str(
+        scenario.symbols[
+            "income_symbol"
+        ]
+    ).strip().upper()
+
+    sync_alpaca_dividends(
+        symbol=income_symbol,
+        start=start,
+        end=end,
+    )
+
+    alpaca_root = (
+        ROOT
+        / "research_data"
+        / "qpx_alpaca_sip"
+    ).resolve()
+
+    shared = (
+        alpaca_root
+        / "shared"
+    )
+
+    shared.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    vix_source = (
+        massive_root
+        / "shared"
+        / "CBOE_VIX_DAILY.csv"
+    )
+
+    vix_target = (
+        shared
+        / "CBOE_VIX_DAILY.csv"
+    )
+
+    if not vix_source.exists():
+        raise RuntimeError(
+            "Validated official CBOE VIX "
+            f"cache is missing: {vix_source}"
+        )
+
+    if not vix_target.exists():
+        shutil.copy2(
+            vix_source,
+            vix_target,
+        )
+
+        print(
+            "CBOE VIX              : "
+            "COPIED VALIDATED CACHE"
+        )
+    else:
+        print(
+            "CBOE VIX              : CACHE HIT"
+        )
+
+    print("=" * 92)
+    print()
+
+    return (
+        alpaca_root,
+        "ALPACA SIP HISTORICAL",
+    )
+
+
+def adapt_source_for_provider(
+    source: str,
+    *,
+    scenario,
+    provider_root: Path,
+) -> str:
+    provider = str(
+        scenario.data["provider"]
+    ).strip().lower()
+
+    old_root = (
+        'FRESH_ROOT = Path('
+        '"research_data/qpx_actual_two_year_15m_six"'
+        ')'
+    )
+
+    new_root = (
+        "FRESH_ROOT = Path("
+        + repr(str(provider_root))
+        + ")"
+    )
+
+    if old_root not in source:
+        raise RuntimeError(
+            "Could not locate historical "
+            "provider root in reference runner."
+        )
+
+    source = source.replace(
+        old_root,
+        new_root,
+        1,
+    )
+
+    if provider == "massive_cache":
+        return source
+
+    source = source.replace(
+        'print("REUSING EXISTING VALIDATED PROVIDER DATA")',
+        'print("REUSING ALPACA SIP HISTORICAL DATA")',
+        1,
+    )
+
+    source = source.replace(
+        'print("Market data           : FRESH MASSIVE/POLYGON ONLY")',
+        'print("Market data           : ALPACA SIP HISTORICAL")',
+        1,
+    )
+
+    inspect_marker = (
+        "source = inspect.getsource(\n"
+        "    qpx.run_backtest\n"
+        ")\n"
+    )
+
+    provider_patch = (
+        inspect_marker
+        + "\n"
+        + "source = source.replace(\n"
+        + '    "LOCAL_VALIDATED_MASSIVE_POLYGON_CACHE",\n'
+        + '    "ALPACA_SIP_HISTORICAL_CACHE",\n'
+        + ")\n"
+        + "\n"
+        + "source = source.replace(\n"
+        + '    "LOCAL_VALIDATED_MASSIVE_POLYGON_DIVIDEND_CACHE",\n'
+        + '    "ALPACA_CORPORATE_ACTIONS_CACHE",\n'
+        + ")\n"
+    )
+
+    if inspect_marker not in source:
+        raise RuntimeError(
+            "Could not locate dynamic "
+            "run_backtest source block."
+        )
+
+    source = source.replace(
+        inspect_marker,
+        provider_patch,
+        1,
+    )
+
+    old_summary = (
+        'print(\n'
+        '    "This result is the authoritative Candidate V1 "\n'
+        '    "historical test for the currently available "\n'
+        '    "provider data window."\n'
+        ')\n'
+    )
+
+    new_summary = (
+        'print(\n'
+        '    "This is an Alpaca SIP research run. "\n'
+        '    "It does not replace the authoritative "\n'
+        '    "Candidate V1 Massive benchmark."\n'
+        ')\n'
+    )
+
+    if old_summary in source:
+        source = source.replace(
+            old_summary,
+            new_summary,
+            1,
+        )
+
+    return source
+
+
 def parse_day(value: str) -> date:
     return date.fromisoformat(value)
 
@@ -535,10 +795,27 @@ def main() -> int:
             "Scenario end date cannot precede start date."
         )
 
+    provider_root, provider_label = (
+        prepare_scenario_data(
+            scenario,
+            start=start,
+            end=end,
+        )
+    )
+
     print("=" * 92)
     print("QPX CONFIGURATION-DRIVEN SCENARIO RUNNER")
     print("=" * 92)
     print(f"Scenario              : {scenario.name}")
+    print(f"Revision              : {scenario.revision}")
+    print(
+        "Fingerprint           : "
+        f"{scenario.fingerprint[:16]}"
+    )
+    print(
+        "Data provider         : "
+        f"{scenario.data['provider']}"
+    )
     print(
         "Candidates            : "
         + ", ".join(
@@ -577,7 +854,7 @@ def main() -> int:
         f"{scenario.risk['maximum_position_notional']:.2%}"
     )
     print(f"Test range            : {start} -> {end}")
-    print("Data mode             : VALIDATED LOCAL CACHE")
+    print(f"Data mode             : {provider_label}")
     print("Synthetic data        : DISABLED")
     print("Placeholder data      : DISABLED")
     print("Live brokerage        : DISABLED")
@@ -587,6 +864,12 @@ def main() -> int:
         scenario,
         start=start,
         end=end,
+    )
+
+    source = adapt_source_for_provider(
+        source,
+        scenario=scenario,
+        provider_root=provider_root,
     )
 
     namespace = {

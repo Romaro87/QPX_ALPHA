@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "name": "candidate_v1",
-  "description": "Validated QPX Candidate V1 baseline. Preserve as reference strategy.",
+  "name": "candidate_v1_alpaca",
+  "description": "Candidate V1 strategy evaluated against Alpaca SIP historical data.",
   "symbols": {
     "candidate_symbols": [
       "XLE"
@@ -62,7 +62,7 @@
   },
   "revision": 1,
   "data": {
-    "provider": "massive_cache",
+    "provider": "alpaca_sip",
     "cache": true
   }
 }

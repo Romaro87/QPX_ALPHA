@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,22 @@ class Scenario:
     @property
     def name(self) -> str:
         return str(self.payload["name"])
+
+    @property
+    def revision(self) -> int:
+        return int(self.payload["revision"])
+
+    @property
+    def fingerprint(self) -> str:
+        canonical = json.dumps(
+            self.payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+        return hashlib.sha256(
+            canonical
+        ).hexdigest()
 
     @property
     def symbols(self) -> dict[str, Any]:
@@ -43,6 +60,10 @@ class Scenario:
     @property
     def exit(self) -> dict[str, Any]:
         return self.payload["exit"]
+
+    @property
+    def data(self) -> dict[str, Any]:
+        return self.payload["data"]
 
     def clone_payload(self) -> dict[str, Any]:
         return copy.deepcopy(self.payload)
@@ -76,7 +97,19 @@ def validate_scenario(payload: dict[str, Any]) -> None:
     if not str(payload.get("name", "")).strip():
         raise ValueError("Scenario name cannot be empty.")
 
+    revision = payload.get("revision")
+
+    if (
+        isinstance(revision, bool)
+        or not isinstance(revision, int)
+        or revision <= 0
+    ):
+        raise ValueError(
+            "Scenario revision must be a positive integer."
+        )
+
     required = (
+        "data",
         "symbols",
         "capital",
         "allocation",
@@ -91,6 +124,25 @@ def validate_scenario(payload: dict[str, Any]) -> None:
     for key in required:
         if not isinstance(payload.get(key), dict):
             raise ValueError(f"Scenario section {key!r} is required.")
+
+    data = payload["data"]
+
+    provider = str(
+        data.get("provider", "")
+    ).strip().lower()
+
+    if provider not in {
+        "massive_cache",
+        "alpaca_sip",
+    }:
+        raise ValueError(
+            "data.provider must be massive_cache or alpaca_sip."
+        )
+
+    if data.get("cache") is not True:
+        raise ValueError(
+            "Scenario market-data caching must remain enabled."
+        )
 
     symbols = payload["symbols"]
 

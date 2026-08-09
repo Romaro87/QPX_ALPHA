@@ -20,6 +20,15 @@ def show(path: Path) -> None:
     print("QPX SCENARIO")
     print("=" * 72)
     print(f"Name                  : {scenario.name}")
+    print(f"Revision              : {scenario.revision}")
+    print(
+        f"Fingerprint           : "
+        f"{scenario.fingerprint[:16]}"
+    )
+    print(
+        f"Data provider         : "
+        f"{p['data']['provider']}"
+    )
     print(
         "Candidates            : "
         + ", ".join(p["symbols"]["candidate_symbols"])
