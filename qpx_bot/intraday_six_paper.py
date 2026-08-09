@@ -187,15 +187,11 @@ class PaperAccount:
         if not self.account_id.strip():
             raise ValueError("Account ID cannot be empty.")
 
-        if len(self.positions) > policy.maximum_concurrent_positions:
-            raise ValueError("Open-position count exceeds the six-slot limit.")
-
-        if (
-            len(self.positions)
-            + len(self.pending)
-            > policy.maximum_concurrent_positions
-        ):
-            raise ValueError("Positions plus pending entries exceed six slots.")
+        # A hot configuration change may lower the position
+        # limit below the number of positions that were already
+        # open. Existing positions must remain managed until their
+        # normal exits. The entry engine prevents new positions
+        # while the account is at or above the current limit.
 
         if set(self.positions).intersection(self.pending):
             raise ValueError("A symbol cannot be both open and pending.")
@@ -556,6 +552,63 @@ def common_completed_times(
         common = times if common is None else common.intersection(times)
 
     return sorted(common or set())
+
+
+def market_data_symbols(
+    policy: IntradayPolicy,
+    open_symbols: Sequence[str] = (),
+) -> tuple[str, ...]:
+    """
+    Return every symbol needed for this cycle.
+
+    Configured candidates receive entry evaluation. Symbols with
+    existing positions remain in the market-data set even after
+    being removed from the configured candidate universe.
+    """
+    return tuple(
+        dict.fromkeys(
+            (
+                *policy.candidates,
+                *(
+                    str(symbol).strip().upper()
+                    for symbol in open_symbols
+                    if str(symbol).strip()
+                ),
+                policy.income_symbol,
+                policy.volatility_symbol,
+            )
+        )
+    )
+
+
+def cancel_ineligible_pending(
+    account: PaperAccount,
+    policy: IntradayPolicy,
+) -> tuple[str, ...]:
+    """
+    Cancel staged entries that are no longer tradable.
+
+    Open positions are intentionally untouched.
+    """
+    tradable = set(
+        policy.tradable_symbols
+    )
+
+    cancelled = tuple(
+        sorted(
+            symbol
+            for symbol in account.pending
+            if symbol not in tradable
+        )
+    )
+
+    for symbol in cancelled:
+        account.pending.pop(
+            symbol,
+            None,
+        )
+
+    return cancelled
 
 
 def choose_without_ranking(
@@ -1103,14 +1156,8 @@ def run_cycle(
             "live_broker_enabled": False,
         }
 
-    symbols = tuple(
-        dict.fromkeys(
-            (
-                *policy.candidates,
-                policy.income_symbol,
-                policy.volatility_symbol,
-            )
-        )
+    symbols = market_data_symbols(
+        policy
     )
     histories = {
         symbol: fetch_intraday(
@@ -1173,6 +1220,75 @@ def run_cycle(
                 },
             )
 
+        config_cancelled_symbols = (
+            cancel_ineligible_pending(
+                account,
+                policy,
+            )
+        )
+
+        if config_cancelled_symbols:
+            for symbol in (
+                config_cancelled_symbols
+            ):
+                store.event(
+                    "ENTRY_CANCELLED_CONFIG_REMOVED",
+                    latest,
+                    {
+                        "symbol": symbol,
+                        "reason": (
+                            "SYMBOL_NO_LONGER_TRADABLE"
+                        ),
+                    },
+                )
+
+            account.revision += 1
+
+            store.save(
+                account,
+                policy,
+            )
+
+        managed_market_symbols = (
+            market_data_symbols(
+                policy,
+                account.positions,
+            )
+        )
+
+        for symbol in (
+            managed_market_symbols
+        ):
+            if symbol in histories:
+                continue
+
+            histories[symbol] = (
+                fetch_intraday(
+                    symbol,
+                    policy,
+                    now_market=now_market,
+                )
+            )
+
+        common_times = (
+            common_completed_times(
+                histories
+            )
+        )
+
+        if not common_times:
+            raise RuntimeError(
+                "Configured candidates and "
+                "existing positions have no "
+                "common completed 15-minute bar."
+            )
+
+        maps = _bar_maps(
+            histories
+        )
+
+        latest = common_times[-1]
+
         last_processed = (
             datetime.fromisoformat(account.last_processed_bar)
             if account.last_processed_bar
@@ -1191,25 +1307,47 @@ def run_cycle(
                 "latest_completed_bar": latest.isoformat(),
                 "open_positions": len(account.positions),
                 "pending_entries": len(account.pending),
+                "config_cancelled_pending": len(
+                    config_cancelled_symbols
+                ),
+                "managed_market_symbols": list(
+                    managed_market_symbols
+                ),
                 "maximum_positions": policy.maximum_concurrent_positions,
                 "rankings_enabled": False,
                 "live_broker_enabled": False,
             }
 
-        candle_sets = _candles(histories)
+        strategy_symbols = tuple(
+            dict.fromkeys(
+                (
+                    *policy.candidates,
+                    *account.positions,
+                )
+            )
+        )
+
+        candle_sets = _candles(
+            histories
+        )
+
         indicators = {
             symbol: calculate_indicators(
                 candle_sets[symbol],
                 config,
             )
-            for symbol in policy.candidates
+            for symbol in strategy_symbols
         }
+
         index_maps = {
             symbol: {
                 bar.start: index
-                for index, bar in enumerate(histories[symbol])
+                for index, bar
+                in enumerate(
+                    histories[symbol]
+                )
             }
-            for symbol in policy.candidates
+            for symbol in strategy_symbols
         }
         dividends = fetch_qdte_dividends()
         processed_dividends = set(
@@ -1637,6 +1775,12 @@ def run_cycle(
             "capacity_deferred": deferred_capacity,
             "open_positions": len(account.positions),
             "pending_entries": len(account.pending),
+            "config_cancelled_pending": len(
+                config_cancelled_symbols
+            ),
+            "managed_market_symbols": list(
+                managed_market_symbols
+            ),
             "maximum_positions": policy.maximum_concurrent_positions,
             "position_symbols": sorted(account.positions),
             "swing_equity": swing_equity,
