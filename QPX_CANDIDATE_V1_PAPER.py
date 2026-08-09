@@ -18,6 +18,13 @@ from qpx_bot.market_calendar import previous_market_session
 from qpx_bot.symbol_config import load_symbol_config
 from qpx_bot.portfolio import Portfolio as BasePortfolio
 from qpx_bot.strategy import EntryEvaluation
+from qpx_bot.scenario_config import load_scenario
+from qpx_bot.forward_scenario import (
+    forward_bot_config,
+    forward_policy,
+    forward_symbols,
+    validate_forward_scenario,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -27,6 +34,19 @@ CANDIDATE_POLICY = (
     / "qpx_bot"
     / "candidate_v1_policy.json"
 )
+
+
+DEFAULT_FORWARD_SCENARIO = (
+    PROJECT_ROOT
+    / "qpx_bot"
+    / "scenarios"
+    / "candidate_v1.json"
+)
+
+ACTIVE_SCENARIO = load_scenario(
+    DEFAULT_FORWARD_SCENARIO
+)
+
 
 CANDIDATE_RUNTIME = (
     PROJECT_ROOT
@@ -56,9 +76,23 @@ LOCAL_VIX_CACHE = (
 
 VIX_URL = research.CBOE_VIX_HISTORY_URL
 
-VIX_EXCLUDE_LOW = 20.0
-VIX_EXCLUDE_HIGH = 25.0
-MAXIMUM_POSITION_NOTIONAL = 0.90
+VIX_EXCLUDE_LOW = float(
+    ACTIVE_SCENARIO.entry[
+        "vix_exclusion_low"
+    ]
+)
+
+VIX_EXCLUDE_HIGH = float(
+    ACTIVE_SCENARIO.entry[
+        "vix_exclusion_high"
+    ]
+)
+
+MAXIMUM_POSITION_NOTIONAL = float(
+    ACTIVE_SCENARIO.risk[
+        "maximum_position_notional"
+    ]
+)
 
 _vix_cache = None
 
@@ -106,40 +140,48 @@ _ORIGINAL_BOT_CONFIG = paper.BotConfig
 
 
 def _candidate_config():
-    config = _ORIGINAL_BOT_CONFIG(
-        monthly_contribution=0.0,
-        allocation_rebalance_frequency="weekly",
-
-        dividend_allocation_years_1_2=0.125,
-        swing_allocation_years_1_2=0.875,
-        dividend_allocation_later=0.125,
-        swing_allocation_later=0.875,
-
-        minimum_average_daily_volume=(
-            research.RELAXED_MINIMUM_AVERAGE_15M_VOLUME
-        ),
-        breakout_volume_multiplier=(
-            research.RELAXED_BREAKOUT_VOLUME_MULTIPLIER
-        ),
-        breakout_lookback=(
-            research.RELAXED_BREAKOUT_LOOKBACK
-        ),
-        maximum_vix_for_entries=(
-            research.RELAXED_MAXIMUM_VIX
-        ),
-        rsi_overbought=(
-            research.RELAXED_RSI_OVERBOUGHT
-        ),
-
-        risk_per_trade=0.03,
-        maximum_active_portfolio_risk=0.10,
+    config = forward_bot_config(
+        ACTIVE_SCENARIO,
+        _ORIGINAL_BOT_CONFIG(),
     )
 
-    config.validate()
     return config
 
 
 paper.BotConfig = _candidate_config
+
+
+_ORIGINAL_PAPER_LOAD_POLICY = (
+    paper.load_policy
+)
+
+
+def _scenario_symbol_config():
+    return forward_symbols(
+        ACTIVE_SCENARIO
+    )
+
+
+def _scenario_policy(
+    filename=CANDIDATE_POLICY,
+):
+    base = _ORIGINAL_PAPER_LOAD_POLICY(
+        filename
+    )
+
+    return forward_policy(
+        base,
+        ACTIVE_SCENARIO,
+    )
+
+
+paper.load_symbol_config = (
+    _scenario_symbol_config
+)
+
+paper.load_policy = (
+    _scenario_policy
+)
 
 
 # ---------------------------------------------------------
@@ -384,7 +426,13 @@ def _candidate_position_size(
         atr=atr,
         active_risk=active_risk,
         config=config,
-        trade_results_r=(),
+        trade_results_r=(
+            trade_results_r
+            if ACTIVE_SCENARIO.risk[
+                "kelly_enabled"
+            ]
+            else ()
+        ),
     )
 
     if not sizing.is_tradeable:
@@ -477,6 +525,45 @@ class CandidatePortfolio(BasePortfolio):
 paper.Portfolio = CandidatePortfolio
 
 
+def _install_scenario(
+    filename,
+):
+    global ACTIVE_SCENARIO
+    global VIX_EXCLUDE_LOW
+    global VIX_EXCLUDE_HIGH
+    global MAXIMUM_POSITION_NOTIONAL
+
+    scenario = load_scenario(
+        filename
+    )
+
+    validate_forward_scenario(
+        scenario
+    )
+
+    ACTIVE_SCENARIO = scenario
+
+    VIX_EXCLUDE_LOW = float(
+        scenario.entry[
+            "vix_exclusion_low"
+        ]
+    )
+
+    VIX_EXCLUDE_HIGH = float(
+        scenario.entry[
+            "vix_exclusion_high"
+        ]
+    )
+
+    MAXIMUM_POSITION_NOTIONAL = float(
+        scenario.risk[
+            "maximum_position_notional"
+        ]
+    )
+
+    return scenario
+
+
 # ---------------------------------------------------------
 # SAFE SEPARATE PAPER DIRECTORIES
 # ---------------------------------------------------------
@@ -493,125 +580,194 @@ def _add_default(args, flag, value):
 
 
 def self_test():
-    policy = json.loads(
-        CANDIDATE_POLICY.read_text(
-            encoding="utf-8"
-        )
+    scenario = ACTIVE_SCENARIO
+    symbols = forward_symbols(
+        scenario
     )
-
+    policy = _scenario_policy(
+        CANDIDATE_POLICY
+    )
     config = _candidate_config()
 
-    assert (
-        policy["maximum_gap_atr_multiple"]
-        == 2.0
+    assert policy.candidates == (
+        symbols.candidate_symbols
     )
+
     assert (
-        policy["live_broker_enabled"]
-        is False
+        policy.tradable_symbols
+        == symbols.tradable_symbols
     )
-    assert load_symbol_config().candidate_symbols
-    assert load_symbol_config().tradable_symbols
-    assert set(
-        load_symbol_config().tradable_symbols
-    ).issubset(load_symbol_config().candidate_symbols)
-    assert load_symbol_config().income_symbol
-    assert load_symbol_config().volatility_symbol
+
+    assert (
+        policy.income_symbol
+        == symbols.income_symbol
+    )
+
+    assert (
+        policy.volatility_symbol
+        == symbols.volatility_symbol
+    )
+
+    assert (
+        policy.maximum_concurrent_positions
+        == scenario.risk[
+            "maximum_positions"
+        ]
+    )
 
     assert abs(
-        config.swing_allocation_years_1_2
-        - 0.875
+        policy.maximum_gap_atr_multiple
+        - float(
+            scenario.entry[
+                "maximum_gap_atr_multiple"
+            ]
+        )
     ) < 1e-12
-
-    assert abs(
-        config.dividend_allocation_years_1_2
-        - 0.125
-    ) < 1e-12
-
-    assert config.monthly_contribution == 0.0
-    assert (
-        config.allocation_rebalance_frequency
-        == "weekly"
-    )
 
     assert abs(
         config.risk_per_trade
-        - 0.03
+        - float(
+            scenario.risk[
+                "risk_per_trade"
+            ]
+        )
     ) < 1e-12
 
     assert abs(
         config.maximum_active_portfolio_risk
-        - 0.10
+        - float(
+            scenario.risk[
+                "maximum_active_portfolio_risk"
+            ]
+        )
     ) < 1e-12
 
     print("=" * 72)
-    print("QPX CANDIDATE V1 — SELF TEST PASSED")
+    print(
+        "QPX FORWARD SCENARIO SELF TEST PASSED"
+    )
     print("=" * 72)
     print(
-        "Mode                 : "
-        "FORWARD PAPER ONLY"
+        f"Scenario             : "
+        f"{scenario.name}"
+    )
+    print(
+        f"Revision             : "
+        f"{scenario.revision}"
+    )
+    print(
+        f"Fingerprint          : "
+        f"{scenario.fingerprint}"
     )
     print(
         "Candidate symbols    : "
-        + ", ".join(load_symbol_config().candidate_symbols)
+        + ", ".join(
+            symbols.candidate_symbols
+        )
     )
     print(
         "Tradable symbols     : "
-        + ", ".join(load_symbol_config().tradable_symbols)
+        + ", ".join(
+            symbols.tradable_symbols
+        )
     )
     print(
-        "Income symbol        : "
-        + load_symbol_config().income_symbol
+        f"Income symbol        : "
+        f"{symbols.income_symbol}"
     )
     print(
-        "Volatility symbol    : "
-        + load_symbol_config().volatility_symbol
+        f"Volatility symbol    : "
+        f"{symbols.volatility_symbol}"
     )
     print(
-        "Income / swing target: "
-        "12.5% / 87.5%"
+        f"Monthly contribution : "
+        f"${config.monthly_contribution:,.2f}"
     )
     print(
-        "External contribution: $0"
+        f"Rebalance cadence    : "
+        f"{config.allocation_rebalance_frequency.upper()}"
     )
     print(
-        "Rebalance cadence    : WEEKLY"
+        f"Risk per trade       : "
+        f"{config.risk_per_trade:.2%}"
     )
     print(
-        "Risk                 : "
-        "3% per trade / 10% active"
+        f"Active risk ceiling  : "
+        f"{config.maximum_active_portfolio_risk:.2%}"
     )
     print(
-        "Kelly                : DISABLED"
+        f"Maximum positions    : "
+        f"{policy.maximum_concurrent_positions}"
     )
     print(
-        "Notional guard       : 90%"
+        f"Notional guard       : "
+        f"{MAXIMUM_POSITION_NOTIONAL:.2%}"
     )
     print(
-        "VIX source           : "
-        "previous completed CBOE session"
+        f"Gap ceiling          : "
+        f"{policy.maximum_gap_atr_multiple:.2f} ATR"
     )
     print(
-        "VIX excluded         : "
-        "20 < VIX < 25"
+        f"Stop / target        : "
+        f"{config.stop_atr_multiple:.2f} / "
+        f"{config.target_atr_multiple:.2f} ATR"
     )
     print(
-        "Gap ceiling          : 2.0 ATR"
+        f"Trailing activation  : "
+        f"{config.trailing_activation_atr:.2f} ATR"
     )
     print(
-        "Relaxed evaluator    : "
-        f"{RELAXED_EVALUATOR_NAME}"
+        f"Kelly                : "
+        + (
+            "ENABLED"
+            if scenario.risk[
+                "kelly_enabled"
+            ]
+            else "DISABLED"
+        )
     )
     print(
-        "Existing paper state : UNTOUCHED"
+        f"VIX exclusion        : "
+        f"{VIX_EXCLUDE_LOW:g} < VIX < "
+        f"{VIX_EXCLUDE_HIGH:g}"
     )
     print(
-        "Live broker          : DISABLED"
+        "Existing paper state: UNTOUCHED"
+    )
+    print(
+        "Live broker         : DISABLED"
     )
     print("=" * 72)
 
 
 def main():
     args = list(sys.argv[1:])
+
+    scenario_path = (
+        DEFAULT_FORWARD_SCENARIO
+    )
+
+    if "--scenario" in args:
+        index = args.index(
+            "--scenario"
+        )
+
+        if index + 1 >= len(args):
+            raise ValueError(
+                "--scenario requires a filename."
+            )
+
+        scenario_path = Path(
+            args[index + 1]
+        )
+
+        del args[
+            index:index + 2
+        ]
+
+    scenario = _install_scenario(
+        scenario_path
+    )
 
     if "--self-test" in args:
         self_test()
@@ -665,6 +821,19 @@ def main():
     )
     print("LIVE BROKER: DISABLED")
     print("=" * 78)
+
+    print(
+        f"Scenario              : "
+        f"{scenario.name}"
+    )
+    print(
+        f"Scenario revision     : "
+        f"{scenario.revision}"
+    )
+    print(
+        f"Scenario fingerprint  : "
+        f"{scenario.fingerprint}"
+    )
 
     return paper.main(args)
 
