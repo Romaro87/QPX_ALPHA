@@ -659,6 +659,50 @@ def _position_from_dict(payload: Mapping[str, Any]) -> Position:
         stop_price=float(payload["stop_price"]),
         target_price=float(payload["target_price"]),
         highest_price=float(payload["highest_price"]),
+        entry_stop_atr_multiple=(
+            float(
+                payload[
+                    "entry_stop_atr_multiple"
+                ]
+            )
+            if payload.get(
+                "entry_stop_atr_multiple"
+            ) is not None
+            else None
+        ),
+        entry_target_atr_multiple=(
+            float(
+                payload[
+                    "entry_target_atr_multiple"
+                ]
+            )
+            if payload.get(
+                "entry_target_atr_multiple"
+            ) is not None
+            else None
+        ),
+        entry_trailing_activation_atr=(
+            float(
+                payload[
+                    "entry_trailing_activation_atr"
+                ]
+            )
+            if payload.get(
+                "entry_trailing_activation_atr"
+            ) is not None
+            else None
+        ),
+        exit_slippage_rate=(
+            float(
+                payload[
+                    "exit_slippage_rate"
+                ]
+            )
+            if payload.get(
+                "exit_slippage_rate"
+            ) is not None
+            else None
+        ),
     )
 
 
@@ -1586,6 +1630,7 @@ def run_cycle(
                     sizing=sizing,
                     entry_date=bar_time.date(),
                     entry_atr=signal.signal_atr,
+                    config=config,
                 )
                 filled += 1
                 store.event(

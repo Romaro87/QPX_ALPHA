@@ -21,6 +21,13 @@ class Position:
     target_price: float
     highest_price: float
 
+    # Exit/execution policy captured when this trade opened.
+    # None means legacy state created before policy snapshots existed.
+    entry_stop_atr_multiple: float | None = None
+    entry_target_atr_multiple: float | None = None
+    entry_trailing_activation_atr: float | None = None
+    exit_slippage_rate: float | None = None
+
     @property
     def cost_basis(self) -> float:
         return self.entry_price * self.shares
@@ -83,6 +90,7 @@ class Portfolio:
         sizing: PositionSize,
         entry_date: date,
         entry_atr: float,
+        config: BotConfig | None = None,
     ) -> Position:
         """Open one risk-sized position and deduct its full cost."""
         normalized_symbol = symbol.strip().upper()
@@ -115,6 +123,26 @@ class Portfolio:
             stop_price=sizing.stop_price,
             target_price=sizing.target_price,
             highest_price=sizing.entry_fill,
+            entry_stop_atr_multiple=(
+                config.stop_atr_multiple
+                if config is not None
+                else None
+            ),
+            entry_target_atr_multiple=(
+                config.target_atr_multiple
+                if config is not None
+                else None
+            ),
+            entry_trailing_activation_atr=(
+                config.trailing_activation_atr
+                if config is not None
+                else None
+            ),
+            exit_slippage_rate=(
+                config.slippage_rate
+                if config is not None
+                else None
+            ),
         )
 
         self.cash -= total_cost
@@ -143,11 +171,25 @@ class Portfolio:
             current_high,
         )
 
+        trailing_activation = (
+            position.entry_trailing_activation_atr
+            if position.entry_trailing_activation_atr
+            is not None
+            else config.trailing_activation_atr
+        )
+
+        trailing_stop_multiple = (
+            position.entry_stop_atr_multiple
+            if position.entry_stop_atr_multiple
+            is not None
+            else config.stop_atr_multiple
+        )
+
         activation_price = (
             position.entry_price
             + (
                 position.entry_atr
-                * config.trailing_activation_atr
+                * trailing_activation
             )
         )
 
@@ -156,7 +198,7 @@ class Portfolio:
                 position.highest_price
                 - (
                     current_atr
-                    * config.stop_atr_multiple
+                    * trailing_stop_multiple
                 )
             )
             position.stop_price = max(
@@ -178,7 +220,17 @@ class Portfolio:
         """Close a position, apply slippage, and reserve gain taxes."""
         normalized_symbol = symbol.strip().upper()
         position = self.positions.pop(normalized_symbol)
-        fill = sell_fill(exit_price, config.slippage_rate)
+        exit_slippage_rate = (
+            position.exit_slippage_rate
+            if position.exit_slippage_rate
+            is not None
+            else config.slippage_rate
+        )
+
+        fill = sell_fill(
+            exit_price,
+            exit_slippage_rate,
+        )
         proceeds = fill * position.shares
         pnl = (
             (fill - position.entry_price)
@@ -193,9 +245,16 @@ class Portfolio:
         self.tax_reserve_cash += tax_reserved
         self.realized_pnl += pnl
 
+        entry_stop_multiple = (
+            position.entry_stop_atr_multiple
+            if position.entry_stop_atr_multiple
+            is not None
+            else config.stop_atr_multiple
+        )
+
         initial_risk = (
             position.entry_atr
-            * config.stop_atr_multiple
+            * entry_stop_multiple
             * position.shares
         )
         result_r = (

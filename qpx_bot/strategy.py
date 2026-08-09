@@ -309,14 +309,34 @@ def evaluate_exit(
         )
 
     highest_price = max(position.highest_price, candle.high)
+
+    trailing_activation = (
+        position.entry_trailing_activation_atr
+        if position.entry_trailing_activation_atr
+        is not None
+        else config.trailing_activation_atr
+    )
+
+    trailing_stop_multiple = (
+        position.entry_stop_atr_multiple
+        if position.entry_stop_atr_multiple
+        is not None
+        else config.stop_atr_multiple
+    )
+
     activation_price = (
         position.entry_price
         + (
             position.entry_atr
-            * config.trailing_activation_atr
+            * trailing_activation
         )
     )
-    trailing_active = highest_price >= activation_price
+
+    trailing_active = (
+        highest_price
+        >= activation_price
+    )
+
     next_stop = stop
 
     if trailing_active:
@@ -324,7 +344,7 @@ def evaluate_exit(
             highest_price
             - (
                 current_atr
-                * config.stop_atr_multiple
+                * trailing_stop_multiple
             )
         )
         next_stop = max(stop, candidate)
