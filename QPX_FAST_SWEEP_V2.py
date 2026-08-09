@@ -37,23 +37,33 @@ def patch_profit_factor_output(
     source: str,
 ) -> str:
     old = (
-        'f"{result.profit_factor:.3f}"'
+        'f"Profit factor         : "\n'
+        '    f"{result.profit_factor:.3f}"'
     )
 
     new = (
-        '("N/A" '
+        'f"Profit factor         : "\n'
+        '    + ("N/A" '
         'if result.profit_factor is None '
         'else f"{result.profit_factor:.3f}")'
     )
 
-    if old in source:
-        source = source.replace(
-            old,
-            new,
-            1,
+    count = source.count(
+        old
+    )
+
+    if count != 1:
+        raise RuntimeError(
+            "Profit-factor summary block "
+            f"was found {count} times; "
+            "expected exactly once."
         )
 
-    return source
+    return source.replace(
+        old,
+        new,
+        1,
+    )
 
 
 _original_patch = (
@@ -81,10 +91,13 @@ sweep.patch_generated_source = (
 
 
 def format_self_test() -> None:
+    from types import SimpleNamespace
+
     source = (
-        'print('
-        'f"{result.profit_factor:.3f}"'
-        ')'
+        'print(\n'
+        '    f"Profit factor         : "\n'
+        '    f"{result.profit_factor:.3f}"\n'
+        ')\n'
     )
 
     patched = (
@@ -92,6 +105,27 @@ def format_self_test() -> None:
             source
         )
     )
+
+    compile(
+        patched,
+        "<profit-factor-self-test>",
+        "exec",
+    )
+
+    for value in (
+        None,
+        1.23456,
+    ):
+        namespace = {
+            "result": SimpleNamespace(
+                profit_factor=value
+            )
+        }
+
+        exec(
+            patched,
+            namespace,
+        )
 
     if (
         "result.profit_factor is None"
@@ -389,9 +423,15 @@ def retryable_old_failure(
     )
 
     return (
-        "unsupported format string "
-        "passed to NoneType.__format__"
+        (
+            "unsupported format string "
+            "passed to NoneType.__format__"
+        )
         in error
+        or (
+            "'str' object is not callable"
+            in error
+        )
     )
 
 
