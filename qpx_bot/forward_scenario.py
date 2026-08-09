@@ -120,8 +120,47 @@ def forward_bot_config(
         scenario
     )
 
+    starting_changes = {}
+
+    if (
+        "starting_total_capital"
+        in scenario.capital
+    ):
+        requested_total = float(
+            scenario.capital[
+                "starting_total_capital"
+            ]
+        )
+
+        base_total = (
+            config.total_starting_capital
+        )
+
+        if base_total <= 0:
+            raise ValueError(
+                "Base starting capital must be positive."
+            )
+
+        scale = (
+            requested_total
+            / base_total
+        )
+
+        starting_changes = {
+            "starting_cash": (
+                config.starting_cash
+                * scale
+            ),
+            "starting_swing_cash": (
+                config.starting_swing_cash
+                * scale
+            ),
+        }
+
     config = replace(
         config,
+
+        **starting_changes,
 
         monthly_contribution=float(
             scenario.capital[

@@ -12,6 +12,10 @@ from qpx_bot.scenario_config import (
     load_scenario,
 )
 
+from qpx_bot.config import (
+    BotConfig as BaseBotConfig,
+)
+
 from qpx_bot.alpaca_provider import (
     sync as sync_alpaca,
 )
@@ -292,7 +296,28 @@ qpx.VOLATILITY_SYMBOL = _SYMBOL_CONFIG.volatility_symbol
     # Add all ordinary BotConfig knobs to CandidateBotConfig.
     marker = "    kwargs.update(\n"
 
-    additional_config = f'''        maximum_swing_positions={int(risk["maximum_positions"])},
+    starting_config = ""
+
+    if "starting_total_capital" in capital:
+        base_config = BaseBotConfig()
+
+        scale = (
+            float(
+                capital[
+                    "starting_total_capital"
+                ]
+            )
+            / base_config.total_starting_capital
+        )
+
+        starting_config = (
+            "        starting_cash="
+            f"{base_config.starting_cash * scale!r},\n"
+            "        starting_swing_cash="
+            f"{base_config.starting_swing_cash * scale!r},\n"
+        )
+
+    additional_config = starting_config + f'''        maximum_swing_positions={int(risk["maximum_positions"])},
         minimum_average_daily_volume={int(entry["minimum_average_15m_volume"])},
         breakout_volume_multiplier={float(entry["breakout_volume_multiplier"])!r},
         breakout_lookback={int(entry["breakout_lookback"])},

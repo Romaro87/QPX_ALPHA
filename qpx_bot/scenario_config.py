@@ -175,11 +175,20 @@ def validate_scenario(payload: dict[str, Any]) -> None:
     if not str(symbols.get("volatility_symbol", "")).strip():
         raise ValueError("Volatility symbol is required.")
 
+    capital = payload["capital"]
+
     _number(
-        payload["capital"].get("monthly_contribution"),
+        capital.get("monthly_contribution"),
         "monthly_contribution",
         minimum=0.0,
     )
+
+    if "starting_total_capital" in capital:
+        _number(
+            capital.get("starting_total_capital"),
+            "starting_total_capital",
+            minimum=0.000001,
+        )
 
     allocation = payload["allocation"]
 
