@@ -933,7 +933,11 @@ def freeze_support_files():
             vix_target,
         )
 
-    if not dividend_target.exists():
+    if (
+        not dividend_target.exists()
+        or sha256(dividend_target)
+        != sha256(dividends_source)
+    ):
         atomic_copy(
             dividends_source,
             dividend_target,
@@ -941,7 +945,11 @@ def freeze_support_files():
 
     if (
         dividend_manifest_source.exists()
-        and not dividend_manifest_target.exists()
+        and (
+            not dividend_manifest_target.exists()
+            or sha256(dividend_manifest_target)
+            != sha256(dividend_manifest_source)
+        )
     ):
         atomic_copy(
             dividend_manifest_source,

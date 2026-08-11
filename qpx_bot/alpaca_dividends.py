@@ -135,7 +135,7 @@ def _find_records(
 
 def _read_existing(
     symbol: str,
-) -> dict[str, tuple[date, float]]:
+) -> dict[str, tuple[date, float, date | None, date | None, date | None]]:
     path = dividend_path(symbol)
 
     if not path.exists():
@@ -143,7 +143,7 @@ def _read_existing(
 
     result: dict[
         str,
-        tuple[date, float],
+        tuple[date, float, date | None, date | None, date | None],
     ] = {}
 
     with path.open(
@@ -166,6 +166,15 @@ def _read_existing(
                 amount = float(
                     row["CashAmount"]
                 )
+                record_date = _optional_date(
+                    row.get("RecordDate")
+                )
+                payable_date = _optional_date(
+                    row.get("PayableDate")
+                )
+                process_date = _optional_date(
+                    row.get("ProcessDate")
+                )
             except (
                 KeyError,
                 TypeError,
@@ -177,9 +186,21 @@ def _read_existing(
                 result[event_id] = (
                     ex_date,
                     amount,
+                    record_date,
+                    payable_date,
+                    process_date,
                 )
 
     return result
+
+
+def _optional_date(raw_value: Any) -> date | None:
+    value = str(raw_value or "").strip()
+
+    if not value:
+        return None
+
+    return date.fromisoformat(value[:10])
 
 
 def sync_dividends(
@@ -207,6 +228,7 @@ def sync_dividends(
 
     cached_start = None
     cached_end = None
+    cached_schema_version = 0
 
     if manifest.exists():
         try:
@@ -231,6 +253,9 @@ def sync_dividends(
                     ]
                 )
             )
+            cached_schema_version = int(
+                payload.get("schema_version", 0)
+            )
 
         except (
             OSError,
@@ -240,13 +265,27 @@ def sync_dividends(
         ):
             cached_start = None
             cached_end = None
+            cached_schema_version = 0
+
+    metadata_complete = bool(existing) and all(
+        payable_date is not None
+        or process_date is not None
+        for (
+            _,
+            _,
+            _,
+            payable_date,
+            process_date,
+        ) in existing.values()
+    )
 
     if (
         cached_start is not None
         and cached_end is not None
         and cached_start <= start
         and cached_end >= end
-        and existing
+        and cached_schema_version >= 2
+        and metadata_complete
     ):
         print(
             f"{symbol} dividends CACHE HIT "
@@ -333,6 +372,15 @@ def sync_dividends(
                 amount = float(
                     raw_amount
                 )
+                record_date = _optional_date(
+                    raw.get("record_date")
+                )
+                payable_date = _optional_date(
+                    raw.get("payable_date")
+                )
+                process_date = _optional_date(
+                    raw.get("process_date")
+                )
             except (
                 TypeError,
                 ValueError,
@@ -363,6 +411,9 @@ def sync_dividends(
             existing[event_id] = (
                 ex_date,
                 amount,
+                record_date,
+                payable_date,
+                process_date,
             )
 
         token = payload.get(
@@ -408,6 +459,9 @@ def sync_dividends(
             (
                 "EventId",
                 "ExDividendDate",
+                "RecordDate",
+                "PayableDate",
+                "ProcessDate",
                 "CashAmount",
             )
         )
@@ -415,6 +469,9 @@ def sync_dividends(
         for event_id, (
             ex_date,
             amount,
+            record_date,
+            payable_date,
+            process_date,
         ) in sorted(
             filtered.items(),
             key=lambda item: (
@@ -426,6 +483,21 @@ def sync_dividends(
                 (
                     event_id,
                     ex_date.isoformat(),
+                    (
+                        record_date.isoformat()
+                        if record_date is not None
+                        else ""
+                    ),
+                    (
+                        payable_date.isoformat()
+                        if payable_date is not None
+                        else ""
+                    ),
+                    (
+                        process_date.isoformat()
+                        if process_date is not None
+                        else ""
+                    ),
                     f"{amount:.10f}",
                 )
             )
@@ -433,9 +505,12 @@ def sync_dividends(
     manifest.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "provider": "alpaca",
                 "source": "corporate_actions",
+                "cash_availability_policy": (
+                    "later_of_payable_or_process_date"
+                ),
                 "symbol": symbol,
                 "coverage_start":
                     request_start.isoformat(),

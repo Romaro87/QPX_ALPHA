@@ -5,9 +5,9 @@ This runner preserves the verified Candidate V1 economics while replacing the
 all-symbol intersection loop with an explicit OPEN/CLOSE market clock and a
 strategy boundary that receives scalar, already-completed observations only.
 
-QDTE dividend cash is intentionally kept on the legacy ex-date treatment for
-comparison with the preserved baseline.  That corporate-action timing remains
-UNQUALIFIED until authentic payment/availability dates are frozen.
+QDTE entitlement is captured from shares owned at the ex-date open.  Cash is
+released only at the first recorded market open on or after the later of the
+authentic payable/process dates frozen from Alpaca corporate actions.
 """
 
 from __future__ import annotations
@@ -44,6 +44,10 @@ from qpx_bot.causal_replay import (
 from qpx_bot.candidate_v1_causal import (
     CandidateV1CausalInputs,
     evaluate_candidate_v1_causal,
+)
+from qpx_bot.causal_dividends import (
+    CausalDividendLedger,
+    load_causal_dividends,
 )
 from qpx_bot.config import BotConfig
 from qpx_bot.data_loader import Candle
@@ -561,9 +565,40 @@ def write_signal_records(
     qpx._write_signals(path, records)
 
 
+def load_enriched_frozen_state() -> tuple[dict, dict, tuple[str, ...]]:
+    """Load the verified frozen universe without changing the legacy pin."""
+    selection = json.loads(
+        baseline.SELECTION_PATH.read_text(encoding="utf-8")
+    )
+    dataset = json.loads(
+        baseline.DATASET_MANIFEST.read_text(encoding="utf-8")
+    )
+
+    if selection.get("status") != "AUDITED_SELECTION_FROZEN":
+        raise RuntimeError("Top-100 selection is not frozen.")
+    if (
+        selection.get("manifest_fingerprint")
+        != baseline.EXPECTED_SELECTION_FP
+    ):
+        raise RuntimeError("Top-100 selection fingerprint changed.")
+    if dataset.get("status") != "FROZEN_AND_VERIFIED":
+        raise RuntimeError("Enriched frozen dataset is not verified.")
+
+    freezer.verify_dataset()
+
+    top100 = tuple(
+        str(symbol).strip().upper()
+        for symbol in selection["top100"]
+    )
+    if len(top100) != 100 or len(set(top100)) != 100:
+        raise RuntimeError("Strict replay requires 100 unique frozen symbols.")
+
+    return selection, dataset, top100
+
+
 def run_strict() -> tuple[dict, dict]:
     selection, dataset, top100_tuple = (
-        baseline.load_frozen_state()
+        load_enriched_frozen_state()
     )
     top100 = list(top100_tuple)
 
@@ -574,6 +609,16 @@ def run_strict() -> tuple[dict, dict]:
     baseline.prepare_runtime_support(
         dataset
     )
+
+    dividends = load_causal_dividends(
+        baseline.RUNTIME_SHARED
+        / "QDTE_DIVIDENDS.csv"
+    )
+    dividend_ledger = CausalDividendLedger([
+        event
+        for event in dividends
+        if START <= event.ex_date <= END
+    ])
 
     config = candidate_config()
 
@@ -715,21 +760,6 @@ def run_strict() -> tuple[dict, dict]:
         )
     )
 
-    dividends = qpx._read_cached_dividends(
-        baseline.RUNTIME_SHARED
-        / "QDTE_DIVIDENDS.csv"
-    )
-    dividends_by_date: dict[
-        date,
-        list,
-    ] = {}
-    for event in dividends:
-        if START <= event.ex_date <= END:
-            dividends_by_date.setdefault(
-                event.ex_date,
-                [],
-            ).append(event)
-
     first_qdte_open = portal.current_open(
         "QDTE"
     )
@@ -804,7 +834,6 @@ def run_strict() -> tuple[dict, dict]:
     equity_points: list[qpx.EquityPoint] = []
     signal_records: list[qpx.SignalRecord] = []
 
-    processed_dividends: set[str] = set()
     total_contributions = 1300.0
     distributions_received = 0.0
     distribution_count = 0
@@ -842,22 +871,18 @@ def run_strict() -> tuple[dict, dict]:
                 "Strict replay entered an invalid OPEN phase."
             )
 
-        for event in dividends_by_date.get(
-            bar_time.date(),
-            [],
-        ):
-            if event.event_id in processed_dividends:
-                continue
-            cash = (
-                income_shares
-                * event.cash_amount
-            )
-            portfolio.cash += cash
-            distributions_received += cash
-            distribution_count += 1
-            processed_dividends.add(
-                event.event_id
-            )
+        settled_before = dividend_ledger.settled_count
+        dividend_cash = dividend_ledger.process_open(
+            current_date=bar_time.date(),
+            income_shares=income_shares,
+        )
+        if dividend_cash:
+            portfolio.cash += dividend_cash
+            distributions_received += dividend_cash
+        distribution_count += (
+            dividend_ledger.settled_count
+            - settled_before
+        )
 
         # Broker-held stop/target gap behavior is causally knowable
         # from the current open and must execute before new entries.
@@ -1791,7 +1816,15 @@ def run_strict() -> tuple[dict, dict]:
                 }
 
     git_head = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"],
+        [
+            "git",
+            "-c",
+            "safe.directory=/mnt/sdcard/QPX_ALPHA",
+            "-c",
+            "safe.directory=/storage/emulated/0/QPX_ALPHA",
+            "rev-parse",
+            "HEAD",
+        ],
         cwd=ROOT,
         text=True,
     ).strip()
@@ -1814,11 +1847,13 @@ def run_strict() -> tuple[dict, dict]:
         "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
         "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
         "CORPORATE_ACTION_CASH_TIMING": (
-            "NOT_QUALIFIED_LEGACY_EX_DATE_COMPARISON"
+            "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE"
+        ),
+        "DIVIDEND_ENTITLEMENT": (
+            "PASS_EX_DATE_OWNERSHIP_SNAPSHOT"
         ),
         "OVERALL_PORTFOLIO_QUALIFICATION": (
-            "PARTIAL_SWING_CAUSAL_PASS_"
-            "CORPORATE_ACTION_PENDING"
+            "FULL_CAUSAL_ACCOUNTING_PASS"
         ),
     }
 
@@ -1846,10 +1881,9 @@ def run_strict() -> tuple[dict, dict]:
             "SCALAR_COMPLETED_BAR_INPUTS_ONLY"
         ),
         "corporate_action_notice": (
-            "QDTE dividend cash is retained on the legacy ex-date "
-            "treatment only to isolate market-clock/strategy causality. "
-            "The overall portfolio is not fully qualified until authentic "
-            "payment/availability dates are frozen and replayed."
+            "QDTE entitlement uses shares owned at ex-date open. Cash is "
+            "released at the first recorded market open on or after the "
+            "later of frozen Alpaca payable/process dates."
         ),
         "equivalence_audit": equivalence,
         "gate": gate,
@@ -1956,7 +1990,7 @@ def main() -> int:
     print("Synthetic data         : DISABLED")
     print(
         "Dividend cash timing   : "
-        "LEGACY EX-DATE — NOT YET QUALIFIED"
+        "LATER OF PAYABLE/PROCESS DATE"
     )
     print("=" * 92)
     print()
@@ -2044,11 +2078,11 @@ def main() -> int:
     print("EXECUTION TIMING       : VERIFIED — OPEN/CLOSE")
     print(
         "CORPORATE ACTION CASH  : "
-        "NOT YET QUALIFIED"
+        "QUALIFIED — SETTLEMENT-DATE CAUSAL"
     )
     print(
         "OVERALL QUALIFICATION  : "
-        "PARTIAL — CORPORATE ACTION PENDING"
+        "FULL CAUSAL ACCOUNTING PASS"
     )
     print(
         f"Summary                : {SUMMARY_PATH}"
