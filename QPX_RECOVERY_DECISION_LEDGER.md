@@ -1134,3 +1134,11 @@ The existing Top-100 result remains preliminary and unqualified until Candidate 
 **STATUS: VERIFIED_ARTIFACT / LOCAL TEST PASS**
 Added qpx_bot/causal_replay.py and tests/test_causal_replay.py. Five tests pass: future bar blocked; OPEN exposes only open; completed OHLCV available only at CLOSE; missing-symbol bars do not stop the market clock; causal-prefix indicators match full-history indicators at the same cutoff.
 The existing Top-100 result remains preliminary and unqualified until Candidate V1 is rerun through this strict causal interface.
+
+<!-- QPX_STRICT_TOP100_RESULT_20260811 -->
+# STRICT TOP-100 REPLAY RESULT — 2026-08-11
+**STATUS: VERIFIED_ARTIFACT / USER-RUN RESULT**
+Strict replay ending equity $14,510.45; net profit $13,210.45; CAGR 172.25%; maximum drawdown 41.97%; 1,954 closed trades; win rate 49.39%; profit factor 1.270; 5,861 risk rejections; 2,550 capacity deferred.
+Preserved non-strict control ending equity $16,485.76; CAGR 192.71%; maximum drawdown 30.47%.
+Strict architecture materially changed results but Candidate V1 remained profitable. Full qualification remains pending corporate-action cash timing.
+Live Alpaca QDTE corporate-action records verified fields: ex_date, record_date, payable_date, process_date, rate.
