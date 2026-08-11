@@ -1122,3 +1122,15 @@ Discovery ranking and portfolio selection are different problems. Do not hard-co
 **STRICT CAUSAL REPLAY: NOT YET FORMALLY QUALIFIED**
 Do not treat the reported CAGR as a production expectation.
 Next milestone: **FORMAL STRICT-CAUSAL REPLAY AUDIT / GATE**.
+
+<!-- QPX_STRICT_CAUSAL_FOUNDATION_20260811 -->
+# STRICT-CAUSAL REPLAY FOUNDATION — 2026-08-11
+**STATUS: VERIFIED_ARTIFACT / LOCAL TEST PASS**
+Added qpx_bot/causal_replay.py and tests/test_causal_replay.py. Five tests pass: future bar blocked; OPEN exposes only open; completed OHLCV available only at CLOSE; missing-symbol bars do not stop the market clock; causal-prefix indicators match full-history indicators at the same cutoff.
+The existing Top-100 result remains preliminary and unqualified until Candidate V1 is rerun through this strict causal interface.
+
+<!-- QPX_STRICT_CAUSAL_FOUNDATION_20260811 -->
+# STRICT-CAUSAL REPLAY FOUNDATION — 2026-08-11
+**STATUS: VERIFIED_ARTIFACT / LOCAL TEST PASS**
+Added qpx_bot/causal_replay.py and tests/test_causal_replay.py. Five tests pass: future bar blocked; OPEN exposes only open; completed OHLCV available only at CLOSE; missing-symbol bars do not stop the market clock; causal-prefix indicators match full-history indicators at the same cutoff.
+The existing Top-100 result remains preliminary and unqualified until Candidate V1 is rerun through this strict causal interface.
