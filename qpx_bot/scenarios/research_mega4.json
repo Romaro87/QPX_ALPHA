@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "name": "research_mega4",
+  "description": "Four-symbol QPX Alpaca SIP research universe.",
+  "symbols": {
+    "candidate_symbols": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMD"
+    ],
+    "tradable_symbols": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMD"
+    ],
+    "income_symbol": "QDTE",
+    "volatility_symbol": "^VIX"
+  },
+  "capital": {
+    "monthly_contribution": 0.0
+  },
+  "allocation": {
+    "income_weight_years_1_2": 0.125,
+    "swing_weight_years_1_2": 0.875,
+    "income_weight_later": 0.125,
+    "swing_weight_later": 0.875,
+    "rebalance_frequency": "weekly",
+    "rebalance_tolerance": 0.0025,
+    "minimum_rebalance_trade": 1.0
+  },
+  "entry": {
+    "profile": "RELAXED_FREQUENCY_RESEARCH_V1",
+    "minimum_average_15m_volume": 75000,
+    "breakout_volume_multiplier": 1.05,
+    "breakout_lookback": 10,
+    "maximum_vix": 32.0,
+    "rsi_overbought": 75.0,
+    "momentum_persistence_level": 52.0,
+    "maximum_gap_atr_multiple": 2.0,
+    "vix_exclusion_low": 20.0,
+    "vix_exclusion_high": 25.0
+  },
+  "risk": {
+    "risk_per_trade": 0.03,
+    "maximum_active_portfolio_risk": 0.1,
+    "kelly_enabled": false,
+    "maximum_position_notional": 0.9,
+    "maximum_positions": 6
+  },
+  "exit": {
+    "profile": "BASELINE_EXIT",
+    "stop_atr_multiple": 2.5,
+    "target_atr_multiple": 5.0,
+    "trailing_activation_atr": 3.0
+  },
+  "execution": {
+    "slippage_rate": 0.00075
+  },
+  "tax": {
+    "annual_tax_reserve_rate": 0.37,
+    "profile": "NET_REALIZED_PNL_RESEARCH"
+  },
+  "safety": {
+    "live_broker_enabled": false,
+    "extended_hours_enabled": false
+  },
+  "revision": 1,
+  "data": {
+    "provider": "alpaca_sip",
+    "cache": true
+  }
+}

@@ -1109,3 +1109,74 @@ The following were explicitly reconfirmed:
 12. Autopilot currently automates approved operation; adaptive AI researches; Shadow tests; governance promotes.
 
 13. A future explicit AI automation switch may be discussed if evidence shows it is worthwhile.
+
+<!-- QPX_TOP100_PORTFOLIO_CHECKPOINT_20260811 -->
+# TOP-100 PORTFOLIO VIABILITY CHECKPOINT — 2026-08-11
+**STATUS: VERIFIED_ARTIFACT + USER-RUN RESULT**
+Candidate V1 Top-100 portfolio: $1,300 start; 2024-03-07 through 2026-08-07; 12,049 common 15m bars; 596 sessions; 1,710 trades; 49.06% win rate; PF 1.313.
+Swing P&L $14,924.20; net profit $15,185.76; ending equity $16,485.76; reported CAGR 192.71%; maximum drawdown 30.47%.
+All 100 symbols traded; 61 profitable and 39 losing; 5,008 risk rejects; 2,405 capacity deferred.
+Original ranks 1-10 lost money as a group; ranks 41-50 were strongest; 8 of 10 deciles were profitable.
+Discovery ranking and portfolio selection are different problems. Do not hard-code in-sample winners.
+**TOP-100 PORTFOLIO VIABILITY: PRELIMINARY PASS**
+**STRICT CAUSAL REPLAY: NOT YET FORMALLY QUALIFIED**
+Do not treat the reported CAGR as a production expectation.
+Next milestone: **FORMAL STRICT-CAUSAL REPLAY AUDIT / GATE**.
+
+<!-- QPX_STRICT_CAUSAL_FOUNDATION_20260811 -->
+# STRICT-CAUSAL REPLAY FOUNDATION — 2026-08-11
+**STATUS: VERIFIED_ARTIFACT / LOCAL TEST PASS**
+Added qpx_bot/causal_replay.py and tests/test_causal_replay.py. Five tests pass: future bar blocked; OPEN exposes only open; completed OHLCV available only at CLOSE; missing-symbol bars do not stop the market clock; causal-prefix indicators match full-history indicators at the same cutoff.
+The existing Top-100 result remains preliminary and unqualified until Candidate V1 is rerun through this strict causal interface.
+
+<!-- QPX_STRICT_CAUSAL_FOUNDATION_20260811 -->
+# STRICT-CAUSAL REPLAY FOUNDATION — 2026-08-11
+**STATUS: VERIFIED_ARTIFACT / LOCAL TEST PASS**
+Added qpx_bot/causal_replay.py and tests/test_causal_replay.py. Five tests pass: future bar blocked; OPEN exposes only open; completed OHLCV available only at CLOSE; missing-symbol bars do not stop the market clock; causal-prefix indicators match full-history indicators at the same cutoff.
+The existing Top-100 result remains preliminary and unqualified until Candidate V1 is rerun through this strict causal interface.
+
+<!-- QPX_STRICT_TOP100_RESULT_20260811 -->
+# STRICT TOP-100 REPLAY RESULT — 2026-08-11
+**STATUS: VERIFIED_ARTIFACT / USER-RUN RESULT**
+Strict replay ending equity $14,510.45; net profit $13,210.45; CAGR 172.25%; maximum drawdown 41.97%; 1,954 closed trades; win rate 49.39%; profit factor 1.270; 5,861 risk rejections; 2,550 capacity deferred.
+Preserved non-strict control ending equity $16,485.76; CAGR 192.71%; maximum drawdown 30.47%.
+Strict architecture materially changed results but Candidate V1 remained profitable. Full qualification remains pending corporate-action cash timing.
+Live Alpaca QDTE corporate-action records verified fields: ex_date, record_date, payable_date, process_date, rate.
+
+<!-- QPX_PRE_CODEX_GRANULAR_CHECKPOINT_20260811 -->
+# PRE-CODEX MAXIMUM-GRANULARITY CONTEXT CHECKPOINT — 2026-08-11
+
+**STATUS: USER_CONFIRMED + RECOVERED_CONTEXT**
+
+Permanent rule added:
+
+- every context/recovery uses maximum available granularity
+- preserve as much actual conversation as available
+- append conversation deltas to daily journal
+- active-work checkpoint target approximately every 5 minutes
+- ten minutes is the upper target ceiling
+- major decisions/tests/errors/code/workflow changes trigger immediate
+  checkpoint
+- user must not have to re-explain current QPX state
+
+Daily journal:
+
+`QPX_CONVERSATION_JOURNAL_2026-08-11.md`
+
+Pre-Codex checkpoint:
+
+`QPX_SESSION_CHECKPOINT_2026-08-11_PRE_CODEX.md`
+
+Current workflow transition:
+
+normal ChatGPT GitHub integration reads the repository successfully but
+direct write attempts returned HTTP 403.
+
+Next workflow step:
+
+configure Codex with `Romaro87/QPX_ALPHA` after this checkpoint is pushed.
+
+Current technical next milestone after workflow setup:
+
+freeze authentic QDTE dividend payment/cash-availability timing and rerun
+strict-causal Candidate V1.

@@ -85,3 +85,70 @@ qpx_bot/candidate_v1_runtime/
 qpx_bot/candidate_v1_legacy_runtime/
 reports/qpx_candidate_v1_forward/
 logs/qpx_candidate_v1/
+
+# BEGIN QPX LOCAL GENERATED
+reports/
+research_data/
+logs/
+backups/
+archive/
+qpx_gui_runtime/
+__pycache__/
+*.pyc
+*.bak
+*.pre_symbol_config.bak
+# END QPX LOCAL GENERATED
+
+# Credentials and local environment
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*.json
+*secrets*.json
+alpaca.json
+
+# Local databases and database journals
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+
+# Generated datasets, caches, and runtime state
+qpx_bot/scenario_runtime/
+cache/
+data/
+storage/
+*.parquet
+*.feather
+*.pickle
+*.pkl
+
+# Archives and generated exports
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+QPX_PROJECT_EXPORT_*/
+QPX_STEP*_BACKUP_*/
+
+# Editor, test, and coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+*.swp
+*.swo
+*~
+
+# Additional local backup suffixes
+*.orig
