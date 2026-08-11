@@ -1,0 +1,72 @@
+{
+  "clock": {
+    "bars": 14527,
+    "first_timestamp": "2024-03-07T09:30:00-05:00",
+    "forward_fill": false,
+    "last_timestamp": "2026-08-07T15:45:00-04:00",
+    "path": "research_data/qpx_frozen_alpaca_top100_v1/clocks/finalists_top10_controls_v1.csv",
+    "qdte_coverage": 0.9579294427959116,
+    "qdte_master_bars": 15165,
+    "sessions": 600,
+    "sha256": "407101d2ff6469f8434fdff359405b26920821a8f3d0d1df2147952bd9caf7d4",
+    "synthetic_data": false,
+    "timestamp_substitution": false
+  },
+  "comparison_rules": {
+    "external_contributions": 0.0,
+    "rebalance": "THURSDAY_ONLY_WEEKLY",
+    "same_accounting": true,
+    "same_provider": true,
+    "same_starting_capital": 1300.0,
+    "same_strategy": true,
+    "same_timestamp_set": true,
+    "starting_qdte": 1300.0,
+    "starting_swing_cash": 0.0,
+    "winner_not_selected_yet": true
+  },
+  "comparison_symbol_count": 14,
+  "comparison_symbols": [
+    "TSLL",
+    "TSLT",
+    "TPET",
+    "SLS",
+    "MU",
+    "ASTS",
+    "JMIA",
+    "GME",
+    "SOFI",
+    "SEDG",
+    "QDTE",
+    "XLE",
+    "AMD",
+    "TSLA"
+  ],
+  "controls": [
+    "QDTE",
+    "XLE",
+    "AMD",
+    "TSLA"
+  ],
+  "dataset_fingerprint": "1a0d8d772b02079ee340109811d38678c73053f9a55e2fb3d3b5b96e484c5007",
+  "discovery_strategy": "Candidate V1",
+  "finalists": [
+    "TSLL",
+    "TSLT",
+    "TPET",
+    "SLS",
+    "MU",
+    "ASTS",
+    "JMIA",
+    "GME",
+    "SOFI",
+    "SEDG"
+  ],
+  "manifest_fingerprint": "7fea07bb3e25695ab5704e5c437c3db8174671708cf7132560e57c9f560e3d41",
+  "name": "alpaca_finalists_top10_controls_v1",
+  "provider": "ALPACA_SIP",
+  "ranking_objective": "NET_PORTFOLIO_PROFIT_PER_CALENDAR_YEAR",
+  "schema_version": 1,
+  "status": "IDENTICAL_CLOCK_FROZEN",
+  "window_end": "2026-08-07",
+  "window_start": "2024-03-07"
+}
