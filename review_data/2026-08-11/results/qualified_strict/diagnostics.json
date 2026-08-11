@@ -1,0 +1,33 @@
+{
+  "clock": {
+    "intersection_bars": 12049,
+    "recovered_bars": 3667,
+    "sessions": 607,
+    "union_bars": 15716
+  },
+  "equivalence_audit": {
+    "indicator_prefix_value_checks": 2100,
+    "strict_vs_legacy_strategy_checks": 200
+  },
+  "gate": {
+    "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+    "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+    "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+    "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+    "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+    "FUTURE_BAR_ACCESS": "BLOCKED",
+    "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+    "LOOKAHEAD_PROTECTION": "PASS",
+    "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+    "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+    "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+    "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+    "SYNTHETIC_FUTURE_DATA": "NONE"
+  },
+  "missing_data": {
+    "pending_wait_missing_bar": 0,
+    "stale_close_marks_for_valuation": 551,
+    "stale_open_marks_for_valuation": 102,
+    "unavailable_symbol_evaluations": 3829
+  }
+}

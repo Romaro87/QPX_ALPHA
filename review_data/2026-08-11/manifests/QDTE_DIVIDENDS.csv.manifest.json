@@ -1,0 +1,12 @@
+{
+  "cash_availability_policy": "later_of_payable_or_process_date",
+  "coverage_end": "2026-08-07",
+  "coverage_start": "2024-03-07",
+  "event_count": 124,
+  "placeholder_data": false,
+  "provider": "alpaca",
+  "schema_version": 2,
+  "source": "corporate_actions",
+  "symbol": "QDTE",
+  "synthetic_data": false
+}

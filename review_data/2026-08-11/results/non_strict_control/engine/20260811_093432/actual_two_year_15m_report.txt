@@ -1,0 +1,302 @@
+==============================================================================
+QPX BOT v1.32.0 — FIXED NEAR-TWO-YEAR 15-MINUTE SIX-POSITION BACKTEST
+==============================================================================
+Actual provider            : Alpaca SIP historical 15-minute stock/ETF bars + Alpaca corporate actions + official CboE VIX daily closes
+Actual period              : 2024-03-07 to 2026-08-07
+Warmup begins              : 2024-03-07
+Window mode                : FIXED_LOCAL_NEAR_TWO_YEAR
+Local-only data            : True
+Portfolio mode             : HYBRID_QDTE_PLUS_SWING
+Entry profile              : RELAXED_FREQUENCY_RESEARCH_V1
+Opening gap limit          : 2.00 ATR
+Risk profile               : FIXED_3PCT_10PCT_NO_KELLY_RESEARCH
+Adaptive Kelly sizing      : DISABLED
+Tax reserve profile        : NET_REALIZED_PNL_RESEARCH
+Position notional profile  : MAX_90PCT_ACCOUNT_EQUITY_ONE_SHARE_FLOOR_RESEARCH
+Position notional target   : 90.00%
+Exit hypothesis profile    : BASELINE_EXIT
+Break-even activation      : DISABLED
+Session-close flatten      : DISABLED
+Indicator initialization   : 200 common bars
+First swing entry eligible : 2024-04-17T10:30:00-04:00
+Interval                   : 15m
+Common 15-minute bars      : 12049
+Market sessions            : 596
+Expected market sessions   : 607
+Session coverage           : 98.19%
+Swing universe             : TSLL, TSLT, TPET, SLS, MU, ASTS, JMIA, GME, SOFI, SEDG, NXE, OTLK, KTOS, REPL, CLOV, TSLQ, PENG, TSLZ, BE, ABCL, PLTR, AFRM, VISN, PRME, INTC, RIVN, EOSE, YINN, BBBY, WTI, NIO, TSLA, TNYA, PRCH, DDD, DFLI, FROG, BEKE, CMPX, ALB, ACHR, PLUG, NVTS, MRNA, ASPN, GDS, SOXL, BTE, OLMA, ADMA, IAUX, HIVE, KC, ECHO, IVVD, BILL, BIDU, SGML, SGMT, VIST, VOR, CCJ, PSNL, CSIQ, TNDM, CAPR, LUMN, GCTS, ERAS, AAOI, TWLO, SOXS, BTU, TSLR, BRZE, AMD, MNSO, MNTS, VSXY, BLNK, TDUP, FLNA, QUBT, APP, AMC, USAS, STX, VSAT, QS, MIST, APPS, GGLL, VUZI, FIVN, ALKS, GGAL, CGTX, EVLV, MVST, HURA
+Income sleeve              : QDTE
+Volatility series          : CBOE_VIX_PREVIOUS_SESSION_CLOSE
+VIX observation timing      : PREVIOUS_COMPLETED_SESSION_DAILY_CLOSE
+Rankings enabled           : False
+Concurrent swing slots     : 6
+Maximum positions observed : 6
+Initial QDTE seed          : $1,300.00
+Initial swing liquidity    : $0.00
+Initial total capital      : $1,300.00
+Monthly contribution       : $0.00
+Monthly contributions made : 0
+Total contributed capital  : $1,300.00
+Ending account equity      : $16,485.76
+Net profit                 : $15,185.76
+Return on contributions    : 1168.14%
+Flow-adjusted total return : 1168.14%
+Flow-adjusted CAGR         : 192.71%
+Maximum drawdown           : 30.47%
+Annualized volatility      : 47.78%
+Sharpe / Sortino           : 2.485 / 4.631
+Swing exposure             : 81.77%
+Ending QDTE value          : $1,330.34
+Ending QDTE weight         : 12.09%
+Ending swing equity        : $15,155.42
+Ending swing cash          : $9,670.98
+Tax reserve cash           : $5,484.44
+Tax reserve released       : $17,702.89
+Legacy combined P&L        : $14,822.81
+Closed swing-trade P&L     : $14,924.20
+Income rebalance P&L       : $-101.38
+Total realized P&L         : $14,822.81
+Actual QDTE distributions  : $524.23 (121 events)
+All-symbol evaluations     : 1184900
+Qualifying signal bars     : 10835
+Staged / filled entries    : 6989 / 1710
+Capacity deferred          : 2405
+Notional cap adjustments   : 0
+One-share floor uses       : 0
+Break-even stop activations: 0
+Session-close exits        : 0
+Gap / risk rejections      : 271 / 5008
+Risk rejection reasons:
+  No available capital.: 155
+  Risk budget or cash is too small for one share.: 4853
+Risk rejection diagnostics:
+  CASH_BELOW_ONE_SHARE: 4853
+  No available capital.: 155
+Exit reason counts:
+  ATR_STOP: 1007
+  ATR_TARGET: 392
+  END_OF_TEST: 4
+  STOP_GAP: 203
+  TARGET_GAP: 104
+Closed swing trades        : 1710
+Win rate / profit factor   : 49.06% / 1.313
+Qualifying bars by symbol:
+  TSLL: 197
+  TSLT: 149
+  TPET: 19
+  SLS: 132
+  MU: 227
+  ASTS: 223
+  JMIA: 151
+  GME: 181
+  SOFI: 225
+  SEDG: 174
+  NXE: 182
+  OTLK: 61
+  KTOS: 112
+  REPL: 61
+  CLOV: 225
+  TSLQ: 91
+  PENG: 28
+  TSLZ: 86
+  BE: 243
+  ABCL: 167
+  PLTR: 274
+  AFRM: 221
+  VISN: 208
+  PRME: 107
+  INTC: 178
+  RIVN: 229
+  EOSE: 229
+  YINN: 66
+  BBBY: 84
+  WTI: 68
+  NIO: 156
+  TSLA: 214
+  TNYA: 99
+  PRCH: 47
+  DDD: 124
+  DFLI: 7
+  FROG: 40
+  BEKE: 110
+  CMPX: 42
+  ALB: 90
+  ACHR: 192
+  PLUG: 205
+  NVTS: 152
+  MRNA: 189
+  ASPN: 26
+  GDS: 28
+  SOXL: 246
+  BTE: 175
+  OLMA: 18
+  ADMA: 100
+  IAUX: 188
+  HIVE: 171
+  KC: 48
+  ECHO: 95
+  IVVD: 47
+  BILL: 48
+  BIDU: 89
+  SGML: 50
+  SGMT: 11
+  VIST: 9
+  VOR: 10
+  CCJ: 194
+  PSNL: 36
+  CSIQ: 41
+  TNDM: 10
+  CAPR: 26
+  LUMN: 199
+  GCTS: 25
+  ERAS: 101
+  AAOI: 163
+  TWLO: 54
+  SOXS: 25
+  BTU: 126
+  TSLR: 52
+  BRZE: 22
+  AMD: 186
+  MNSO: 9
+  MNTS: 15
+  VSXY: 76
+  BLNK: 124
+  TDUP: 28
+  FLNA: 30
+  QUBT: 149
+  APP: 245
+  AMC: 153
+  USAS: 72
+  STX: 160
+  VSAT: 74
+  QS: 228
+  MIST: 21
+  APPS: 148
+  GGLL: 26
+  VUZI: 48
+  FIVN: 34
+  ALKS: 13
+  GGAL: 12
+  CGTX: 57
+  EVLV: 71
+  MVST: 147
+  HURA: 11
+Closed trades by symbol:
+  TSLL: 19
+  TSLT: 10
+  TPET: 9
+  SLS: 33
+  MU: 18
+  ASTS: 25
+  JMIA: 27
+  GME: 20
+  SOFI: 24
+  SEDG: 21
+  NXE: 39
+  OTLK: 18
+  KTOS: 8
+  REPL: 18
+  CLOV: 59
+  TSLQ: 8
+  PENG: 3
+  TSLZ: 20
+  BE: 25
+  ABCL: 34
+  PLTR: 26
+  AFRM: 22
+  VISN: 45
+  PRME: 15
+  INTC: 13
+  RIVN: 34
+  EOSE: 44
+  YINN: 8
+  BBBY: 10
+  WTI: 24
+  NIO: 35
+  TSLA: 10
+  TNYA: 42
+  PRCH: 9
+  DDD: 27
+  DFLI: 1
+  FROG: 4
+  BEKE: 11
+  CMPX: 12
+  ALB: 5
+  ACHR: 28
+  PLUG: 46
+  NVTS: 20
+  MRNA: 20
+  ASPN: 4
+  GDS: 5
+  SOXL: 28
+  BTE: 59
+  OLMA: 4
+  ADMA: 15
+  IAUX: 70
+  HIVE: 44
+  KC: 7
+  ECHO: 4
+  IVVD: 12
+  BILL: 6
+  BIDU: 8
+  SGML: 8
+  SGMT: 2
+  VIST: 1
+  VOR: 1
+  CCJ: 16
+  PSNL: 8
+  CSIQ: 5
+  TNDM: 1
+  CAPR: 4
+  LUMN: 32
+  GCTS: 8
+  ERAS: 20
+  AAOI: 18
+  TWLO: 8
+  SOXS: 5
+  BTU: 12
+  TSLR: 4
+  BRZE: 1
+  AMD: 11
+  MNSO: 2
+  MNTS: 2
+  VSXY: 9
+  BLNK: 32
+  TDUP: 3
+  FLNA: 6
+  QUBT: 21
+  APP: 25
+  AMC: 35
+  USAS: 9
+  STX: 8
+  VSAT: 7
+  QS: 33
+  MIST: 4
+  APPS: 32
+  GGLL: 6
+  VUZI: 14
+  FIVN: 4
+  ALKS: 2
+  GGAL: 1
+  CGTX: 13
+  EVLV: 16
+  MVST: 43
+  HURA: 3
+Failed checks across all symbols (counts overlap):
+  price_breakout: 1088409
+  breakout_volume: 782876
+  price_above_sma: 601125
+  sma_slope_positive: 592445
+  momentum_trigger: 579421
+  average_volume: 495984
+  candidate_vix_20_25_exclusion: 174400
+  rsi_not_overbought: 38897
+  vix_filter: 16500
+Allocation anniversary rule : EXACT_DATE
+Forced entries              : DISABLED
+Placeholder data            : DISABLED
+Synthetic data              : DISABLED
+Live brokerage              : DISABLED
+==============================================================================
+The run aborts rather than substituting daily, synthetic, interpolated, or placeholder market data.
+Historical research does not guarantee future performance.
