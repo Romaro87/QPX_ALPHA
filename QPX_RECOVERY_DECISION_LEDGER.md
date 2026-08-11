@@ -1142,3 +1142,41 @@ Strict replay ending equity $14,510.45; net profit $13,210.45; CAGR 172.25%; max
 Preserved non-strict control ending equity $16,485.76; CAGR 192.71%; maximum drawdown 30.47%.
 Strict architecture materially changed results but Candidate V1 remained profitable. Full qualification remains pending corporate-action cash timing.
 Live Alpaca QDTE corporate-action records verified fields: ex_date, record_date, payable_date, process_date, rate.
+
+<!-- QPX_PRE_CODEX_GRANULAR_CHECKPOINT_20260811 -->
+# PRE-CODEX MAXIMUM-GRANULARITY CONTEXT CHECKPOINT — 2026-08-11
+
+**STATUS: USER_CONFIRMED + RECOVERED_CONTEXT**
+
+Permanent rule added:
+
+- every context/recovery uses maximum available granularity
+- preserve as much actual conversation as available
+- append conversation deltas to daily journal
+- active-work checkpoint target approximately every 5 minutes
+- ten minutes is the upper target ceiling
+- major decisions/tests/errors/code/workflow changes trigger immediate
+  checkpoint
+- user must not have to re-explain current QPX state
+
+Daily journal:
+
+`QPX_CONVERSATION_JOURNAL_2026-08-11.md`
+
+Pre-Codex checkpoint:
+
+`QPX_SESSION_CHECKPOINT_2026-08-11_PRE_CODEX.md`
+
+Current workflow transition:
+
+normal ChatGPT GitHub integration reads the repository successfully but
+direct write attempts returned HTTP 403.
+
+Next workflow step:
+
+configure Codex with `Romaro87/QPX_ALPHA` after this checkpoint is pushed.
+
+Current technical next milestone after workflow setup:
+
+freeze authentic QDTE dividend payment/cash-availability timing and rerun
+strict-causal Candidate V1.

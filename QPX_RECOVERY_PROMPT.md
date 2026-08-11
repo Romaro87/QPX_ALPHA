@@ -181,3 +181,28 @@ Target report:
 - EXECUTION TIMING: VERIFIED
 
 Resume from this audit unless the user explicitly redirects.
+
+<!-- QPX_PRE_CODEX_RESUME_POINT_20260811 -->
+# PRE-CODEX RESUME POINT — 2026-08-11
+
+Before asking the user any QPX-history question, read:
+
+1. `QPX_SESSION_CHECKPOINT_2026-08-11_PRE_CODEX.md`
+2. `QPX_CONVERSATION_JOURNAL_2026-08-11.md`
+3. `QPX_RECOVERY_DECISION_LEDGER.md`
+4. `QPX_CONTEXT_CONTINUITY_RULE.md`
+
+Maximum granularity is mandatory.
+
+Preserve as much actual conversation as available.
+
+During active work checkpoint approximately every five minutes and no later
+than the ten-minute target ceiling, or immediately after a major event.
+
+Current workflow action:
+
+**configure Codex GitHub access after this checkpoint is safely pushed**
+
+Current next technical QPX milestone after Codex setup:
+
+**authentic QDTE dividend cash timing → strict-causal Candidate V1 rerun**
