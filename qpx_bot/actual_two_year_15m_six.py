@@ -252,6 +252,51 @@ class SignalRecord:
     tie_key: str
 
 
+def _realized_pnl_breakdown(
+    *,
+    trade_records: Sequence[TradeRecord],
+    allocation_records: Sequence[AllocationRecord],
+    portfolio_realized_pnl: float,
+) -> tuple[float, float, float]:
+    """Separate swing-trade and income-rebalance realized P&L."""
+    closed_swing_trade_pnl = sum(
+        float(trade.pnl)
+        for trade in trade_records
+    )
+
+    income_rebalance_realized_pnl = sum(
+        float(record.realized_pnl)
+        for record in allocation_records
+    )
+
+    total_realized_pnl = (
+        closed_swing_trade_pnl
+        + income_rebalance_realized_pnl
+    )
+
+    if not math.isclose(
+        total_realized_pnl,
+        float(portfolio_realized_pnl),
+        rel_tol=0.0,
+        abs_tol=1e-7,
+    ):
+        raise RuntimeError(
+            "Realized P&L accounting invariant failed: "
+            f"swing={closed_swing_trade_pnl:.10f}, "
+            f"income_rebalance="
+            f"{income_rebalance_realized_pnl:.10f}, "
+            f"components_total={total_realized_pnl:.10f}, "
+            f"portfolio_total="
+            f"{float(portfolio_realized_pnl):.10f}"
+        )
+
+    return (
+        closed_swing_trade_pnl,
+        income_rebalance_realized_pnl,
+        total_realized_pnl,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class BacktestResult:
     generated_at_utc: str
@@ -270,7 +315,14 @@ class BacktestResult:
     kelly_enabled: bool
     tax_reserve_profile: str
     tax_reserve_released: float
+    # Deprecated compatibility field: historically combined
+    # swing-trade and income-rebalance realized P&L.
     realized_swing_pnl: float
+
+    closed_swing_trade_pnl: float
+    income_rebalance_realized_pnl: float
+    total_realized_pnl: float
+
     notional_profile: str
     maximum_position_notional_fraction: float
     notional_cap_adjustments: int
@@ -2982,8 +3034,20 @@ def _format_report(
                 f"${result.tax_reserve_released:,.2f}"
             ),
             (
-                "Realized swing P&L         : "
+                "Legacy combined P&L        : "
                 f"${result.realized_swing_pnl:,.2f}"
+            ),
+            (
+                "Closed swing-trade P&L     : "
+                f"${result.closed_swing_trade_pnl:,.2f}"
+            ),
+            (
+                "Income rebalance P&L       : "
+                f"${result.income_rebalance_realized_pnl:,.2f}"
+            ),
+            (
+                "Total realized P&L         : "
+                f"${result.total_realized_pnl:,.2f}"
             ),
             (
                 "Actual QDTE distributions  : "
@@ -4896,6 +4960,19 @@ def run_backtest(
         ending_equity
         - total_contributions
     )
+
+    (
+        closed_swing_trade_pnl,
+        income_rebalance_realized_pnl,
+        total_realized_pnl,
+    ) = _realized_pnl_breakdown(
+        trade_records=trade_records,
+        allocation_records=allocation_records,
+        portfolio_realized_pnl=(
+            portfolio.realized_pnl
+        ),
+    )
+
     result = BacktestResult(
         generated_at_utc=datetime.now(
             timezone.utc
@@ -4942,6 +5019,15 @@ def run_backtest(
         ),
         realized_swing_pnl=(
             portfolio.realized_pnl
+        ),
+        closed_swing_trade_pnl=(
+            closed_swing_trade_pnl
+        ),
+        income_rebalance_realized_pnl=(
+            income_rebalance_realized_pnl
+        ),
+        total_realized_pnl=(
+            total_realized_pnl
         ),
         notional_profile=notional_profile,
         maximum_position_notional_fraction=(

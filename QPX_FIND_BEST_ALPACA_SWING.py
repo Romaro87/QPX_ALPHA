@@ -1156,9 +1156,12 @@ def run_one(
             )
 
             swing_pnl = float(
-                result[
-                    "realized_swing_pnl"
-                ]
+                result.get(
+                    "closed_swing_trade_pnl",
+                    result[
+                        "realized_swing_pnl"
+                    ],
+                )
             )
 
             return {

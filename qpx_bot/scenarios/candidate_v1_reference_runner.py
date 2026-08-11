@@ -467,8 +467,18 @@ print(
 )
 
 print(
-    f"Realized swing P&L    : "
-    f"${result.realized_swing_pnl:,.2f}"
+    f"Closed swing P&L      : "
+    f"${result.closed_swing_trade_pnl:,.2f}"
+)
+
+print(
+    f"QDTE rebalance P&L    : "
+    f"${result.income_rebalance_realized_pnl:,.2f}"
+)
+
+print(
+    f"Total realized P&L    : "
+    f"${result.total_realized_pnl:,.2f}"
 )
 
 print(
