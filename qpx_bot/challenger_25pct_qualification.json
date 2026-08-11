@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "variant": "challenger_25pct_account_sized_strict_causal_v1",
+  "baseline_commit": "7213db1e17fedce9e923889b116775cca121f766",
+  "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+  "maximum_position_notional_fraction": 0.25,
+  "starting_qdte_value": 1438.0,
+  "starting_swing_cash": 5.34,
+  "starting_total_equity": 1443.34,
+  "qualification_periods": {
+    "p1_2024": ["2024-03-07", "2024-12-31"],
+    "p2_2025": ["2025-01-02", "2025-12-31"],
+    "p3_2026": ["2026-01-02", "2026-08-07"],
+    "e2_through_2025": ["2024-03-07", "2025-12-31"]
+  }
+}
