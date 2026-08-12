@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "protected_scopes": [
+    {
+      "name": "candidate_v1",
+      "authoritative_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "protected_files": [
+        "QPX_FREEZE_TOP100_ALPACA_DATA.py",
+        "QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL.py",
+        "docs/CANDIDATE_V1_STRICT_CAUSAL_QUALIFICATION_2026-08-11.md",
+        "qpx_bot/alpaca_dividends.py",
+        "qpx_bot/causal_dividends.py",
+        "tests/test_causal_dividends.py"
+      ]
+    },
+    {
+      "name": "fixed_25pct_challenger",
+      "authoritative_commit": "bba0f48273815ede42374015db7c5770bf446962",
+      "protected_files": [
+        "QPX_RUN_CHALLENGER_25PCT_QUALIFICATION.py",
+        "QPX_RUN_CHALLENGER_ACCOUNT_ROBUSTNESS.py",
+        "QPX_RUN_CHALLENGER_ACCOUNT_SIZED.py",
+        "QPX_RUN_CHALLENGER_NOTIONAL_CAP.py",
+        "QPX_RUN_CHALLENGER_ROBUSTNESS.py",
+        "docs/CHALLENGER_25PCT_STRICT_CAUSAL_QUALIFICATION_2026-08-11.md",
+        "qpx_bot/challenger_25pct_qualification.json",
+        "tests/test_challenger_25pct_qualification.py",
+        "tests/test_challenger_account_robustness.py",
+        "tests/test_challenger_account_sized.py",
+        "tests/test_challenger_notional_cap.py",
+        "tests/test_challenger_robustness.py"
+      ],
+      "explicit_exceptions": [
+        {
+          "path": "QPX_RUN_CHALLENGER_25PCT_QUALIFICATION.py",
+          "reason": "The formal verifier is the provenance mechanism corrected after bba0f48. Only the two declared text replacements are allowed; every other byte remains anchored to bba0f48.",
+          "text_replacements": [
+            {
+              "authoritative": "import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict\n",
+              "corrected": "import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict\nfrom qpx_bot.qualification_provenance import verify_immutable_provenance\n"
+            },
+            {
+              "authoritative": "    tracked_tree = account.challenger._git(\"diff\", \"--quiet\", BASELINE_COMMIT, \"--\")\n    if tracked_tree.returncode != 0:\n        raise RuntimeError(\"Tracked Candidate V1 tree differs from baseline commit.\")\n",
+              "corrected": "    verify_immutable_provenance()\n"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

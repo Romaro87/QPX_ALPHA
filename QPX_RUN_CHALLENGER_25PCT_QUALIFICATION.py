@@ -13,6 +13,7 @@ from pathlib import Path
 import QPX_RUN_CHALLENGER_ACCOUNT_ROBUSTNESS as robustness
 import QPX_RUN_CHALLENGER_ACCOUNT_SIZED as account
 import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict
+from qpx_bot.qualification_provenance import verify_immutable_provenance
 
 
 ROOT = Path(__file__).resolve().parent
@@ -55,9 +56,7 @@ def sha256_file(path: Path) -> str:
 
 def verify_fixed_definition() -> None:
     account.challenger.verify_immutable_baseline()
-    tracked_tree = account.challenger._git("diff", "--quiet", BASELINE_COMMIT, "--")
-    if tracked_tree.returncode != 0:
-        raise RuntimeError("Tracked Candidate V1 tree differs from baseline commit.")
+    verify_immutable_provenance()
     if account.challenger.BASELINE_COMMIT != BASELINE_COMMIT:
         raise RuntimeError("Unexpected Candidate V1 baseline commit.")
     if account.CONFIGURATIONS[CONFIGURATION] != MAXIMUM_POSITION_NOTIONAL_FRACTION:
