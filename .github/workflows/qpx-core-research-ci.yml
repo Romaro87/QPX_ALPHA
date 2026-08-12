@@ -1,0 +1,48 @@
+name: QPX Core Research CI
+
+on:
+  push:
+    branches:
+      - main
+      - qpx-dynamic-sizing-v1-review-2026-08-11
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-research-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out complete repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run offline causal, qualification, provenance, and research tests
+        run: |
+          python -m unittest -v \
+            tests.test_candidate_v1_causal \
+            tests.test_causal_dividends \
+            tests.test_causal_replay \
+            tests.test_challenger_25pct_qualification \
+            tests.test_challenger_account_sized \
+            tests.test_challenger_account_robustness \
+            tests.test_challenger_notional_cap \
+            tests.test_challenger_robustness \
+            tests.test_qualification_provenance \
+            tests.test_provenance_bootstrap_integrity \
+            tests.test_dynamic_sizing \
+            tests.test_dynamic_sizing_integration \
+            tests.test_dynamic_sizing_robustness \
+            tests.test_dynamic_sizing_paired_caps
