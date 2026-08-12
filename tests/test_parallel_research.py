@@ -40,6 +40,9 @@ class ParallelResearchTests(unittest.TestCase):
    runner=self.runner((job,),1)
    with self.assertRaises(ParallelResearchError):runner.run()
    self.assertEqual(runner.records[job.job_id].status,"FAILED")
+ def test_cli_manifest_accepts_explicit_ids_and_runs_all_jobs(self):
+  import subprocess,sys
+  jobs=(self.job("cli_a"),self.job("cli_b"));manifest=self.root/"cli.json";manifest.write_text(json.dumps({"jobs":[x.identity_payload|{"job_id":x.job_id} for x in jobs]}));result=subprocess.run([sys.executable,"QPX_RUN_PARALLEL_RESEARCH.py",str(manifest),"--workers","2"],cwd=Path.cwd(),capture_output=True,text=True);self.assertEqual(result.returncode,0,result.stderr);aggregate=json.loads((self.root/"cli_aggregate.json").read_text());self.assertEqual(len(aggregate["jobs"]),2)
  def test_default_workers_is_conservative(self):
   with patch("os.cpu_count",return_value=64):self.assertEqual(__import__("qpx_bot.research_parallel.orchestrator",fromlist=["default_workers"]).default_workers(),4)
   with patch("os.cpu_count",return_value=None):self.assertEqual(__import__("qpx_bot.research_parallel.orchestrator",fromlist=["default_workers"]).default_workers(),1)
