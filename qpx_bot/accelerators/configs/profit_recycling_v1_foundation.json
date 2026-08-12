@@ -1,1 +1,1 @@
-{"enabled":false,"accelerator_version":"1.0.0","configuration_version":"profit-recycling-foundation-disabled-v1","policy_identity":null}
+{"enabled":false,"accelerator_version":"1.0.0","configuration_version":"profit-recycling-foundation-disabled-v1","policy_identity":null,"recycling_fraction":0.0,"minimum_recyclable_profit_dollars":0.0,"loss_recovery_mode":"NONE","redeployment_delay":0,"redeployment_delay_unit":"EVENTS","destination":"SWING_REDEPLOYMENT_POOL","eligible_profit_sources":["SWING_REALIZED_PROFIT"]}
