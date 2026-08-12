@@ -45,13 +45,12 @@ class PyramidingDecision:
 class PyramidingV1:
  def __init__(self,config:PyramidingConfig): config.validate(); self.config=config
  def decide(self,c:PyramidingContext)->PyramidingDecision:
-  cfg=self.config; target=math.floor(c.original_entry_shares*cfg.addition_fraction); reasons=[]; accepted=target
+  cfg=self.config; target=max(1,math.floor(c.original_entry_shares*cfg.addition_fraction)); reasons=[]; accepted=target
   if not cfg.enabled: accepted=0; reasons=["DISABLED_NO_OP"]
   elif c.current_atr is None: accepted=0; reasons=["MISSING_ATR_FAIL_CLOSED"]
   elif c.additions_count>=cfg.maximum_additions: accepted=0; reasons=["MAXIMUM_ADDITIONS_REACHED"]
   elif c.current_price<=c.original_entry_price: accepted=0; reasons=["POSITION_NOT_WINNING"]
   elif c.current_price+1e-12 < c.pyramid_anchor_price+c.current_atr*cfg.trigger_atr_multiple: accepted=0; reasons=["TRIGGER_NOT_REACHED"]
-  elif target<1: accepted=0; reasons=["BELOW_ONE_SHARE_FAIL_CLOSED"]
   else:
    cap_shares=max(0,math.floor(c.decision_time_total_equity*c.hard_notional_cap/c.execution_price)-c.current_shares)
    cash_shares=max(0,math.floor(c.available_cash/c.execution_price))

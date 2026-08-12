@@ -12,9 +12,9 @@ class PyramidingTests(unittest.TestCase):
  def test_trigger_boundary_and_no_averaging_down(self):
   self.assertFalse(self.a.decide(context(current_price=109.999)).accepted);self.assertTrue(self.a.decide(context()).accepted)
   for price in (99.0,100.0):self.assertFalse(self.a.decide(context(current_price=price,current_atr=.1)).accepted)
- def test_half_original_integer_and_below_one_fail_closed(self):
+ def test_half_original_integer_and_minimum_one_share(self):
   self.assertEqual(self.a.decide(context(original_entry_shares=11)).accepted_shares,5)
-  self.assertIn("BELOW_ONE_SHARE_FAIL_CLOSED",self.a.decide(context(original_entry_shares=1)).reason_codes)
+  self.assertEqual(self.a.decide(context(original_entry_shares=1)).accepted_shares,1)
  def test_two_additions_and_reset_anchor(self):
   self.assertIn("MAXIMUM_ADDITIONS_REACHED",self.a.decide(context(additions_count=2)).reason_codes)
   self.assertFalse(self.a.decide(context(additions_count=1,pyramid_anchor_price=110,current_price=119.9)).accepted)

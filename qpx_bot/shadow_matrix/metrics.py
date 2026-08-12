@@ -129,6 +129,12 @@ class ShadowMetrics:
         self.accelerator_interventions += count
 
     def record_pyramid_decision(self, *, accepted_shares: int, notional: float, reasons: tuple[str, ...]) -> None:
+        if type(accepted_shares) is not int or accepted_shares < 0:
+            raise ValueError("Accepted pyramid shares must be a non-negative integer.")
+        if not math.isfinite(notional) or notional < 0:
+            raise ValueError("Pyramid notional must be finite and non-negative.")
+        if accepted_shares == 0 and notional != 0:
+            raise ValueError("Rejected pyramid decisions cannot add notional.")
         self.pyramid_opportunities_considered += 1
         if accepted_shares > 0:
             self.pyramid_additions_accepted += 1
@@ -139,6 +145,8 @@ class ShadowMetrics:
         for reason in reasons:
             if reason != "PYRAMID_ADDITION_ACCEPTED":
                 self.pyramid_rejection_reason_counts[reason] = self.pyramid_rejection_reason_counts.get(reason, 0) + 1
+            if reason == "MAXIMUM_ADDITIONS_REACHED":
+                self.maximum_pyramid_additions_reached_count += 1
 
     def record_pyramid_pnl(self, pnl: float) -> None:
         if not math.isfinite(pnl):
@@ -160,7 +168,8 @@ class ShadowMetrics:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ShadowMetrics":
         expected = set(cls.__dataclass_fields__)
-        if set(payload) != expected:
+        pyramid_fields = {name for name in expected if name.startswith("pyramid_") or name == "maximum_pyramid_additions_reached_count"}
+        if not set(payload).issubset(expected) or not expected - pyramid_fields <= set(payload):
             raise ValueError("Shadow metrics schema differs from checkpoint schema.")
         return cls(**payload)
 

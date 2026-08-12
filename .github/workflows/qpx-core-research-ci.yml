@@ -51,4 +51,6 @@ jobs:
             tests.test_shadow_matrix_engine \
             tests.test_shadow_matrix_state_isolation \
             tests.test_shadow_matrix_recovery_observability \
-            tests.test_shadow_matrix_dynamic_source
+            tests.test_shadow_matrix_dynamic_source \
+            tests.test_pyramiding \
+            tests.test_shadow_matrix_pyramiding

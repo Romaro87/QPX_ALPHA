@@ -11,7 +11,7 @@ from qpx_bot.shadow_matrix.models import AcceleratorSnapshot,ShadowConfiguration
 DEFAULT_CONFIG_PATH=Path(__file__).with_name("configs")/"shadow_matrix_v1.json"
 PYRAMID_CONFIG_PATH=Path(__file__).with_name("configs")/"pyramiding_shadows_v1.json"
 LEGACY_IDS=("permanent_control","fixed_25","dynamic_25","fixed_40","dynamic_40","fixed_60","dynamic_60","fixed_90","dynamic_90")
-PYRAMID_IDS=("pyramid_25","dynamic_pyramid_25","pyramid_40","dynamic_pyramid_40","pyramid_60","dynamic_pyramid_60","pyramid_90","dynamic_pyramid_90")
+PYRAMID_IDS=("pyramid_25","pyramid_40","pyramid_60","pyramid_90","dynamic_pyramid_25","dynamic_pyramid_40","dynamic_pyramid_60","dynamic_pyramid_90")
 EXPECTED_IDS=LEGACY_IDS+PYRAMID_IDS
 @dataclass(frozen=True,slots=True)
 class ShadowRegistry:
@@ -26,8 +26,9 @@ class ShadowRegistry:
   for cap in (25,40,60,90):
    names=(f"fixed_{cap}",f"dynamic_{cap}",f"pyramid_{cap}",f"dynamic_pyramid_{cap}")
    if any(d[n].hard_notional_cap!=cap/100 for n in names):raise ValueError("Hard-cap family mismatch.")
+   immutable_fields=("strategy_id","strategy_reference_commit","starting_state_profile","starting_qdte_value","starting_swing_cash","starting_total_equity","hard_notional_cap")
    for name in names:
-    if d[name].strategy_id!=d[f"fixed_{cap}"].strategy_id or d[name].starting_state_profile!=d[f"fixed_{cap}"].starting_state_profile:raise ValueError("Shadow family differs outside accelerators.")
+    if any(getattr(d[name],field)!=getattr(d[f"fixed_{cap}"],field) for field in immutable_fields):raise ValueError("Shadow family differs outside accelerators.")
    enabled={n:{a.name:a.enabled for a in d[n].accelerators} for n in names}
    expected={names[0]:{"dynamic_sizing":False,"pyramiding":False},names[1]:{"dynamic_sizing":True,"pyramiding":False},names[2]:{"dynamic_sizing":False,"pyramiding":True},names[3]:{"dynamic_sizing":True,"pyramiding":True}}
    if enabled!=expected:raise ValueError("Accelerator combination matrix differs.")
