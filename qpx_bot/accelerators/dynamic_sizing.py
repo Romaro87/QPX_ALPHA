@@ -57,8 +57,8 @@ class DynamicSizingConfig:
             raise ValueError("Risk-tier thresholds must be strictly increasing.")
         if type(self.maximum_position_notional_fraction) not in (int, float):
             raise ValueError("Maximum notional fraction must be numeric.")
-        if not 0 < self.maximum_position_notional_fraction <= 0.25:
-            raise ValueError("Maximum notional fraction must be in (0, 0.25].")
+        if not 0 < self.maximum_position_notional_fraction <= 0.90:
+            raise ValueError("Maximum notional fraction must be in (0, 0.90].")
 
     @property
     def fingerprint(self) -> str:

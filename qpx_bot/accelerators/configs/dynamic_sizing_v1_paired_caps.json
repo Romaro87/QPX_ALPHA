@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "algorithm": "dynamic_sizing",
+  "accelerator_version": "1.0.0",
+  "source_configuration": "dynamic_sizing_v1.json",
+  "only_treatment_variable": "maximum_position_notional_fraction",
+  "caps": {
+    "25": {
+      "fraction": 0.25,
+      "account_configuration": "cap_25pct",
+      "configuration_version": "dynamic-sizing-risk-utilization-v1"
+    },
+    "40": {
+      "fraction": 0.40,
+      "account_configuration": "cap_40pct",
+      "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct"
+    },
+    "60": {
+      "fraction": 0.60,
+      "account_configuration": "cap_60pct",
+      "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct"
+    },
+    "90": {
+      "fraction": 0.90,
+      "account_configuration": "baseline",
+      "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct"
+    }
+  }
+}

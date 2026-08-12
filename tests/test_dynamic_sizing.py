@@ -120,7 +120,7 @@ class DynamicSizingV1Tests(unittest.TestCase):
         original = json.loads(CONFIG.read_text(encoding="utf-8"))
         invalid = (
             {**original, "accelerator_version": ""},
-            {**original, "maximum_position_notional_fraction": 0.250001},
+            {**original, "maximum_position_notional_fraction": 0.900001},
             {**original, "risk_tiers": [
                 {"upper_bound": 0.50, "multiplier": 1.0},
                 {"upper_bound": 0.25, "multiplier": 0.85},

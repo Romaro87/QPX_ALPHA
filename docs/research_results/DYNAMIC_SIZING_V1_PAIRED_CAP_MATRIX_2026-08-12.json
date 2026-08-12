@@ -1,0 +1,4848 @@
+{
+  "cap_order": [
+    "25",
+    "40",
+    "60",
+    "90"
+  ],
+  "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+  "experiment": "dynamic_sizing_v1_paired_hard_cap_matrix",
+  "identical_algorithm_tiers": [
+    {
+      "multiplier": 1.0,
+      "upper_bound": 0.25
+    },
+    {
+      "multiplier": 0.85,
+      "upper_bound": 0.5
+    },
+    {
+      "multiplier": 0.7,
+      "upper_bound": 0.75
+    },
+    {
+      "multiplier": 0.5,
+      "upper_bound": null
+    }
+  ],
+  "matrix": {
+    "e2_through_2025": {
+      "25": {
+        "comparison": {
+          "ending_equity_difference": 777.9814297915982,
+          "eod_drawdown_difference": 0.027438907850445615,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.02779162812600594,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "dynamic",
+          "total_return_difference": 0.5390146672243272
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 2195,
+            "maximum_observed_active_portfolio_risk": 465.49653889,
+            "maximum_observed_position_notional_fraction": 0.24999775154356246,
+            "multiplier_distribution": {
+              "0.7": 8,
+              "0.85": 203,
+              "1.0": 1984
+            },
+            "percent_reduced": 0.09612756264236902,
+            "prevented_below_one_share": 43,
+            "reduced_count": 211,
+            "unchanged_count": 1984
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -146.20354125,
+              "shares": 13,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 6.304725,
+              "entry_timestamp": "2025-11-14T09:45:00-05:00",
+              "exit_price": 5.8317453,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-14T09:45:00-05:00",
+              "pnl": -244.5305026,
+              "shares": 517,
+              "symbol": "SGML"
+            },
+            "maximum_single_name_exposure_fraction": 0.25634006717385677,
+            "maximum_single_name_exposure_symbol": "QUBT",
+            "maximum_single_name_exposure_timestamp": "2024-11-11T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 1674,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1621,
+                "Dynamic Sizing adjusted below one share.": 43,
+                "No available capital.": 10
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.606323800073326,
+            "capacity_deferrals": 3142,
+            "closed_trades": 2152,
+            "ending_equity": 14777.504238897573,
+            "eod_maximum_drawdown": 0.2146520392155027,
+            "intraday_maximum_drawdown": 0.23209365085542702,
+            "maximum_observed_active_portfolio_risk": 465.49653889,
+            "maximum_observed_position_notional_fraction": 0.24999775154356246,
+            "net_profit": 13334.164238897572,
+            "profit_factor": 1.5026543042929565,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 364.8973676372376,
+            "risk_rejections": 1674,
+            "sharpe": 3.3093813777815955,
+            "sortino": 6.809480138777556,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 9.238408302200124,
+            "win_rate": 0.5069702602230484
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -146.20354125,
+              "shares": 13,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 6.304725,
+              "entry_timestamp": "2025-11-14T09:45:00-05:00",
+              "exit_price": 5.8317453,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-14T09:45:00-05:00",
+              "pnl": -234.59792899,
+              "shares": 496,
+              "symbol": "SGML"
+            },
+            "maximum_single_name_exposure_fraction": 0.2577522646484174,
+            "maximum_single_name_exposure_symbol": "ASTS",
+            "maximum_single_name_exposure_timestamp": "2024-07-31T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1850,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1846,
+                "No available capital.": 4
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.5003622194610444,
+            "capacity_deferrals": 3066,
+            "closed_trades": 2100,
+            "ending_equity": 13999.522809105974,
+            "eod_maximum_drawdown": 0.18721313136505707,
+            "intraday_maximum_drawdown": 0.20430202272942108,
+            "maximum_observed_active_portfolio_risk": 472.028333,
+            "maximum_observed_position_notional_fraction": 0.2577522646484174,
+            "net_profit": 12556.182809105974,
+            "profit_factor": 1.464354143793073,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 364.1671658710343,
+            "risk_rejections": 1850,
+            "sharpe": 3.232703496659727,
+            "sortino": 6.517740177774496,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 8.699393634975797,
+            "win_rate": 0.5057142857142857
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "40": {
+        "comparison": {
+          "ending_equity_difference": 2343.425508873426,
+          "eod_drawdown_difference": 0.039663889387384355,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.03313486943844818,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "dynamic",
+          "total_return_difference": 1.6236129455799944
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 1907,
+            "maximum_observed_active_portfolio_risk": 429.59096917,
+            "maximum_observed_position_notional_fraction": 0.39999944461065884,
+            "multiplier_distribution": {
+              "0.7": 7,
+              "0.85": 258,
+              "1.0": 1642
+            },
+            "percent_reduced": 0.13896171997902465,
+            "prevented_below_one_share": 70,
+            "reduced_count": 265,
+            "unchanged_count": 1642
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -224.928525,
+              "shares": 20,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 967.72525,
+              "entry_timestamp": "2025-11-21T09:45:00-05:00",
+              "exit_price": 907.47967531,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-21T12:00:00-05:00",
+              "pnl": -301.22787346,
+              "shares": 5,
+              "symbol": "SOXS"
+            },
+            "maximum_single_name_exposure_fraction": 0.41106171207135783,
+            "maximum_single_name_exposure_symbol": "MRNA",
+            "maximum_single_name_exposure_timestamp": "2024-05-24T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 3058,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 2932,
+                "Dynamic Sizing adjusted below one share.": 70,
+                "No available capital.": 56
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.4853324836684583,
+            "capacity_deferrals": 2347,
+            "closed_trades": 1837,
+            "ending_equity": 13890.703014762561,
+            "eod_maximum_drawdown": 0.34042264169406833,
+            "intraday_maximum_drawdown": 0.3446261404868622,
+            "maximum_observed_active_portfolio_risk": 429.59096917,
+            "maximum_observed_position_notional_fraction": 0.39999944461065884,
+            "net_profit": 12447.36301476256,
+            "profit_factor": 1.4499076534695379,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 360.0101364094026,
+            "risk_rejections": 3058,
+            "sharpe": 2.759643949158971,
+            "sortino": 5.760559650982131,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 8.623999206536611,
+            "win_rate": 0.502449646162221
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -179.94282,
+              "shares": 16,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 967.72525,
+              "entry_timestamp": "2025-11-21T09:45:00-05:00",
+              "exit_price": 907.47967531,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-21T12:00:00-05:00",
+              "pnl": -240.98229876,
+              "shares": 4,
+              "symbol": "SOXS"
+            },
+            "maximum_single_name_exposure_fraction": 0.409286779445889,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-05-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 3203,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 3192,
+                "No available capital.": 11
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.1477159720529984,
+            "capacity_deferrals": 2254,
+            "closed_trades": 1810,
+            "ending_equity": 11547.277505889135,
+            "eod_maximum_drawdown": 0.300758752306684,
+            "intraday_maximum_drawdown": 0.311491271048414,
+            "maximum_observed_active_portfolio_risk": 339.31185083,
+            "maximum_observed_position_notional_fraction": 0.409286779445889,
+            "net_profit": 10103.937505889135,
+            "profit_factor": 1.4234490018256098,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 305.9842140741491,
+            "risk_rejections": 3203,
+            "sharpe": 2.554317314336668,
+            "sortino": 5.165119556304434,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 7.000386260956617,
+            "win_rate": 0.4988950276243094
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "60": {
+        "comparison": {
+          "ending_equity_difference": 6150.041237531508,
+          "eod_drawdown_difference": -0.04459927391177593,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.04985049103544986,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "dynamic",
+          "total_return_difference": 4.260978866747642
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 1830,
+            "maximum_observed_active_portfolio_risk": 513.61712975,
+            "maximum_observed_position_notional_fraction": 0.5999915020822494,
+            "multiplier_distribution": {
+              "0.7": 7,
+              "0.85": 383,
+              "1.0": 1440
+            },
+            "percent_reduced": 0.21311475409836064,
+            "prevented_below_one_share": 80,
+            "reduced_count": 390,
+            "unchanged_count": 1440
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -416.11777125,
+              "shares": 37,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 967.72525,
+              "entry_timestamp": "2025-11-21T09:45:00-05:00",
+              "exit_price": 907.47967531,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-21T12:00:00-05:00",
+              "pnl": -481.96459753,
+              "shares": 8,
+              "symbol": "SOXS"
+            },
+            "maximum_single_name_exposure_fraction": 0.6132919959632076,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-09-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 3257,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 3072,
+                "Dynamic Sizing adjusted below one share.": 80,
+                "No available capital.": 105
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.8349229649737047,
+            "capacity_deferrals": 2294,
+            "closed_trades": 1750,
+            "ending_equity": 16519.872426106856,
+            "eod_maximum_drawdown": 0.360545635623811,
+            "intraday_maximum_drawdown": 0.3646982378391747,
+            "maximum_observed_active_portfolio_risk": 513.61712975,
+            "maximum_observed_position_notional_fraction": 0.5999915020822494,
+            "net_profit": 15076.532426106856,
+            "profit_factor": 1.5092369144360367,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 400.7810449438486,
+            "risk_rejections": 3257,
+            "sharpe": 2.6876713779703953,
+            "sortino": 5.501421448533527,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 10.445586227851283,
+            "win_rate": 0.5028571428571429
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -269.91423,
+              "shares": 24,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 967.72525,
+              "entry_timestamp": "2025-11-21T09:45:00-05:00",
+              "exit_price": 907.47967531,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-21T12:00:00-05:00",
+              "pnl": -301.22787346,
+              "shares": 5,
+              "symbol": "SOXS"
+            },
+            "maximum_single_name_exposure_fraction": 0.6094548195609674,
+            "maximum_single_name_exposure_symbol": "BE",
+            "maximum_single_name_exposure_timestamp": "2025-01-10T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 3515,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 3437,
+                "No available capital.": 78
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.9664685619200584,
+            "capacity_deferrals": 2098,
+            "closed_trades": 1718,
+            "ending_equity": 10369.831188575348,
+            "eod_maximum_drawdown": 0.4051449095355869,
+            "intraday_maximum_drawdown": 0.4145487288746246,
+            "maximum_observed_active_portfolio_risk": 319.23490644,
+            "maximum_observed_position_notional_fraction": 0.6094548195609674,
+            "net_profit": 8926.491188575348,
+            "profit_factor": 1.3593620067071508,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 310.2353306682444,
+            "risk_rejections": 3515,
+            "sharpe": 2.1592444567610323,
+            "sortino": 4.402536089169039,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 6.184607361103641,
+            "win_rate": 0.5023282887077998
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "90": {
+        "comparison": {
+          "ending_equity_difference": 2233.4884768698266,
+          "eod_drawdown_difference": -0.010306031027653317,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.01532119734011883,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "dynamic",
+          "total_return_difference": 1.5474444530532026
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 1693,
+            "maximum_observed_active_portfolio_risk": 428.43855463,
+            "maximum_observed_position_notional_fraction": 0.8870513815028679,
+            "multiplier_distribution": {
+              "0.7": 6,
+              "0.85": 439,
+              "1.0": 1248
+            },
+            "percent_reduced": 0.26284701712935615,
+            "prevented_below_one_share": 106,
+            "reduced_count": 445,
+            "unchanged_count": 1248
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -348.63921375,
+              "shares": 31,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.2116575,
+              "entry_timestamp": "2025-10-24T11:30:00-04:00",
+              "exit_price": 2.09299975,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-10-28T10:45:00-04:00",
+              "pnl": -395.01165082,
+              "shares": 3329,
+              "symbol": "IVVD"
+            },
+            "maximum_single_name_exposure_fraction": 0.9008973451901923,
+            "maximum_single_name_exposure_symbol": "BLNK",
+            "maximum_single_name_exposure_timestamp": "2024-06-03T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 3780,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 3610,
+                "Dynamic Sizing adjusted below one share.": 106,
+                "No available capital.": 64
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.61189512408714,
+            "capacity_deferrals": 2083,
+            "closed_trades": 1587,
+            "ending_equity": 14818.931215326591,
+            "eod_maximum_drawdown": 0.4194114196842707,
+            "intraday_maximum_drawdown": 0.43001727444053495,
+            "maximum_observed_active_portfolio_risk": 428.43855463,
+            "maximum_observed_position_notional_fraction": 0.8870513815028679,
+            "net_profit": 13375.59121532659,
+            "profit_factor": 1.436099959656512,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 394.6984863628942,
+            "risk_rejections": 3780,
+            "sharpe": 2.49645429485455,
+            "sortino": 4.980199840302368,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 9.267110462764544,
+            "win_rate": 0.5066162570888468
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -314.899935,
+              "shares": 28,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 967.72525,
+              "entry_timestamp": "2025-11-21T09:45:00-05:00",
+              "exit_price": 907.47967531,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-21T12:00:00-05:00",
+              "pnl": -361.47344815,
+              "shares": 6,
+              "symbol": "SOXS"
+            },
+            "maximum_single_name_exposure_fraction": 0.9084742891041431,
+            "maximum_single_name_exposure_symbol": "BLNK",
+            "maximum_single_name_exposure_timestamp": "2024-06-03T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 4349,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 4268,
+                "No available capital.": 81
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.3007498254352385,
+            "capacity_deferrals": 1733,
+            "closed_trades": 1467,
+            "ending_equity": 12585.442738456764,
+            "eod_maximum_drawdown": 0.429717450711924,
+            "intraday_maximum_drawdown": 0.4453384717806538,
+            "maximum_observed_active_portfolio_risk": 377.95608792,
+            "maximum_observed_position_notional_fraction": 0.9084742891041431,
+            "net_profit": 11142.102738456764,
+            "profit_factor": 1.3996033021311665,
+            "qdte_distribution_events": 92,
+            "qdte_distributions_received": 344.9384351098929,
+            "risk_rejections": 4349,
+            "sharpe": 2.301509036123527,
+            "sortino": 4.62178468576746,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 7.719666009711341,
+            "win_rate": 0.5044308111792775
+          },
+          "period": "e2_through_2025",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      }
+    },
+    "full_2024_2026": {
+      "25": {
+        "comparison": {
+          "ending_equity_difference": 585.1546295786429,
+          "eod_drawdown_difference": 0.027438907850445615,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.02779162812600594,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "dynamic",
+          "total_return_difference": 0.40541703935220497
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 2988,
+            "maximum_observed_active_portfolio_risk": 1145.72251516,
+            "maximum_observed_position_notional_fraction": 0.24999992944292798,
+            "multiplier_distribution": {
+              "0.7": 8,
+              "0.85": 239,
+              "1.0": 2741
+            },
+            "percent_reduced": 0.08266398929049532,
+            "prevented_below_one_share": 45,
+            "reduced_count": 247,
+            "unchanged_count": 2741
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 19.514625,
+              "entry_timestamp": "2026-07-06T10:15:00-04:00",
+              "exit_price": 17.658746,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-07-07T09:30:00-04:00",
+              "pnl": -684.819351,
+              "shares": 369,
+              "symbol": "RIVN"
+            },
+            "largest_trade_loss": {
+              "entry_price": 19.514625,
+              "entry_timestamp": "2026-07-06T10:15:00-04:00",
+              "exit_price": 17.658746,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-07-07T09:30:00-04:00",
+              "pnl": -684.819351,
+              "shares": 369,
+              "symbol": "RIVN"
+            },
+            "maximum_single_name_exposure_fraction": 0.25634006717385677,
+            "maximum_single_name_exposure_symbol": "QUBT",
+            "maximum_single_name_exposure_timestamp": "2024-11-11T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 2334,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 2279,
+                "Dynamic Sizing adjusted below one share.": 45,
+                "No available capital.": 10
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.4483320022058797,
+            "capacity_deferrals": 4356,
+            "closed_trades": 2943,
+            "ending_equity": 28465.82889119586,
+            "eod_maximum_drawdown": 0.2146520392155027,
+            "intraday_maximum_drawdown": 0.23209365085542702,
+            "maximum_observed_active_portfolio_risk": 1145.72251516,
+            "maximum_observed_position_notional_fraction": 0.24999992944292798,
+            "net_profit": 27022.48889119586,
+            "profit_factor": 1.394624485930123,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 757.251960654668,
+            "risk_rejections": 2334,
+            "sharpe": 2.7901093611421763,
+            "sortino": 6.853505774145139,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 18.7221922008645,
+            "win_rate": 0.49983010533469246
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 19.514625,
+              "entry_timestamp": "2026-07-06T10:15:00-04:00",
+              "exit_price": 17.658746,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-07-07T09:30:00-04:00",
+              "pnl": -630.99886,
+              "shares": 340,
+              "symbol": "RIVN"
+            },
+            "largest_trade_loss": {
+              "entry_price": 19.514625,
+              "entry_timestamp": "2026-07-06T10:15:00-04:00",
+              "exit_price": 17.658746,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-07-07T09:30:00-04:00",
+              "pnl": -630.99886,
+              "shares": 340,
+              "symbol": "RIVN"
+            },
+            "maximum_single_name_exposure_fraction": 0.2577522646484174,
+            "maximum_single_name_exposure_symbol": "ASTS",
+            "maximum_single_name_exposure_timestamp": "2024-07-31T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 2593,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 2589,
+                "No available capital.": 4
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.418724683370383,
+            "capacity_deferrals": 4221,
+            "closed_trades": 2874,
+            "ending_equity": 27880.674261617216,
+            "eod_maximum_drawdown": 0.18721313136505707,
+            "intraday_maximum_drawdown": 0.20430202272942108,
+            "maximum_observed_active_portfolio_risk": 1057.77265255,
+            "maximum_observed_position_notional_fraction": 0.2577522646484174,
+            "net_profit": 26437.334261617216,
+            "profit_factor": 1.4062202480213544,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 726.4631663188516,
+            "risk_rejections": 2593,
+            "sharpe": 2.794569751695871,
+            "sortino": 6.731265702404241,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 18.316775161512297,
+            "win_rate": 0.49930410577592205
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "40": {
+        "comparison": {
+          "ending_equity_difference": 2351.360482826054,
+          "eod_drawdown_difference": 0.039663889387384355,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.03313486943844818,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "dynamic",
+          "total_return_difference": 1.6291105926711946
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 2568,
+            "maximum_observed_active_portfolio_risk": 896.16049081,
+            "maximum_observed_position_notional_fraction": 0.39999956106982615,
+            "multiplier_distribution": {
+              "0.7": 7,
+              "0.85": 302,
+              "1.0": 2259
+            },
+            "percent_reduced": 0.12032710280373832,
+            "prevented_below_one_share": 86,
+            "reduced_count": 309,
+            "unchanged_count": 2259
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 21.8263575,
+              "entry_timestamp": "2026-07-31T13:00:00-04:00",
+              "exit_price": 20.444655,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-03T09:30:00-04:00",
+              "pnl": -643.873365,
+              "shares": 466,
+              "symbol": "GME"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.39679625,
+              "entry_timestamp": "2026-07-20T12:30:00-04:00",
+              "exit_price": 2.21376129,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2026-07-21T15:45:00-04:00",
+              "pnl": -758.8629638,
+              "shares": 4146,
+              "symbol": "AMC"
+            },
+            "maximum_single_name_exposure_fraction": 0.41106171207135783,
+            "maximum_single_name_exposure_symbol": "MRNA",
+            "maximum_single_name_exposure_timestamp": "2024-05-24T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 4257,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 4115,
+                "Dynamic Sizing adjusted below one share.": 86,
+                "No available capital.": 56
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.285519229216814,
+            "capacity_deferrals": 3244,
+            "closed_trades": 2482,
+            "ending_equity": 25335.432041648994,
+            "eod_maximum_drawdown": 0.34042264169406833,
+            "intraday_maximum_drawdown": 0.3446261404868622,
+            "maximum_observed_active_portfolio_risk": 896.16049081,
+            "maximum_observed_position_notional_fraction": 0.39999956106982615,
+            "net_profit": 23892.092041648993,
+            "profit_factor": 1.3838499304521343,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 697.9226811920674,
+            "risk_rejections": 4257,
+            "sharpe": 2.507904787917374,
+            "sortino": 5.653683074911433,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 16.55333604116074,
+            "win_rate": 0.491941982272361
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 21.8263575,
+              "entry_timestamp": "2026-07-31T13:00:00-04:00",
+              "exit_price": 20.444655,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-03T09:30:00-04:00",
+              "pnl": -580.31505,
+              "shares": 420,
+              "symbol": "GME"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.39679625,
+              "entry_timestamp": "2026-07-20T12:30:00-04:00",
+              "exit_price": 2.21376129,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2026-07-21T15:45:00-04:00",
+              "pnl": -675.39901988,
+              "shares": 3690,
+              "symbol": "AMC"
+            },
+            "maximum_single_name_exposure_fraction": 0.409286779445889,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-05-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 4399,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 4387,
+                "No available capital.": 12
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.155312172090242,
+            "capacity_deferrals": 3124,
+            "closed_trades": 2462,
+            "ending_equity": 22984.07155882294,
+            "eod_maximum_drawdown": 0.300758752306684,
+            "intraday_maximum_drawdown": 0.311491271048414,
+            "maximum_observed_active_portfolio_risk": 808.61171291,
+            "maximum_observed_position_notional_fraction": 0.409286779445889,
+            "net_profit": 21540.73155882294,
+            "profit_factor": 1.4020965908236114,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 599.2712019015515,
+            "risk_rejections": 4399,
+            "sharpe": 2.4328455906508384,
+            "sortino": 5.439645315663879,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 14.924225448489546,
+            "win_rate": 0.4943135662063363
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "60": {
+        "comparison": {
+          "ending_equity_difference": 5605.04774860189,
+          "eod_drawdown_difference": -0.04459927391177593,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.04985049103544986,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "dynamic",
+          "total_return_difference": 3.883386969530335
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 2392,
+            "maximum_observed_active_portfolio_risk": 784.42027498,
+            "maximum_observed_position_notional_fraction": 0.5999915020822494,
+            "multiplier_distribution": {
+              "0.7": 7,
+              "0.85": 474,
+              "1.0": 1911
+            },
+            "percent_reduced": 0.20108695652173914,
+            "prevented_below_one_share": 96,
+            "reduced_count": 481,
+            "unchanged_count": 1911
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 86.90012625,
+              "entry_timestamp": "2026-05-27T12:15:00-04:00",
+              "exit_price": 76.9122725,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-05-29T09:30:00-04:00",
+              "pnl": -1328.38454875,
+              "shares": 133,
+              "symbol": "VSAT"
+            },
+            "largest_trade_loss": {
+              "entry_price": 86.90012625,
+              "entry_timestamp": "2026-05-27T12:15:00-04:00",
+              "exit_price": 76.9122725,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-05-29T09:30:00-04:00",
+              "pnl": -1328.38454875,
+              "shares": 133,
+              "symbol": "VSAT"
+            },
+            "maximum_single_name_exposure_fraction": 0.6132919959632076,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-09-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 4684,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 4460,
+                "Dynamic Sizing adjusted below one share.": 96,
+                "No available capital.": 128
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.9688992180714222,
+            "capacity_deferrals": 3119,
+            "closed_trades": 2296,
+            "ending_equity": 19848.31180162602,
+            "eod_maximum_drawdown": 0.360545635623811,
+            "intraday_maximum_drawdown": 0.3646982378391747,
+            "maximum_observed_active_portfolio_risk": 784.42027498,
+            "maximum_observed_position_notional_fraction": 0.5999915020822494,
+            "net_profit": 18404.97180162602,
+            "profit_factor": 1.28442767862282,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 725.4391438031395,
+            "risk_rejections": 4684,
+            "sharpe": 2.2759191385593045,
+            "sortino": 4.3995403381492615,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 12.751653665543815,
+            "win_rate": 0.4952090592334495
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 2.36177,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 2.218335,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-06-16T09:30:00-04:00",
+              "pnl": -548.49544,
+              "shares": 3824,
+              "symbol": "AMC"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.36177,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 2.218335,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-06-16T09:30:00-04:00",
+              "pnl": -548.49544,
+              "shares": 3824,
+              "symbol": "AMC"
+            },
+            "maximum_single_name_exposure_fraction": 0.6096201820520891,
+            "maximum_single_name_exposure_symbol": "CLOV",
+            "maximum_single_name_exposure_timestamp": "2026-06-15T09:30:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 4929,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 4830,
+                "No available capital.": 99
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.5868161904515397,
+            "capacity_deferrals": 2910,
+            "closed_trades": 2283,
+            "ending_equity": 14243.26405302413,
+            "eod_maximum_drawdown": 0.4051449095355869,
+            "intraday_maximum_drawdown": 0.4145487288746246,
+            "maximum_observed_active_portfolio_risk": 548.90445943,
+            "maximum_observed_position_notional_fraction": 0.6096201820520891,
+            "net_profit": 12799.92405302413,
+            "profit_factor": 1.2721846259920802,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 523.7693895213768,
+            "risk_rejections": 4929,
+            "sharpe": 1.9775092162441554,
+            "sortino": 3.8913859962314206,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 8.86826669601348,
+            "win_rate": 0.49627682873412177
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "90": {
+        "comparison": {
+          "ending_equity_difference": 4243.647249315636,
+          "eod_drawdown_difference": -0.010306031027653317,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.01532119734011883,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "dynamic",
+          "total_return_difference": 2.940157723970527
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 2266,
+            "maximum_observed_active_portfolio_risk": 731.15115657,
+            "maximum_observed_position_notional_fraction": 0.8870513815028679,
+            "multiplier_distribution": {
+              "0.7": 6,
+              "0.85": 532,
+              "1.0": 1728
+            },
+            "percent_reduced": 0.23742277140335394,
+            "prevented_below_one_share": 125,
+            "reduced_count": 538,
+            "unchanged_count": 1728
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 2.36177,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 2.218335,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-06-16T09:30:00-04:00",
+              "pnl": -728.36293,
+              "shares": 5078,
+              "symbol": "AMC"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.36177,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 2.218335,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-06-16T09:30:00-04:00",
+              "pnl": -728.36293,
+              "shares": 5078,
+              "symbol": "AMC"
+            },
+            "maximum_single_name_exposure_fraction": 0.9008973451901923,
+            "maximum_single_name_exposure_symbol": "BLNK",
+            "maximum_single_name_exposure_timestamp": "2024-06-03T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 5152,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 4941,
+                "Dynamic Sizing adjusted below one share.": 125,
+                "No available capital.": 86
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.8243044457128148,
+            "capacity_deferrals": 2940,
+            "closed_trades": 2141,
+            "ending_equity": 17599.194857937848,
+            "eod_maximum_drawdown": 0.4194114196842707,
+            "intraday_maximum_drawdown": 0.43001727444053495,
+            "maximum_observed_active_portfolio_risk": 731.15115657,
+            "maximum_observed_position_notional_fraction": 0.8870513815028679,
+            "net_profit": 16155.854857937848,
+            "profit_factor": 1.264886116553134,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 679.3069508186595,
+            "risk_rejections": 5152,
+            "sharpe": 2.1277582008245473,
+            "sortino": 4.069342694775082,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 11.193381225447803,
+            "win_rate": 0.5044371788883699
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 86.90012625,
+              "entry_timestamp": "2026-05-27T12:15:00-04:00",
+              "exit_price": 76.9122725,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-05-29T09:30:00-04:00",
+              "pnl": -948.84610625,
+              "shares": 95,
+              "symbol": "VSAT"
+            },
+            "largest_trade_loss": {
+              "entry_price": 86.90012625,
+              "entry_timestamp": "2026-05-27T12:15:00-04:00",
+              "exit_price": 76.9122725,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-05-29T09:30:00-04:00",
+              "pnl": -948.84610625,
+              "shares": 95,
+              "symbol": "VSAT"
+            },
+            "maximum_single_name_exposure_fraction": 0.9084742891041431,
+            "maximum_single_name_exposure_symbol": "BLNK",
+            "maximum_single_name_exposure_timestamp": "2024-06-03T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 5862,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 5751,
+                "No available capital.": 111
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.5186211655644501,
+            "capacity_deferrals": 2479,
+            "closed_trades": 1994,
+            "ending_equity": 13355.547608622212,
+            "eod_maximum_drawdown": 0.429717450711924,
+            "intraday_maximum_drawdown": 0.4453384717806538,
+            "maximum_observed_active_portfolio_risk": 506.79826316,
+            "maximum_observed_position_notional_fraction": 0.9084742891041431,
+            "net_profit": 11912.207608622211,
+            "profit_factor": 1.2170236812679307,
+            "qdte_distribution_events": 124,
+            "qdte_distributions_received": 580.4174991909982,
+            "risk_rejections": 5862,
+            "sharpe": 1.892554223424837,
+            "sortino": 3.577440268169808,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 8.253223501477276,
+            "win_rate": 0.49849548645937813
+          },
+          "period": "full_2024_2026",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      }
+    },
+    "p1_2024": {
+      "25": {
+        "comparison": {
+          "ending_equity_difference": -144.11480712962566,
+          "eod_drawdown_difference": 0.027438907850445615,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.02779162812600594,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "fixed",
+          "total_return_difference": -0.09984813497140799
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 985,
+            "maximum_observed_active_portfolio_risk": 233.65531103,
+            "maximum_observed_position_notional_fraction": 0.24999775154356246,
+            "multiplier_distribution": {
+              "0.7": 8,
+              "0.85": 136,
+              "1.0": 841
+            },
+            "percent_reduced": 0.14619289340101524,
+            "prevented_below_one_share": 30,
+            "reduced_count": 144,
+            "unchanged_count": 841
+          },
+          "end": "2024-12-31",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -92.088502,
+              "shares": 388,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 18.5839275,
+              "entry_timestamp": "2024-12-23T09:45:00-05:00",
+              "exit_price": 16.27190988,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2024-12-26T09:30:00-05:00",
+              "pnl": -124.84895144,
+              "shares": 54,
+              "symbol": "QUBT"
+            },
+            "maximum_single_name_exposure_fraction": 0.25634006717385677,
+            "maximum_single_name_exposure_symbol": "QUBT",
+            "maximum_single_name_exposure_timestamp": "2024-11-11T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 514,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 480,
+                "Dynamic Sizing adjusted below one share.": 30,
+                "No available capital.": 4
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.1160079305737147,
+            "capacity_deferrals": 1054,
+            "closed_trades": 955,
+            "ending_equity": 4614.41825820985,
+            "eod_maximum_drawdown": 0.2146520392155027,
+            "intraday_maximum_drawdown": 0.23209365085542702,
+            "maximum_observed_active_portfolio_risk": 233.65531103,
+            "maximum_observed_position_notional_fraction": 0.24999775154356246,
+            "net_profit": 3171.07825820985,
+            "profit_factor": 1.4500208593951414,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 79.17989753407176,
+            "risk_rejections": 514,
+            "sharpe": 3.090203452870325,
+            "sortino": 6.335729236440228,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.197041763000988,
+            "win_rate": 0.4942408376963351
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2024-12-31",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -94.6992585,
+              "shares": 399,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 1.25083743,
+              "entry_timestamp": "2024-12-31T12:45:00-05:00",
+              "exit_price": 1.13455785,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2024-12-31T13:30:00-05:00",
+              "pnl": -112.09350788,
+              "shares": 964,
+              "symbol": "TPET"
+            },
+            "maximum_single_name_exposure_fraction": 0.2577522646484174,
+            "maximum_single_name_exposure_symbol": "ASTS",
+            "maximum_single_name_exposure_timestamp": "2024-07-31T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 651,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 649,
+                "No available capital.": 2
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.2730290428632527,
+            "capacity_deferrals": 967,
+            "closed_trades": 929,
+            "ending_equity": 4758.533065339476,
+            "eod_maximum_drawdown": 0.18721313136505707,
+            "intraday_maximum_drawdown": 0.20430202272942108,
+            "maximum_observed_active_portfolio_risk": 271.63338176,
+            "maximum_observed_position_notional_fraction": 0.2577522646484174,
+            "net_profit": 3315.1930653394757,
+            "profit_factor": 1.4705719504126464,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 79.94245223896168,
+            "risk_rejections": 651,
+            "sharpe": 3.1663641654728463,
+            "sortino": 6.385372859081487,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.296889897972396,
+            "win_rate": 0.4940796555435953
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "40": {
+        "comparison": {
+          "ending_equity_difference": 533.5011593481008,
+          "eod_drawdown_difference": 0.039663889387384355,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.03313486943844818,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "dynamic",
+          "total_return_difference": 0.36962958093594844
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 886,
+            "maximum_observed_active_portfolio_risk": 240.98057784,
+            "maximum_observed_position_notional_fraction": 0.39998849493286665,
+            "multiplier_distribution": {
+              "0.7": 7,
+              "0.85": 172,
+              "1.0": 707
+            },
+            "percent_reduced": 0.2020316027088036,
+            "prevented_below_one_share": 44,
+            "reduced_count": 179,
+            "unchanged_count": 707
+          },
+          "end": "2024-12-31",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -152.373243,
+              "shares": 642,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -152.373243,
+              "shares": 642,
+              "symbol": "MVST"
+            },
+            "maximum_single_name_exposure_fraction": 0.41106171207135783,
+            "maximum_single_name_exposure_symbol": "MRNA",
+            "maximum_single_name_exposure_timestamp": "2024-05-24T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 991,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 914,
+                "Dynamic Sizing adjusted below one share.": 44,
+                "No available capital.": 33
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.062456065737794,
+            "capacity_deferrals": 796,
+            "closed_trades": 842,
+            "ending_equity": 4565.044980073378,
+            "eod_maximum_drawdown": 0.34042264169406833,
+            "intraday_maximum_drawdown": 0.3446261404868622,
+            "maximum_observed_active_portfolio_risk": 240.98057784,
+            "maximum_observed_position_notional_fraction": 0.39998849493286665,
+            "net_profit": 3121.7049800733776,
+            "profit_factor": 1.45310209317204,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 74.31750476104543,
+            "risk_rejections": 991,
+            "sharpe": 2.575794245979329,
+            "sortino": 5.608077422904643,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.162834107052647,
+            "win_rate": 0.49287410926365793
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2024-12-31",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -163.765635,
+              "shares": 690,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -163.765635,
+              "shares": 690,
+              "symbol": "MVST"
+            },
+            "maximum_single_name_exposure_fraction": 0.407538615771673,
+            "maximum_single_name_exposure_symbol": "QUBT",
+            "maximum_single_name_exposure_timestamp": "2024-11-11T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 1139,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1139
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.4920591631116826,
+            "capacity_deferrals": 686,
+            "closed_trades": 813,
+            "ending_equity": 4031.543820725277,
+            "eod_maximum_drawdown": 0.300758752306684,
+            "intraday_maximum_drawdown": 0.311491271048414,
+            "maximum_observed_active_portfolio_risk": 230.03446455,
+            "maximum_observed_position_notional_fraction": 0.407538615771673,
+            "net_profit": 2588.203820725277,
+            "profit_factor": 1.3691556798636983,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 75.50147014190809,
+            "risk_rejections": 1139,
+            "sharpe": 2.3817242208666776,
+            "sortino": 5.004354089589911,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 1.7932045261166984,
+            "win_rate": 0.48462484624846247
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "60": {
+        "comparison": {
+          "ending_equity_difference": 1134.4505401748238,
+          "eod_drawdown_difference": -0.04459927391177593,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.04985049103544986,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "dynamic",
+          "total_return_difference": 0.7859898154106655
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 829,
+            "maximum_observed_active_portfolio_risk": 244.02156101,
+            "maximum_observed_position_notional_fraction": 0.5999915020822494,
+            "multiplier_distribution": {
+              "0.7": 7,
+              "0.85": 215,
+              "1.0": 607
+            },
+            "percent_reduced": 0.2677925211097708,
+            "prevented_below_one_share": 51,
+            "reduced_count": 222,
+            "unchanged_count": 607
+          },
+          "end": "2024-12-31",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -239.4775735,
+              "shares": 1009,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -239.4775735,
+              "shares": 1009,
+              "symbol": "MVST"
+            },
+            "maximum_single_name_exposure_fraction": 0.6082490816940421,
+            "maximum_single_name_exposure_symbol": "JMIA",
+            "maximum_single_name_exposure_timestamp": "2024-09-30T14:00:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1190,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1080,
+                "Dynamic Sizing adjusted below one share.": 51,
+                "No available capital.": 59
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.3363522888155988,
+            "capacity_deferrals": 705,
+            "closed_trades": 778,
+            "ending_equity": 4816.382420957934,
+            "eod_maximum_drawdown": 0.360545635623811,
+            "intraday_maximum_drawdown": 0.3646982378391747,
+            "maximum_observed_active_portfolio_risk": 244.02156101,
+            "maximum_observed_position_notional_fraction": 0.5999915020822494,
+            "net_profit": 3373.042420957934,
+            "profit_factor": 1.472514616869566,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 78.21285850725475,
+            "risk_rejections": 1190,
+            "sharpe": 2.535105823645419,
+            "sortino": 5.259005612137585,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.3369700977995027,
+            "win_rate": 0.4820051413881748
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2024-12-31",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -239.4775735,
+              "shares": 1009,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -239.4775735,
+              "shares": 1009,
+              "symbol": "MVST"
+            },
+            "maximum_single_name_exposure_fraction": 0.6082143313924376,
+            "maximum_single_name_exposure_symbol": "ASTS",
+            "maximum_single_name_exposure_timestamp": "2024-04-24T10:15:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1339,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1275,
+                "No available capital.": 64
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.1269554158865334,
+            "capacity_deferrals": 623,
+            "closed_trades": 738,
+            "ending_equity": 3681.9318807831105,
+            "eod_maximum_drawdown": 0.4051449095355869,
+            "intraday_maximum_drawdown": 0.4145487288746246,
+            "maximum_observed_active_portfolio_risk": 208.51408079,
+            "maximum_observed_position_notional_fraction": 0.6082143313924376,
+            "net_profit": 2238.5918807831104,
+            "profit_factor": 1.3449248447925015,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 68.77633857858648,
+            "risk_rejections": 1339,
+            "sharpe": 1.9691480408643165,
+            "sortino": 4.110766143670826,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 1.5509802823888372,
+            "win_rate": 0.47696476964769646
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "90": {
+        "comparison": {
+          "ending_equity_difference": 605.7678049344422,
+          "eod_drawdown_difference": -0.010306031027653317,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.01532119734011883,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "dynamic",
+          "total_return_difference": 0.4196986191295462
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 784,
+            "maximum_observed_active_portfolio_risk": 256.04647165,
+            "maximum_observed_position_notional_fraction": 0.8870513815028679,
+            "multiplier_distribution": {
+              "0.7": 6,
+              "0.85": 261,
+              "1.0": 517
+            },
+            "percent_reduced": 0.3405612244897959,
+            "prevented_below_one_share": 68,
+            "reduced_count": 267,
+            "unchanged_count": 517
+          },
+          "end": "2024-12-31",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -268.4332365,
+              "shares": 1131,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -268.4332365,
+              "shares": 1131,
+              "symbol": "MVST"
+            },
+            "maximum_single_name_exposure_fraction": 0.9008973451901923,
+            "maximum_single_name_exposure_symbol": "BLNK",
+            "maximum_single_name_exposure_timestamp": "2024-06-03T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1314,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1217,
+                "Dynamic Sizing adjusted below one share.": 68,
+                "No available capital.": 29
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.867535968136374,
+            "capacity_deferrals": 681,
+            "closed_trades": 716,
+            "ending_equity": 5295.951957672007,
+            "eod_maximum_drawdown": 0.4194114196842707,
+            "intraday_maximum_drawdown": 0.43001727444053495,
+            "maximum_observed_active_portfolio_risk": 256.04647165,
+            "maximum_observed_position_notional_fraction": 0.8870513815028679,
+            "net_profit": 3852.6119576720066,
+            "profit_factor": 1.5617550580102177,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 78.40243874956984,
+            "risk_rejections": 1314,
+            "sharpe": 2.552115686168629,
+            "sortino": 5.368105150328509,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.669233831025262,
+            "win_rate": 0.4860335195530726
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2024-12-31",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -268.4332365,
+              "shares": 1131,
+              "symbol": "MVST"
+            },
+            "largest_trade_loss": {
+              "entry_price": 0.87975932,
+              "entry_timestamp": "2024-04-01T13:30:00-04:00",
+              "exit_price": 0.64241782,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2024-04-02T09:30:00-04:00",
+              "pnl": -268.4332365,
+              "shares": 1131,
+              "symbol": "MVST"
+            },
+            "maximum_single_name_exposure_fraction": 0.9084742891041431,
+            "maximum_single_name_exposure_symbol": "BLNK",
+            "maximum_single_name_exposure_timestamp": "2024-06-03T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1481,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1470,
+                "No available capital.": 11
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.1984282526598875,
+            "capacity_deferrals": 617,
+            "closed_trades": 672,
+            "ending_equity": 4690.184152737565,
+            "eod_maximum_drawdown": 0.429717450711924,
+            "intraday_maximum_drawdown": 0.4453384717806538,
+            "maximum_observed_active_portfolio_risk": 255.18788409,
+            "maximum_observed_position_notional_fraction": 0.9084742891041431,
+            "net_profit": 3246.8441527375644,
+            "profit_factor": 1.4842963410884442,
+            "qdte_distribution_events": 40,
+            "qdte_distributions_received": 75.70427616088999,
+            "risk_rejections": 1481,
+            "sharpe": 2.2907232668182638,
+            "sortino": 4.903572817273898,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.249535211895716,
+            "win_rate": 0.49107142857142855
+          },
+          "period": "p1_2024",
+          "start": "2024-03-07",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      }
+    },
+    "p2_2025": {
+      "25": {
+        "comparison": {
+          "ending_equity_difference": -750.1233662550558,
+          "eod_drawdown_difference": 0.0026009405622530735,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": -0.0005632103700148328,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "fixed",
+          "total_return_difference": -0.5197135576198648
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 1237,
+            "maximum_observed_active_portfolio_risk": 174.10517325,
+            "maximum_observed_position_notional_fraction": 0.2499993801889608,
+            "multiplier_distribution": {
+              "0.85": 177,
+              "1.0": 1060
+            },
+            "percent_reduced": 0.14308811641067098,
+            "prevented_below_one_share": 41,
+            "reduced_count": 177,
+            "unchanged_count": 1060
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 4.0530375,
+              "entry_timestamp": "2025-10-06T09:45:00-04:00",
+              "exit_price": 3.617285,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-10-08T09:30:00-04:00",
+              "pnl": -79.306955,
+              "shares": 182,
+              "symbol": "PLUG"
+            },
+            "largest_trade_loss": {
+              "entry_price": 4.0530375,
+              "entry_timestamp": "2025-10-06T09:45:00-04:00",
+              "exit_price": 3.617285,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-10-08T09:30:00-04:00",
+              "pnl": -79.306955,
+              "shares": 182,
+              "symbol": "PLUG"
+            },
+            "maximum_single_name_exposure_fraction": 0.25385315402224007,
+            "maximum_single_name_exposure_symbol": "NVTS",
+            "maximum_single_name_exposure_timestamp": "2025-06-02T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 906,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 853,
+                "Dynamic Sizing adjusted below one share.": 41,
+                "No available capital.": 12
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.461281823743207,
+            "capacity_deferrals": 2221,
+            "closed_trades": 1196,
+            "ending_equity": 4946.818211399836,
+            "eod_maximum_drawdown": 0.1328903089848938,
+            "intraday_maximum_drawdown": 0.1402062074741408,
+            "maximum_observed_active_portfolio_risk": 174.10517325,
+            "maximum_observed_position_notional_fraction": 0.2499993801889608,
+            "net_profit": 3503.4782113998363,
+            "profit_factor": 1.480026203192283,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 108.6270886693376,
+            "risk_rejections": 906,
+            "sharpe": 3.681841596539606,
+            "sortino": 7.24902371551664,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.4273408977786457,
+            "win_rate": 0.5083612040133779
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 6.2202617,
+              "entry_timestamp": "2025-12-26T14:45:00-05:00",
+              "exit_price": 5.87559,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-12-29T09:30:00-05:00",
+              "pnl": -78.5851476,
+              "shares": 228,
+              "symbol": "USAS"
+            },
+            "largest_trade_loss": {
+              "entry_price": 6.304725,
+              "entry_timestamp": "2025-11-14T09:45:00-05:00",
+              "exit_price": 5.8317453,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-14T09:45:00-05:00",
+              "pnl": -89.39316246,
+              "shares": 189,
+              "symbol": "SGML"
+            },
+            "maximum_single_name_exposure_fraction": 0.2538749900465513,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-05-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1069,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1064,
+                "No available capital.": 5
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.9906469075857753,
+            "capacity_deferrals": 2095,
+            "closed_trades": 1173,
+            "ending_equity": 5696.941577654892,
+            "eod_maximum_drawdown": 0.13028936842264072,
+            "intraday_maximum_drawdown": 0.14076941784415564,
+            "maximum_observed_active_portfolio_risk": 218.58752666,
+            "maximum_observed_position_notional_fraction": 0.2538749900465513,
+            "net_profit": 4253.601577654892,
+            "profit_factor": 1.536681521734089,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 118.21509897501303,
+            "risk_rejections": 1069,
+            "sharpe": 4.055489343237772,
+            "sortino": 8.411830738708247,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.9470544553985105,
+            "win_rate": 0.5115089514066496
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "40": {
+        "comparison": {
+          "ending_equity_difference": -202.9984907585449,
+          "eod_drawdown_difference": -0.016057738151134426,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.013003450302320863,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "fixed",
+          "total_return_difference": -0.14064495597610183
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 1056,
+            "maximum_observed_active_portfolio_risk": 146.25673277,
+            "maximum_observed_position_notional_fraction": 0.39998903308410716,
+            "multiplier_distribution": {
+              "0.7": 1,
+              "0.85": 156,
+              "1.0": 899
+            },
+            "percent_reduced": 0.14867424242424243,
+            "prevented_below_one_share": 44,
+            "reduced_count": 157,
+            "unchanged_count": 899
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -67.4785575,
+              "shares": 6,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 6.304725,
+              "entry_timestamp": "2025-11-14T09:45:00-05:00",
+              "exit_price": 5.8317453,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-11-14T09:45:00-05:00",
+              "pnl": -101.21765485,
+              "shares": 214,
+              "symbol": "SGML"
+            },
+            "maximum_single_name_exposure_fraction": 0.40896541036099976,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-05-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1732,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1675,
+                "Dynamic Sizing adjusted below one share.": 44,
+                "No available capital.": 13
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.1971595147997873,
+            "capacity_deferrals": 1712,
+            "closed_trades": 1012,
+            "ending_equity": 4572.217553164347,
+            "eod_maximum_drawdown": 0.24152070378610546,
+            "intraday_maximum_drawdown": 0.25654883322822,
+            "maximum_observed_active_portfolio_risk": 146.25673277,
+            "maximum_observed_position_notional_fraction": 0.39998903308410716,
+            "net_profit": 3128.877553164347,
+            "profit_factor": 1.4020923036381343,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 108.20998951603116,
+            "risk_rejections": 1732,
+            "sharpe": 3.05476993560433,
+            "sortino": 5.69739189622475,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.1678035342776782,
+            "win_rate": 0.4980237154150198
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 6.2202617,
+              "entry_timestamp": "2025-12-26T14:45:00-05:00",
+              "exit_price": 5.87559,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-12-29T09:30:00-05:00",
+              "pnl": -73.0704004,
+              "shares": 212,
+              "symbol": "USAS"
+            },
+            "largest_trade_loss": {
+              "entry_price": 75.7267525,
+              "entry_timestamp": "2025-12-08T10:00:00-05:00",
+              "exit_price": 72.10411899,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-12-08T10:30:00-05:00",
+              "pnl": -90.56583783,
+              "shares": 25,
+              "symbol": "ASTS"
+            },
+            "maximum_single_name_exposure_fraction": 0.40881558644261073,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-05-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1838,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1823,
+                "No available capital.": 15
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.3402684573143233,
+            "capacity_deferrals": 1605,
+            "closed_trades": 1023,
+            "ending_equity": 4775.216043922892,
+            "eod_maximum_drawdown": 0.2575784419372399,
+            "intraday_maximum_drawdown": 0.26955228353054084,
+            "maximum_observed_active_portfolio_risk": 141.26741434,
+            "maximum_observed_position_notional_fraction": 0.40881558644261073,
+            "net_profit": 3331.8760439228918,
+            "profit_factor": 1.4434812601357025,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 106.81201340339602,
+            "risk_rejections": 1838,
+            "sharpe": 3.144646275581819,
+            "sortino": 5.974874574625687,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.30844849025378,
+            "win_rate": 0.5004887585532747
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "60": {
+        "comparison": {
+          "ending_equity_difference": -522.2607909229173,
+          "eod_drawdown_difference": 0.007370244410747018,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.007273137305114974,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "fixed",
+          "total_return_difference": -0.36184183277877313
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 1055,
+            "maximum_observed_active_portfolio_risk": 129.06381156,
+            "maximum_observed_position_notional_fraction": 0.5999454794560896,
+            "multiplier_distribution": {
+              "0.85": 230,
+              "1.0": 825
+            },
+            "percent_reduced": 0.21800947867298578,
+            "prevented_below_one_share": 60,
+            "reduced_count": 230,
+            "unchanged_count": 825
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -101.21783625,
+              "shares": 9,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 22.957205,
+              "entry_timestamp": "2025-10-06T13:00:00-04:00",
+              "exit_price": 21.62524589,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-10-07T10:45:00-04:00",
+              "pnl": -106.55672848,
+              "shares": 80,
+              "symbol": "QUBT"
+            },
+            "maximum_single_name_exposure_fraction": 0.6129769598220477,
+            "maximum_single_name_exposure_symbol": "VUZI",
+            "maximum_single_name_exposure_timestamp": "2025-09-30T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1885,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1809,
+                "Dynamic Sizing adjusted below one share.": 60,
+                "No available capital.": 16
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.5103007859720377,
+            "capacity_deferrals": 1576,
+            "closed_trades": 995,
+            "ending_equity": 3596.847152989447,
+            "eod_maximum_drawdown": 0.2398746315741479,
+            "intraday_maximum_drawdown": 0.2584770252790701,
+            "maximum_observed_active_portfolio_risk": 129.06381156,
+            "maximum_observed_position_notional_fraction": 0.5999454794560896,
+            "net_profit": 2153.5071529894467,
+            "profit_factor": 1.267245911703347,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 102.98166849217601,
+            "risk_rejections": 1885,
+            "sharpe": 2.383413763915473,
+            "sortino": 4.11961014045623,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 1.4920303968499753,
+            "win_rate": 0.5085427135678392
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -112.4642625,
+              "shares": 10,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 22.957205,
+              "entry_timestamp": "2025-10-06T13:00:00-04:00",
+              "exit_price": 21.62524589,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2025-10-07T10:45:00-04:00",
+              "pnl": -117.21240132,
+              "shares": 88,
+              "symbol": "QUBT"
+            },
+            "maximum_single_name_exposure_fraction": 0.6080019095354349,
+            "maximum_single_name_exposure_symbol": "QS",
+            "maximum_single_name_exposure_timestamp": "2025-08-11T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 2126,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 2106,
+                "No available capital.": 20
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.8779152576887008,
+            "capacity_deferrals": 1431,
+            "closed_trades": 945,
+            "ending_equity": 4119.107943912364,
+            "eod_maximum_drawdown": 0.23250438716340088,
+            "intraday_maximum_drawdown": 0.25120388797395515,
+            "maximum_observed_active_portfolio_risk": 165.22944736,
+            "maximum_observed_position_notional_fraction": 0.6080019095354349,
+            "net_profit": 2675.767943912364,
+            "profit_factor": 1.3328459433504536,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 107.37703184102192,
+            "risk_rejections": 2126,
+            "sharpe": 2.498059195320146,
+            "sortino": 4.704512120827348,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 1.8538722296287484,
+            "win_rate": 0.5121693121693122
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "90": {
+        "comparison": {
+          "ending_equity_difference": 587.4997422655542,
+          "eod_drawdown_difference": 0.02719832946620654,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.026391677021200433,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "dynamic",
+          "total_return_difference": 0.4070418212379341
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 900,
+            "maximum_observed_active_portfolio_risk": 202.30764014,
+            "maximum_observed_position_notional_fraction": 0.87567373261667,
+            "multiplier_distribution": {
+              "0.7": 1,
+              "0.85": 226,
+              "1.0": 673
+            },
+            "percent_reduced": 0.25222222222222224,
+            "prevented_below_one_share": 59,
+            "reduced_count": 227,
+            "unchanged_count": 673
+          },
+          "end": "2025-12-31",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -146.20354125,
+              "shares": 13,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -146.20354125,
+              "shares": 13,
+              "symbol": "MU"
+            },
+            "maximum_single_name_exposure_fraction": 0.8760080358591968,
+            "maximum_single_name_exposure_symbol": "IAUX",
+            "maximum_single_name_exposure_timestamp": "2025-01-15T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 2332,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 2226,
+                "Dynamic Sizing adjusted below one share.": 59,
+                "No available capital.": 47
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.309971368897272,
+            "capacity_deferrals": 1403,
+            "closed_trades": 841,
+            "ending_equity": 6149.0428826574,
+            "eod_maximum_drawdown": 0.24089143116457526,
+            "intraday_maximum_drawdown": 0.2549773054093174,
+            "maximum_observed_active_portfolio_risk": 202.30764014,
+            "maximum_observed_position_notional_fraction": 0.87567373261667,
+            "net_profit": 4705.7028826574,
+            "profit_factor": 1.5739238107362847,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 124.57601045935581,
+            "risk_rejections": 2332,
+            "sharpe": 3.294509520153972,
+            "sortino": 6.163303795033401,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 3.2602871691059683,
+            "win_rate": 0.5326991676575505
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2025-12-31",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -134.957115,
+              "shares": 12,
+              "symbol": "MU"
+            },
+            "largest_trade_loss": {
+              "entry_price": 233.2448025,
+              "entry_timestamp": "2025-11-03T09:45:00-05:00",
+              "exit_price": 221.99837625,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2025-11-04T09:30:00-05:00",
+              "pnl": -134.957115,
+              "shares": 12,
+              "symbol": "MU"
+            },
+            "maximum_single_name_exposure_fraction": 0.8760080358591968,
+            "maximum_single_name_exposure_symbol": "IAUX",
+            "maximum_single_name_exposure_timestamp": "2025-01-15T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 2587,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 2568,
+                "No available capital.": 19
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.895052143961196,
+            "capacity_deferrals": 1214,
+            "closed_trades": 834,
+            "ending_equity": 5561.543140391846,
+            "eod_maximum_drawdown": 0.21369310169836872,
+            "intraday_maximum_drawdown": 0.22858562838811697,
+            "maximum_observed_active_portfolio_risk": 173.67203894,
+            "maximum_observed_position_notional_fraction": 0.8760080358591968,
+            "net_profit": 4118.203140391845,
+            "profit_factor": 1.5035868132568915,
+            "qdte_distribution_events": 52,
+            "qdte_distributions_received": 118.4110185996538,
+            "risk_rejections": 2587,
+            "sharpe": 2.9650987888085045,
+            "sortino": 5.523257716012318,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 2.853245347868034,
+            "win_rate": 0.5167865707434053
+          },
+          "period": "p2_2025",
+          "start": "2025-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      }
+    },
+    "p3_2026": {
+      "25": {
+        "comparison": {
+          "ending_equity_difference": -298.71677463055494,
+          "eod_drawdown_difference": 0.010477689891140618,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.017857471697352467,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "fixed",
+          "total_return_difference": -0.20696216735527195
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 767,
+            "maximum_observed_active_portfolio_risk": 118.52239367,
+            "maximum_observed_position_notional_fraction": 0.24998800232900975,
+            "multiplier_distribution": {
+              "0.7": 1,
+              "0.85": 154,
+              "1.0": 612
+            },
+            "percent_reduced": 0.20208604954367665,
+            "prevented_below_one_share": 36,
+            "reduced_count": 155,
+            "unchanged_count": 612
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 19.514625,
+              "entry_timestamp": "2026-07-06T10:15:00-04:00",
+              "exit_price": 17.658746,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-07-07T09:30:00-04:00",
+              "pnl": -51.964612,
+              "shares": 28,
+              "symbol": "RIVN"
+            },
+            "largest_trade_loss": {
+              "entry_price": 1.31888843,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 1.18406604,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2026-06-15T11:00:00-04:00",
+              "pnl": -61.34418742,
+              "shares": 455,
+              "symbol": "OTLK"
+            },
+            "maximum_single_name_exposure_fraction": 0.2546496880344698,
+            "maximum_single_name_exposure_symbol": "IAUX",
+            "maximum_single_name_exposure_timestamp": "2026-02-04T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 503,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 456,
+                "Dynamic Sizing adjusted below one share.": 36,
+                "Maximum position notional cap is below one share.": 11
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.7635223320212012,
+            "capacity_deferrals": 1191,
+            "closed_trades": 731,
+            "ending_equity": 2643.2864520576213,
+            "eod_maximum_drawdown": 0.15278575438766834,
+            "intraday_maximum_drawdown": 0.1690995350726494,
+            "maximum_observed_active_portfolio_risk": 118.52239367,
+            "maximum_observed_position_notional_fraction": 0.24998800232900975,
+            "net_profit": 1199.9464520576214,
+            "profit_factor": 1.2463950807503332,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 40.01702258466442,
+            "risk_rejections": 503,
+            "sharpe": 1.8670577212740551,
+            "sortino": 5.942782656911366,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 0.831367835754308,
+            "win_rate": 0.47606019151846785
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_25",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.25,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 0.32324225,
+              "entry_timestamp": "2026-04-21T15:15:00-04:00",
+              "exit_price": 0.28958265,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-04-22T09:30:00-04:00",
+              "pnl": -52.7445932,
+              "shares": 1567,
+              "symbol": "OTLK"
+            },
+            "largest_trade_loss": {
+              "entry_price": 1.31888843,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 1.18406604,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2026-06-15T11:00:00-04:00",
+              "pnl": -62.82723371,
+              "shares": 466,
+              "symbol": "OTLK"
+            },
+            "maximum_single_name_exposure_fraction": 0.25559249845156506,
+            "maximum_single_name_exposure_symbol": "IAUX",
+            "maximum_single_name_exposure_timestamp": "2026-02-04T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 565,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 552,
+                "Maximum position notional cap is below one share.": 11,
+                "No available capital.": 2
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.308119239829256,
+            "capacity_deferrals": 1134,
+            "closed_trades": 740,
+            "ending_equity": 2942.0032266881763,
+            "eod_maximum_drawdown": 0.14230806449652772,
+            "intraday_maximum_drawdown": 0.15124206337529694,
+            "maximum_observed_active_portfolio_risk": 116.68082588,
+            "maximum_observed_position_notional_fraction": 0.25559249845156506,
+            "net_profit": 1498.6632266881763,
+            "profit_factor": 1.3012547443899225,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 41.04072804393326,
+            "risk_rejections": 565,
+            "sharpe": 2.1183734844238438,
+            "sortino": 6.52521727709609,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 1.03833000310958,
+            "win_rate": 0.4891891891891892
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "40": {
+        "comparison": {
+          "ending_equity_difference": -238.94392735576412,
+          "eod_drawdown_difference": -0.007751945002094113,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.009271282112281759,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "fixed",
+          "total_return_difference": -0.16554930048066785
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 675,
+            "maximum_observed_active_portfolio_risk": 152.25929525,
+            "maximum_observed_position_notional_fraction": 0.3999875282082821,
+            "multiplier_distribution": {
+              "0.7": 3,
+              "0.85": 140,
+              "1.0": 532
+            },
+            "percent_reduced": 0.21185185185185185,
+            "prevented_below_one_share": 34,
+            "reduced_count": 143,
+            "unchanged_count": 532
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 21.8263575,
+              "entry_timestamp": "2026-07-31T13:00:00-04:00",
+              "exit_price": 20.444655,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-03T09:30:00-04:00",
+              "pnl": -84.2838525,
+              "shares": 61,
+              "symbol": "GME"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.39679625,
+              "entry_timestamp": "2026-07-20T12:30:00-04:00",
+              "exit_price": 2.21376129,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2026-07-21T15:45:00-04:00",
+              "pnl": -94.26300684,
+              "shares": 515,
+              "symbol": "AMC"
+            },
+            "maximum_single_name_exposure_fraction": 0.4132650692899352,
+            "maximum_single_name_exposure_symbol": "IAUX",
+            "maximum_single_name_exposure_timestamp": "2026-02-04T09:30:00-05:00",
+            "sizing_cash_rejections": {
+              "count": 878,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 844,
+                "Dynamic Sizing adjusted below one share.": 34
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.0264094922509353,
+            "capacity_deferrals": 974,
+            "closed_trades": 641,
+            "ending_equity": 3307.0354525687985,
+            "eod_maximum_drawdown": 0.19333499297352486,
+            "intraday_maximum_drawdown": 0.19800782709500794,
+            "maximum_observed_active_portfolio_risk": 152.25929525,
+            "maximum_observed_position_notional_fraction": 0.3999875282082821,
+            "net_profit": 1863.6954525687986,
+            "profit_factor": 1.3508017115732964,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 44.105633696452884,
+            "risk_rejections": 878,
+            "sharpe": 1.8376176908660755,
+            "sortino": 6.959843577124097,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 1.2912379983710012,
+            "win_rate": 0.47269890795631825
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_40",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.4,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 21.8263575,
+              "entry_timestamp": "2026-07-31T13:00:00-04:00",
+              "exit_price": 20.444655,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-03T09:30:00-04:00",
+              "pnl": -91.192365,
+              "shares": 66,
+              "symbol": "GME"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.39679625,
+              "entry_timestamp": "2026-07-20T12:30:00-04:00",
+              "exit_price": 2.21376129,
+              "exit_reason": "ATR_STOP",
+              "exit_timestamp": "2026-07-21T15:45:00-04:00",
+              "pnl": -104.69599983,
+              "shares": 572,
+              "symbol": "AMC"
+            },
+            "maximum_single_name_exposure_fraction": 0.4103756749658869,
+            "maximum_single_name_exposure_symbol": "CLOV",
+            "maximum_single_name_exposure_timestamp": "2026-04-29T09:30:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 992,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 991,
+                "No available capital.": 1
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 3.527073001694064,
+            "capacity_deferrals": 901,
+            "closed_trades": 620,
+            "ending_equity": 3545.9793799245626,
+            "eod_maximum_drawdown": 0.20108693797561897,
+            "intraday_maximum_drawdown": 0.2072791092072897,
+            "maximum_observed_active_portfolio_risk": 154.59572936,
+            "maximum_observed_position_notional_fraction": 0.4103756749658869,
+            "net_profit": 2102.6393799245625,
+            "profit_factor": 1.4042691285782367,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 44.54673044851436,
+            "risk_rejections": 992,
+            "sharpe": 2.0653827842270056,
+            "sortino": 7.654959956228224,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 1.456787298851669,
+            "win_rate": 0.4838709677419355
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "60": {
+        "comparison": {
+          "ending_equity_difference": -459.1965051510997,
+          "eod_drawdown_difference": 0.029370155964649564,
+          "eod_drawdown_winner": "fixed",
+          "intraday_drawdown_difference": 0.029200208213923967,
+          "intraday_drawdown_winner": "fixed",
+          "return_winner": "fixed",
+          "total_return_difference": -0.3181485340606516
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 683,
+            "maximum_observed_active_portfolio_risk": 117.46478543,
+            "maximum_observed_position_notional_fraction": 0.5999345213010282,
+            "multiplier_distribution": {
+              "0.7": 5,
+              "0.85": 218,
+              "1.0": 460
+            },
+            "percent_reduced": 0.32650073206442165,
+            "prevented_below_one_share": 52,
+            "reduced_count": 223,
+            "unchanged_count": 460
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 2.36177,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 2.218335,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-06-16T09:30:00-04:00",
+              "pnl": -94.523665,
+              "shares": 659,
+              "symbol": "AMC"
+            },
+            "largest_trade_loss": {
+              "entry_price": 2.36177,
+              "entry_timestamp": "2026-06-15T09:45:00-04:00",
+              "exit_price": 2.218335,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-06-16T09:30:00-04:00",
+              "pnl": -94.523665,
+              "shares": 659,
+              "symbol": "AMC"
+            },
+            "maximum_single_name_exposure_fraction": 0.6171815313652137,
+            "maximum_single_name_exposure_symbol": "TPET",
+            "maximum_single_name_exposure_timestamp": "2026-07-08T09:30:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 886,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 833,
+                "Dynamic Sizing adjusted below one share.": 52,
+                "No available capital.": 1
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.3862263950576117,
+            "capacity_deferrals": 969,
+            "closed_trades": 631,
+            "ending_equity": 2422.1275411812185,
+            "eod_maximum_drawdown": 0.26905788499086375,
+            "intraday_maximum_drawdown": 0.2735716903347427,
+            "maximum_observed_active_portfolio_risk": 117.46478543,
+            "maximum_observed_position_notional_fraction": 0.5999345213010282,
+            "net_profit": 978.7875411812186,
+            "profit_factor": 1.2087213528113512,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 37.13605353048873,
+            "risk_rejections": 886,
+            "sharpe": 1.3758866000598948,
+            "sortino": 3.8957380948215588,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 0.6781406606767748,
+            "win_rate": 0.4706814580031696
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_60",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.6,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 21.8263575,
+              "entry_timestamp": "2026-07-31T13:00:00-04:00",
+              "exit_price": 20.444655,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-03T09:30:00-04:00",
+              "pnl": -107.772795,
+              "shares": 78,
+              "symbol": "GME"
+            },
+            "largest_trade_loss": {
+              "entry_price": 21.8263575,
+              "entry_timestamp": "2026-07-31T13:00:00-04:00",
+              "exit_price": 20.444655,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-03T09:30:00-04:00",
+              "pnl": -107.772795,
+              "shares": 78,
+              "symbol": "GME"
+            },
+            "maximum_single_name_exposure_fraction": 0.6171885914033091,
+            "maximum_single_name_exposure_symbol": "TPET",
+            "maximum_single_name_exposure_timestamp": "2026-07-08T09:30:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1130,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1129,
+                "No available capital.": 1
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 2.1942978282884886,
+            "capacity_deferrals": 849,
+            "closed_trades": 568,
+            "ending_equity": 2881.324046332318,
+            "eod_maximum_drawdown": 0.23968772902621419,
+            "intraday_maximum_drawdown": 0.24437148212081874,
+            "maximum_observed_active_portfolio_risk": 119.15367345,
+            "maximum_observed_position_notional_fraction": 0.6171885914033091,
+            "net_profit": 1437.9840463323183,
+            "profit_factor": 1.3170884811240233,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 39.194974627618144,
+            "risk_rejections": 1130,
+            "sharpe": 1.7348569402063803,
+            "sortino": 5.368029983614439,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 0.9962891947374264,
+            "win_rate": 0.4841549295774648
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      },
+      "90": {
+        "comparison": {
+          "ending_equity_difference": 205.15314757604506,
+          "eod_drawdown_difference": -0.06719997927280424,
+          "eod_drawdown_winner": "dynamic",
+          "intraday_drawdown_difference": -0.0735140416890972,
+          "intraday_drawdown_winner": "dynamic",
+          "return_winner": "dynamic",
+          "total_return_difference": 0.14213778290357015
+        },
+        "dynamic": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "dynamic_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "dynamic_sizing": {
+            "decision_count": 645,
+            "maximum_observed_active_portfolio_risk": 99.39604806,
+            "maximum_observed_position_notional_fraction": 0.8894487316069056,
+            "multiplier_distribution": {
+              "0.7": 7,
+              "0.85": 268,
+              "1.0": 370
+            },
+            "percent_reduced": 0.4263565891472868,
+            "prevented_below_one_share": 71,
+            "reduced_count": 275,
+            "unchanged_count": 370
+          },
+          "end": "2026-08-07",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 83.202355,
+              "entry_timestamp": "2026-08-04T09:45:00-04:00",
+              "exit_price": 77.3319575,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-05T09:30:00-04:00",
+              "pnl": -123.2783475,
+              "shares": 21,
+              "symbol": "VSAT"
+            },
+            "largest_trade_loss": {
+              "entry_price": 83.202355,
+              "entry_timestamp": "2026-08-04T09:45:00-04:00",
+              "exit_price": 77.3319575,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-08-05T09:30:00-04:00",
+              "pnl": -123.2783475,
+              "shares": 21,
+              "symbol": "VSAT"
+            },
+            "maximum_single_name_exposure_fraction": 0.8844927780241769,
+            "maximum_single_name_exposure_symbol": "BTE",
+            "maximum_single_name_exposure_timestamp": "2026-04-29T09:45:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1086,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1009,
+                "Dynamic Sizing adjusted below one share.": 71,
+                "No available capital.": 6
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 1.0035025721772124,
+            "capacity_deferrals": 886,
+            "closed_trades": 574,
+            "ending_equity": 2182.757531596364,
+            "eod_maximum_drawdown": 0.27622783735429735,
+            "intraday_maximum_drawdown": 0.28975182484308204,
+            "maximum_observed_active_portfolio_risk": 99.39604806,
+            "maximum_observed_position_notional_fraction": 0.8894487316069056,
+            "net_profit": 739.4175315963641,
+            "profit_factor": 1.1692409212187231,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 34.73361638020737,
+            "risk_rejections": 1086,
+            "sharpe": 1.4507561657280748,
+            "sortino": 2.475794087403036,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 0.5122961544725158,
+            "win_rate": 0.4738675958188153
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "dynamic"
+        },
+        "fixed": {
+          "algorithm": {
+            "accelerator_name": "dynamic_sizing",
+            "accelerator_version": "1.0.0",
+            "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1",
+            "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct",
+            "risk_tiers": [
+              {
+                "multiplier": 1.0,
+                "upper_bound": 0.25
+              },
+              {
+                "multiplier": 0.85,
+                "upper_bound": 0.5
+              },
+              {
+                "multiplier": 0.7,
+                "upper_bound": 0.75
+              },
+              {
+                "multiplier": 0.5,
+                "upper_bound": null
+              }
+            ]
+          },
+          "arm": "fixed_90",
+          "causal_gates": {
+            "CORPORATE_ACTION_CASH_TIMING": "PASS_LATER_OF_PAYABLE_OR_PROCESS_DATE",
+            "CURRENT_OPEN_FULL_OHLCV": "BLOCKED",
+            "DECISION_DATA_CUTOFF": "VERIFIED_SWING_STRATEGY_BOUNDARY",
+            "DIVIDEND_ENTITLEMENT": "PASS_EX_DATE_OWNERSHIP_SNAPSHOT",
+            "EXECUTION_TIMING": "VERIFIED_OPEN_CLOSE_PHASES",
+            "FUTURE_BAR_ACCESS": "BLOCKED",
+            "INDICATOR_PREFIX_EQUIVALENCE": "PASS",
+            "LOOKAHEAD_PROTECTION": "PASS",
+            "MISSING_SYMBOL_BAR_HANDLING": "UNAVAILABLE_SYMBOL_ONLY",
+            "OVERALL_PORTFOLIO_QUALIFICATION": "FULL_CAUSAL_ACCOUNTING_PASS",
+            "SIMULATION_CLOCK": "STRICT_RECORDED_UNION",
+            "STRATEGY_SEMANTIC_EQUIVALENCE": "PASS",
+            "SYNTHETIC_FUTURE_DATA": "NONE"
+          },
+          "dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+          "end": "2026-08-07",
+          "hard_cap": 0.9,
+          "loss_exposure_diagnostics": {
+            "largest_overnight_gap_loss": {
+              "entry_price": 86.90012625,
+              "entry_timestamp": "2026-05-27T12:15:00-04:00",
+              "exit_price": 76.9122725,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-05-29T09:30:00-04:00",
+              "pnl": -109.86639125,
+              "shares": 11,
+              "symbol": "VSAT"
+            },
+            "largest_trade_loss": {
+              "entry_price": 86.90012625,
+              "entry_timestamp": "2026-05-27T12:15:00-04:00",
+              "exit_price": 76.9122725,
+              "exit_reason": "STOP_GAP",
+              "exit_timestamp": "2026-05-29T09:30:00-04:00",
+              "pnl": -109.86639125,
+              "shares": 11,
+              "symbol": "VSAT"
+            },
+            "maximum_single_name_exposure_fraction": 0.9064066931089819,
+            "maximum_single_name_exposure_symbol": "CLOV",
+            "maximum_single_name_exposure_timestamp": "2026-04-29T09:30:00-04:00",
+            "sizing_cash_rejections": {
+              "count": 1343,
+              "diagnostics": {
+                "CASH_BELOW_ONE_SHARE": 1337,
+                "No available capital.": 6
+              }
+            }
+          },
+          "metrics": {
+            "cagr": 0.697363626168489,
+            "capacity_deferrals": 695,
+            "closed_trades": 526,
+            "ending_equity": 1977.604384020319,
+            "eod_maximum_drawdown": 0.3434278166271016,
+            "intraday_maximum_drawdown": 0.36326586653217924,
+            "maximum_observed_active_portfolio_risk": 95.60709902,
+            "maximum_observed_position_notional_fraction": 0.9064066931089819,
+            "net_profit": 534.2643840203191,
+            "profit_factor": 1.145492660360953,
+            "qdte_distribution_events": 31,
+            "qdte_distributions_received": 30.122016802032892,
+            "risk_rejections": 1343,
+            "sharpe": 1.1655866405721227,
+            "sortino": 2.0532760612603806,
+            "starting_qdte_value": 1438.0,
+            "starting_swing_cash": 5.34,
+            "starting_total_equity": 1443.34,
+            "total_return": 0.3701583715689456,
+            "win_rate": 0.4600760456273764
+          },
+          "period": "p3_2026",
+          "start": "2026-01-02",
+          "starting_state": {
+            "qdte_value": 1438.0,
+            "swing_cash": 5.34,
+            "total_equity": 1443.34
+          },
+          "treatment": "fixed"
+        }
+      }
+    }
+  },
+  "period_order": [
+    "full_2024_2026",
+    "p1_2024",
+    "p2_2025",
+    "p3_2026",
+    "e2_through_2025"
+  ],
+  "qualified_reference_commit": "bba0f48273815ede42374015db7c5770bf446962",
+  "schema_version": 1,
+  "source_dynamic_commit": "ea35e0f90a58f757a5fbd2f4b9171de479e209cf",
+  "source_robustness_commit": "73f6dc8fd4bac9bf4f0eeb6056697d79160599a8"
+}
