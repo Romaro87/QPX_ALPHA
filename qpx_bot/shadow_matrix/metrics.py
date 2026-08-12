@@ -43,6 +43,18 @@ class ShadowMetrics:
     pyramid_rejection_reason_counts: dict[str, int] = field(default_factory=dict)
     pyramid_attributable_pnl: float = 0.0
     maximum_pyramid_additions_reached_count: int = 0
+    arbitration_events: int = 0
+    capacity_constrained_events: int = 0
+    qualifying_candidates_at_collision: int = 0
+    arbitration_selected_candidates: int = 0
+    arbitration_deferred_candidates: int = 0
+    post_selection_entry_rejections: int = 0
+    fills_after_selection: int = 0
+    selected_frozen_rank_total: int = 0
+    deferred_frozen_rank_total: int = 0
+    selected_score_distribution: list[float] = field(default_factory=list)
+    deferred_score_distribution: list[float] = field(default_factory=list)
+    selection_divergence_from_hash_control: int = 0
     event_count: int = 0
     lifetime_start_sequence: int | None = None
     rolling_observations: list[dict[str, Any]] = field(default_factory=list)
@@ -168,8 +180,8 @@ class ShadowMetrics:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ShadowMetrics":
         expected = set(cls.__dataclass_fields__)
-        pyramid_fields = {name for name in expected if name.startswith("pyramid_") or name == "maximum_pyramid_additions_reached_count"}
-        if not set(payload).issubset(expected) or not expected - pyramid_fields <= set(payload):
+        accelerator_fields = {name for name in expected if name.startswith("pyramid_") or name.startswith("arbitration_") or name in {"maximum_pyramid_additions_reached_count","capacity_constrained_events","qualifying_candidates_at_collision","post_selection_entry_rejections","fills_after_selection","selected_frozen_rank_total","deferred_frozen_rank_total","selected_score_distribution","deferred_score_distribution","selection_divergence_from_hash_control"}}
+        if not set(payload).issubset(expected) or not expected - accelerator_fields <= set(payload):
             raise ValueError("Shadow metrics schema differs from checkpoint schema.")
         return cls(**payload)
 

@@ -22,7 +22,7 @@ class ShadowMatrixStateIsolationTests(unittest.TestCase):
             "performance_metrics", "checkpoint_state",
         ):
             identities = {id(getattr(state, attribute)) for state in states}
-            self.assertEqual(len(identities), 17, attribute)
+            self.assertEqual(len(identities), 33, attribute)
 
     def test_mutating_fixed25_cannot_change_any_other_shadow(self) -> None:
         before = {

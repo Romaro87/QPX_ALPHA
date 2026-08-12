@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "accelerator_version": "1.0.0",
+  "policies": ["hash_control", "frozen_order", "breakout_strength", "trend_strength", "volume_confirmation"],
+  "shadows": [
+    {"shadow_id":"frozen_order_25","cap":0.25,"policy":"frozen_order"},
+    {"shadow_id":"breakout_strength_25","cap":0.25,"policy":"breakout_strength"},
+    {"shadow_id":"trend_strength_25","cap":0.25,"policy":"trend_strength"},
+    {"shadow_id":"volume_confirmation_25","cap":0.25,"policy":"volume_confirmation"},
+    {"shadow_id":"frozen_order_40","cap":0.40,"policy":"frozen_order"},
+    {"shadow_id":"breakout_strength_40","cap":0.40,"policy":"breakout_strength"},
+    {"shadow_id":"trend_strength_40","cap":0.40,"policy":"trend_strength"},
+    {"shadow_id":"volume_confirmation_40","cap":0.40,"policy":"volume_confirmation"},
+    {"shadow_id":"frozen_order_60","cap":0.60,"policy":"frozen_order"},
+    {"shadow_id":"breakout_strength_60","cap":0.60,"policy":"breakout_strength"},
+    {"shadow_id":"trend_strength_60","cap":0.60,"policy":"trend_strength"},
+    {"shadow_id":"volume_confirmation_60","cap":0.60,"policy":"volume_confirmation"},
+    {"shadow_id":"frozen_order_90","cap":0.90,"policy":"frozen_order"},
+    {"shadow_id":"breakout_strength_90","cap":0.90,"policy":"breakout_strength"},
+    {"shadow_id":"trend_strength_90","cap":0.90,"policy":"trend_strength"},
+    {"shadow_id":"volume_confirmation_90","cap":0.90,"policy":"volume_confirmation"}
+  ]
+}

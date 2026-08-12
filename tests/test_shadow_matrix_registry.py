@@ -12,12 +12,12 @@ class ShadowMatrixRegistryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.registry = load_registry()
 
-    def test_registry_contains_exactly_seventeen_ordered_governance_identities(self) -> None:
+    def test_registry_contains_exactly_thirty_three_ordered_governance_identities(self) -> None:
         self.assertEqual(
             tuple(item.shadow_id for item in self.registry.configurations),
             EXPECTED_IDS,
         )
-        self.assertEqual(len(self.registry.configurations), 17)
+        self.assertEqual(len(self.registry.configurations), 33)
         self.assertNotEqual(
             self.registry.by_id["permanent_control"].governance_identity,
             self.registry.by_id["fixed_90"].governance_identity,
@@ -64,7 +64,7 @@ class ShadowMatrixRegistryTests(unittest.TestCase):
             [item.fingerprint for item in second.configurations],
         )
         self.assertEqual(
-            len({item.fingerprint for item in first.configurations}), 17
+            len({item.fingerprint for item in first.configurations}), 33
         )
 
     def test_dynamic_tiers_are_exact_and_automatic_promotion_is_forbidden(self) -> None:
