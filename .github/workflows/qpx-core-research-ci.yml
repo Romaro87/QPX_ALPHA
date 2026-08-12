@@ -54,5 +54,6 @@ jobs:
             tests.test_shadow_matrix_dynamic_source \
             tests.test_capacity_arbitration \
             tests.test_shadow_matrix_capacity_arbitration \
+            tests.test_parallel_research \
             tests.test_pyramiding \
             tests.test_shadow_matrix_pyramiding
