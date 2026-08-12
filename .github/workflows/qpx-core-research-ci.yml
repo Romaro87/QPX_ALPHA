@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - qpx-dynamic-sizing-v1-review-2026-08-11
+      - qpx-shadow-matrix-v1-review-2026-08-12
   pull_request:
     branches:
       - main
@@ -45,4 +46,7 @@ jobs:
             tests.test_dynamic_sizing \
             tests.test_dynamic_sizing_integration \
             tests.test_dynamic_sizing_robustness \
-            tests.test_dynamic_sizing_paired_caps
+            tests.test_dynamic_sizing_paired_caps \
+            tests.test_shadow_matrix_registry \
+            tests.test_shadow_matrix_engine \
+            tests.test_shadow_matrix_state_isolation

@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "matrix_version": "shadow-matrix-v1",
+  "automatic_promotion": false,
+  "accelerator_algorithms": {
+    "dynamic_sizing_v1": {
+      "algorithm_version": "1.0.0",
+      "risk_tiers": [
+        {"upper_bound": 0.25, "multiplier": 1.0},
+        {"upper_bound": 0.50, "multiplier": 0.85},
+        {"upper_bound": 0.75, "multiplier": 0.70},
+        {"upper_bound": null, "multiplier": 0.50}
+      ],
+      "reduction_only": true
+    }
+  },
+  "starting_state_profile": {
+    "name": "account-sized-2026-08-11",
+    "qdte_value": 1438.0,
+    "swing_cash": 5.34,
+    "total_equity": 1443.34
+  },
+  "provenance": {
+    "candidate_v1_qualification_commit": "7213db1e17fedce9e923889b116775cca121f766",
+    "fixed_25_qualification_commit": "bba0f48273815ede42374015db7c5770bf446962",
+    "dynamic_paired_cap_results_commit": "625cb218d9ec6b15278716dad648d9e25614bb04",
+    "research_parent_commit": "cf1d059a54efdbe455e2f9edf340662d15d57aa3"
+  },
+  "shadows": [
+    {
+      "shadow_id": "permanent_control",
+      "role": "CONTROL",
+      "strategy_id": "candidate_v1_strict_causal",
+      "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11",
+      "starting_qdte_value": 1438.0,
+      "starting_swing_cash": 5.34,
+      "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.90,
+      "governance_identity": "PERMANENT_REFERENCE_CONTROL",
+      "accelerators": [{
+        "name": "dynamic_sizing",
+        "enabled": false,
+        "algorithm_version": "1.0.0",
+        "configuration_version": "dynamic-sizing-disabled-cap-90pct",
+        "configuration_fingerprint": "b25a0246477406e0f76803e6fbbe805ad416599417f070a446081f6adceb10c2"
+      }]
+    },
+    {
+      "shadow_id": "fixed_25", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.25, "governance_identity": "PAIRED_FIXED_25_CONTROL",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": false, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-disabled-cap-25pct", "configuration_fingerprint": "276c84554deb3df4bb6b293ebb7ca436486539ce604a162c4d1ab3e18c64cf55"}]
+    },
+    {
+      "shadow_id": "dynamic_25", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.25, "governance_identity": "PAIRED_DYNAMIC_25_RESEARCH",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": true, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-risk-utilization-v1", "configuration_fingerprint": "dab4dda61ffeeb93a85a46caac2d8c46125145a89230e9e6490751723178b328"}]
+    },
+    {
+      "shadow_id": "fixed_40", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.40, "governance_identity": "PAIRED_FIXED_40_CONTROL",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": false, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-disabled-cap-40pct", "configuration_fingerprint": "6e1f3374e848b9e4eba4cb8298f924de23f9f5f9868bc4aedd67136087c344b4"}]
+    },
+    {
+      "shadow_id": "dynamic_40", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.40, "governance_identity": "PAIRED_DYNAMIC_40_RESEARCH",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": true, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-40pct", "configuration_fingerprint": "72a2eaee1a7b250971150e3d2a4bed4806d0facd5001f612e847ba12c26c6c35"}]
+    },
+    {
+      "shadow_id": "fixed_60", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.60, "governance_identity": "PAIRED_FIXED_60_CONTROL",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": false, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-disabled-cap-60pct", "configuration_fingerprint": "3fc8afd16ffea4a00717da4a322bd51b02c1723815bcbfd8e9016d83766543b3"}]
+    },
+    {
+      "shadow_id": "dynamic_60", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.60, "governance_identity": "PAIRED_DYNAMIC_60_RESEARCH",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": true, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-60pct", "configuration_fingerprint": "7d3f757924814a1b3bab070bb3ffc5b8e2035fc0b0ab5b26458ac86e7b68ae28"}]
+    },
+    {
+      "shadow_id": "fixed_90", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.90, "governance_identity": "PAIRED_FIXED_90_CONTROL",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": false, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-disabled-cap-90pct", "configuration_fingerprint": "b25a0246477406e0f76803e6fbbe805ad416599417f070a446081f6adceb10c2"}]
+    },
+    {
+      "shadow_id": "dynamic_90", "role": "RESEARCH",
+      "strategy_id": "candidate_v1_strict_causal", "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766",
+      "starting_state_profile": "account-sized-2026-08-11", "starting_qdte_value": 1438.0, "starting_swing_cash": 5.34, "starting_total_equity": 1443.34,
+      "hard_notional_cap": 0.90, "governance_identity": "PAIRED_DYNAMIC_90_RESEARCH",
+      "accelerators": [{"name": "dynamic_sizing", "enabled": true, "algorithm_version": "1.0.0", "configuration_version": "dynamic-sizing-risk-utilization-v1-cap-90pct", "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1"}]
+    }
+  ]
+}
