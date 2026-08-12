@@ -67,4 +67,21 @@ class ProfitRecyclingTests(unittest.TestCase):
    with self.assertRaises(ValueError):r.ledger.consume(amount,1,cash)
  def test_runtime_checkpoint_payload_preserves_configs_lots_and_decisions(self):
   r=ProfitRecyclingRuntime(self.enabled(),1300);r.decide(self.context(1));r.replace_config(self.enabled("b",.75));r.decide(self.context(2));p=json.loads(json.dumps(r.as_dict()));self.assertEqual(p["active_configuration_fingerprint"],r.active_config.fingerprint);self.assertEqual([x["configuration_fingerprint"] for x in p["ledger"]["profit_lots"]],[self.enabled().fingerprint,self.enabled("b",.75).fingerprint]);self.assertEqual(len(p["decision_history"]),2)
+ def test_zero_fraction_withholds_only_profit_and_rebalance_releases(self):
+  r=ProfitRecyclingRuntime(self.enabled(fraction=0),1300);r.decide(self.context(1));self.assertEqual(r.ledger.withheld_profit_balance,80);self.assertEqual(r.ledger.available_swing_cash(500,1),420);self.assertEqual(420,500-80);released=r.ledger.on_sleeve_rebalance(500,2);self.assertEqual(released,80);self.assertEqual(r.ledger.available_swing_cash(500,2),500);self.assertEqual(r.ledger.profit_lots[0].status,"SETTLED_AT_SLEEVE_REBALANCE")
+ def test_partial_fraction_and_principal_decomposition(self):
+  r=ProfitRecyclingRuntime(self.enabled(fraction=.25),1300);r.decide(self.context(1));lot=r.ledger.profit_lots[0];self.assertEqual((lot.eligible_after_tax_amount,lot.recyclable_amount,lot.withheld_until_rebalance_amount),(80,20,60));self.assertEqual(r.ledger.available_swing_cash(500,1),440)
+ def test_delay_and_threshold_govern_deployability(self):
+  r=ProfitRecyclingRuntime(self.enabled(fraction=.5,delay=2),1300);r.decide(self.context(1));self.assertEqual(r.ledger.available_swing_cash(500,2),420);self.assertEqual(r.ledger.available_swing_cash(500,3),460)
+  r=ProfitRecyclingRuntime(self.enabled(fraction=1,minimum=81),1300);r.decide(self.context(1));self.assertEqual(r.ledger.available_swing_cash(500,1),420);self.assertEqual(r.ledger.profit_lots[0].recyclable_amount,0)
+ def test_loss_recovery_reduces_only_future_eligibility(self):
+  r=ProfitRecyclingRuntime(self.enabled(mode=LossRecoveryMode.RECOVER_REALIZED_SWING_LOSSES_FIRST),1300);r.decide(self.context(1,ProfitSource.SWING_REALIZED_LOSS,-30,0));r.decide(self.context(2));lot=r.ledger.profit_lots[1];self.assertEqual(lot.recyclable_amount,25);self.assertEqual(r.ledger.loss_recovery_deficit,0)
+ def test_immediate_unrestricted_control_exposes_all_authoritative_cash(self):
+  c=load_profit_recycling_config(Path("qpx_bot/accelerators/configs/profit_recycling_immediate_unrestricted_control_v1.json"));r=ProfitRecyclingRuntime(c,1300);r.decide(self.context(1));self.assertEqual(r.ledger.available_swing_cash(500,1),500);self.assertEqual(r.ledger.withheld_profit_balance,0)
+ def test_research_scope_restores_all_hooks(self):
+  import QPX_RUN_PROFIT_RECYCLING_RESEARCH as research,QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict
+  from qpx_bot.portfolio import Portfolio
+  originals=(Portfolio.close_position,Portfolio.open_position,strict.calculate_position_size,strict.qpx._apply_rebalance)
+  with research.profit_recycling_scope("qpx_bot/accelerators/configs/profit_recycling_immediate_unrestricted_control_v1.json"):pass
+  self.assertEqual(originals,(Portfolio.close_position,Portfolio.open_position,strict.calculate_position_size,strict.qpx._apply_rebalance))
 if __name__=="__main__":unittest.main()
