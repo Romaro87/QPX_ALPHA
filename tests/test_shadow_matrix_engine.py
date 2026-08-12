@@ -84,7 +84,7 @@ class ShadowMatrixEngineTests(unittest.TestCase):
             {key: state.state_hash for key, state in second.states.items()},
         )
 
-    def test_dispatch_is_transactional_when_one_shadow_fails(self) -> None:
+    def test_dispatch_quarantines_one_failure_and_advances_healthy_shadows(self) -> None:
         def handler(shared_event, state):
             state.swing_cash += 1.0
             if state.configuration.shadow_id == "dynamic_60":
@@ -93,13 +93,12 @@ class ShadowMatrixEngineTests(unittest.TestCase):
 
         engine = ShadowMatrixEngine(load_registry(), handler=handler)
         before = {key: state.state_hash for key, state in engine.states.items()}
-        with self.assertRaisesRegex(RuntimeError, "injected failure"):
-            engine.dispatch(event(1))
-        self.assertEqual(
-            before, {key: state.state_hash for key, state in engine.states.items()}
-        )
-        self.assertEqual(engine.decision_log, [])
-        self.assertEqual(engine.last_sequence, 0)
+        records = engine.dispatch(event(1))
+        self.assertEqual(before["dynamic_60"], engine.states["dynamic_60"].state_hash)
+        self.assertIn("dynamic_60", engine.quarantines)
+        self.assertEqual(engine.states["fixed_60"].event_sequence, 1)
+        self.assertEqual(records[6].status, "SHADOW_HANDLER_FAILED_QUARANTINED")
+        self.assertEqual(engine.last_sequence, 1)
 
 
 if __name__ == "__main__":

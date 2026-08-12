@@ -35,7 +35,7 @@ class ShadowMatrixStateIsolationTests(unittest.TestCase):
         target.qdte_state["entitlements"]["test"] = 12.5
         target.pending_orders["AMD"] = {"shares": 1}
         target.accelerator_state["dynamic_sizing"]["decision_count"] = 99
-        target.performance_metrics["test"] = 1.0
+        target.performance_metrics.record_rejection("RISK")
         target.checkpoint_state["cursor"] = "only-fixed-25"
         self.assertEqual(
             before,

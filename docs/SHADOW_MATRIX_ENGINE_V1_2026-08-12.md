@@ -48,6 +48,14 @@ Each per-Shadow event record includes event ID/sequence/timestamp, Shadow ID and
 
 `PositionEntrySnapshot` stores the complete frozen Shadow configuration that governed entry, plus entry event and optional accelerator-decision identity. Later registry revisions cannot rewrite that snapshot or the assumptions of an existing position.
 
+## Recovery and observability
+
+Checkpoints use canonical JSON and SHA-256 to preserve registry identity, dispatch order, event continuity, all portfolio states, entry snapshots, metrics, quarantines, and audit logs. Restore rejects corruption, incompatible definitions, missing or extra Shadows, and inexact reconstruction.
+
+Each event produces deterministic permanent-control comparisons for all research Shadows. Metrics have an isolated checkpointable schema for equity, drawdowns, ratios, trades, concentration, gap losses, rejections, interventions, and divergence.
+
+Handler failure rolls back and quarantines only that Shadow while healthy Shadows advance. Rejoin requires exact contiguous replay and deterministic authorization. Dynamic definitions are validated against the authoritative V1 and paired-cap configurations; tests seal known result fingerprints.
+
 ## Explicit non-goals
 
 V1 does not implement strategy decisions, order generation, pyramiding, Champion selection, automatic promotion, broker connectivity, network access, credentials, or live capital authority. Candidate V1, fixed-25 qualification behavior, Dynamic Sizing V1 tiers, causal accounting, and provenance protections remain untouched.

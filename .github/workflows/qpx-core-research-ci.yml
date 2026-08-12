@@ -49,4 +49,6 @@ jobs:
             tests.test_dynamic_sizing_paired_caps \
             tests.test_shadow_matrix_registry \
             tests.test_shadow_matrix_engine \
-            tests.test_shadow_matrix_state_isolation
+            tests.test_shadow_matrix_state_isolation \
+            tests.test_shadow_matrix_recovery_observability \
+            tests.test_shadow_matrix_dynamic_source

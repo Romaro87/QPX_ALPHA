@@ -1,105 +1,48 @@
 """Validated immutable registry for Shadow Matrix V1."""
-
 from __future__ import annotations
-
 import json
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
-
-from qpx_bot.shadow_matrix.models import AcceleratorSnapshot, ShadowConfiguration, ShadowRole, freeze_json
-
-
-DEFAULT_CONFIG_PATH = Path(__file__).with_name("configs") / "shadow_matrix_v1.json"
-EXPECTED_IDS = (
-    "permanent_control",
-    "fixed_25", "dynamic_25",
-    "fixed_40", "dynamic_40",
-    "fixed_60", "dynamic_60",
-    "fixed_90", "dynamic_90",
-)
-
-
-@dataclass(frozen=True, slots=True)
+from qpx_bot.accelerators.dynamic_sizing import load_dynamic_sizing_config
+from qpx_bot.shadow_matrix.models import AcceleratorSnapshot,ShadowConfiguration,ShadowRole,canonical_hash,freeze_json,thaw_json
+DEFAULT_CONFIG_PATH=Path(__file__).with_name("configs")/"shadow_matrix_v1.json"
+EXPECTED_IDS=("permanent_control","fixed_25","dynamic_25","fixed_40","dynamic_40","fixed_60","dynamic_60","fixed_90","dynamic_90")
+@dataclass(frozen=True,slots=True)
 class ShadowRegistry:
-    configurations: tuple[ShadowConfiguration, ...]
-    provenance: tuple[tuple[str, str], ...]
-    matrix_version: str
-    automatic_promotion: bool
+ configurations:tuple[ShadowConfiguration,...]; provenance:tuple[tuple[str,str],...]; matrix_version:str; automatic_promotion:bool
+ def __post_init__(self):
+  if not self.matrix_version.strip() or self.automatic_promotion is not False: raise ValueError("Shadow Matrix requires a version and forbids automatic promotion.")
+  if tuple(c.shadow_id for c in self.configurations)!=EXPECTED_IDS: raise ValueError(f"Shadow Matrix V1 IDs/order must be exactly {EXPECTED_IDS!r}.")
+  self._validate_pairs()
+ def _validate_pairs(self):
+  d={c.shadow_id:c for c in self.configurations}
+  for cap in (25,40,60,90):
+   f,x=d[f"fixed_{cap}"],d[f"dynamic_{cap}"]
+   if f.hard_notional_cap!=cap/100 or x.hard_notional_cap!=cap/100: raise ValueError("Pair cap mismatch.")
+   for k in ("strategy_id","strategy_reference_commit","starting_state_profile","starting_qdte_value","starting_swing_cash","starting_total_equity","hard_notional_cap"):
+    if getattr(f,k)!=getattr(x,k): raise ValueError(f"{cap}% pair differs outside accelerator configuration.")
+   if f.accelerators[0].enabled or not x.accelerators[0].enabled: raise ValueError("Fixed/dynamic enable state invalid.")
+ @property
+ def by_id(self)->Mapping[str,ShadowConfiguration]: return MappingProxyType({c.shadow_id:c for c in self.configurations})
+ @property
+ def dispatch_order(self): return tuple(c.shadow_id for c in self.configurations)
+ @property
+ def fingerprint(self): return canonical_hash({"configurations":[c.as_dict() for c in self.configurations],"provenance":dict(self.provenance),"matrix_version":self.matrix_version,"automatic_promotion":self.automatic_promotion})
 
-    def __post_init__(self) -> None:
-        if not self.matrix_version.strip() or self.automatic_promotion is not False:
-            raise ValueError("Shadow Matrix requires a version and forbids automatic promotion.")
-        ids = tuple(item.shadow_id for item in self.configurations)
-        if ids != EXPECTED_IDS:
-            raise ValueError(f"Shadow Matrix V1 IDs/order must be exactly {EXPECTED_IDS!r}.")
-        if len(set(ids)) != len(ids):
-            raise ValueError("Shadow IDs must be unique.")
-        self._validate_pairs()
-
-    def _validate_pairs(self) -> None:
-        definitions = {item.shadow_id: item for item in self.configurations}
-        for cap in (25, 40, 60, 90):
-            fixed = definitions[f"fixed_{cap}"]
-            dynamic = definitions[f"dynamic_{cap}"]
-            if fixed.hard_notional_cap != cap / 100 or dynamic.hard_notional_cap != cap / 100:
-                raise ValueError(f"{cap}% pair does not use its declared hard cap.")
-            same_fields = (
-                "strategy_id", "strategy_reference_commit", "starting_state_profile",
-                "starting_qdte_value", "starting_swing_cash", "starting_total_equity",
-                "hard_notional_cap",
-            )
-            if any(getattr(fixed, key) != getattr(dynamic, key) for key in same_fields):
-                raise ValueError(f"{cap}% pair differs outside accelerator configuration.")
-            fixed_accelerator = fixed.accelerators[0]
-            dynamic_accelerator = dynamic.accelerators[0]
-            if fixed_accelerator.enabled or not dynamic_accelerator.enabled:
-                raise ValueError(f"{cap}% pair must have fixed OFF and dynamic ON.")
-            if fixed_accelerator.name != dynamic_accelerator.name:
-                raise ValueError(f"{cap}% pair accelerator identity differs.")
-
-    @property
-    def by_id(self) -> Mapping[str, ShadowConfiguration]:
-        return MappingProxyType({item.shadow_id: item for item in self.configurations})
-
-
-def load_registry(path: Path = DEFAULT_CONFIG_PATH) -> ShadowRegistry:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("schema_version") != 1:
-        raise ValueError("Unsupported Shadow Matrix registry schema.")
-    configurations = []
-    for item in payload["shadows"]:
-        accelerators = tuple(
-            AcceleratorSnapshot(
-                name=accelerator["name"],
-                enabled=accelerator["enabled"],
-                algorithm_version=accelerator["algorithm_version"],
-                configuration_version=accelerator["configuration_version"],
-                configuration_fingerprint=accelerator["configuration_fingerprint"],
-                parameters=freeze_json({
-                    "risk_tiers": payload["accelerator_algorithms"]["dynamic_sizing_v1"]["risk_tiers"],
-                    "maximum_position_notional_fraction": item["hard_notional_cap"],
-                    "reduction_only": True,
-                }),
-            )
-            for accelerator in item["accelerators"]
-        )
-        configurations.append(ShadowConfiguration(
-            shadow_id=item["shadow_id"],
-            role=ShadowRole(item["role"]),
-            strategy_id=item["strategy_id"],
-            strategy_reference_commit=item["strategy_reference_commit"],
-            starting_state_profile=item["starting_state_profile"],
-            starting_qdte_value=item["starting_qdte_value"],
-            starting_swing_cash=item["starting_swing_cash"],
-            starting_total_equity=item["starting_total_equity"],
-            hard_notional_cap=item["hard_notional_cap"],
-            accelerators=accelerators,
-            governance_identity=item["governance_identity"],
-        ))
-    provenance = tuple(sorted(payload["provenance"].items()))
-    return ShadowRegistry(
-        tuple(configurations), provenance, payload["matrix_version"],
-        payload["automatic_promotion"],
-    )
+def load_registry(path:Path=DEFAULT_CONFIG_PATH)->ShadowRegistry:
+ p=json.loads(path.read_text()); base=load_dynamic_sizing_config(Path(__file__).parents[1]/"accelerators/configs/dynamic_sizing_v1.json"); paired=json.loads((Path(__file__).parents[1]/"accelerators/configs/dynamic_sizing_v1_paired_caps.json").read_text())
+ authoritative=[{"upper_bound":t.upper_bound,"multiplier":t.multiplier} for t in base.risk_tiers]
+ if p["accelerator_algorithms"]["dynamic_sizing_v1"]["risk_tiers"]!=authoritative: raise ValueError("Shadow tiers differ from authoritative Dynamic Sizing V1.")
+ configs=[]
+ for item in p["shadows"]:
+  acc=[]
+  for a in item["accelerators"]:
+   cap=item["hard_notional_cap"]; params={"risk_tiers":authoritative,"maximum_position_notional_fraction":cap,"reduction_only":True}
+   if a["enabled"]:
+    key=str(round(cap*100)); expected=paired["caps"][key]
+    if a["algorithm_version"]!=base.accelerator_version or a["configuration_version"]!=expected["configuration_version"] or expected["fraction"]!=cap: raise ValueError("Shadow Dynamic configuration differs from authoritative source.")
+   acc.append(AcceleratorSnapshot(a["name"],a["enabled"],a["algorithm_version"],a["configuration_version"],a["configuration_fingerprint"],freeze_json(params)))
+  configs.append(ShadowConfiguration(item["shadow_id"],ShadowRole(item["role"]),item["strategy_id"],item["strategy_reference_commit"],item["starting_state_profile"],item["starting_qdte_value"],item["starting_swing_cash"],item["starting_total_equity"],item["hard_notional_cap"],tuple(acc),item["governance_identity"]))
+ return ShadowRegistry(tuple(configs),tuple(sorted(p["provenance"].items())),p["matrix_version"],p["automatic_promotion"])
