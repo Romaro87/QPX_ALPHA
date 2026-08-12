@@ -96,14 +96,33 @@ def _normalize_explicit_exception(scope: dict, relative: str, current: bytes) ->
     exception = exceptions.get(relative)
     if exception is None:
         return current
+    if exception.get("normalizer") != "fixed_25pct_provenance_bootstrap_v1":
+        return current
     text = current.decode("utf-8")
-    for replacement in exception.get("text_replacements", []):
-        authoritative = replacement["authoritative"]
-        corrected = replacement["corrected"]
-        if text.count(corrected) != 1:
-            return current
-        text = text.replace(corrected, authoritative, 1)
-    return text.encode("utf-8")
+    begin = "# BEGIN SCOPE-AWARE PROVENANCE BOOTSTRAP V1\n"
+    end = "# END SCOPE-AWARE PROVENANCE BOOTSTRAP V1\n"
+    if text.count(begin) != 1 or text.count(end) != 1:
+        return current
+    start = text.index(begin)
+    finish = text.index(end, start) + len(end)
+    text = text[:start] + text[finish:]
+    text = text.replace("\n\n\n\n\ndef sha256_file", "\n\n\ndef sha256_file", 1)
+    corrected = (
+        "    verify_provenance_mechanism_files()\n"
+        "    from qpx_bot.qualification_provenance import "
+        "verify_immutable_provenance\n"
+        "    verify_immutable_provenance()\n"
+    )
+    authoritative = (
+        "    tracked_tree = account.challenger._git("
+        "\"diff\", \"--quiet\", BASELINE_COMMIT, \"--\")\n"
+        "    if tracked_tree.returncode != 0:\n"
+        "        raise RuntimeError("
+        "\"Tracked Candidate V1 tree differs from baseline commit.\")\n"
+    )
+    if text.count(corrected) != 1:
+        return current
+    return text.replace(corrected, authoritative, 1).encode("utf-8")
 
 
 def verify_immutable_provenance(

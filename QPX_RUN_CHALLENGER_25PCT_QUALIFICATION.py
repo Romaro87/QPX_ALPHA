@@ -13,7 +13,6 @@ from pathlib import Path
 import QPX_RUN_CHALLENGER_ACCOUNT_ROBUSTNESS as robustness
 import QPX_RUN_CHALLENGER_ACCOUNT_SIZED as account
 import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict
-from qpx_bot.qualification_provenance import verify_immutable_provenance
 
 
 ROOT = Path(__file__).resolve().parent
@@ -46,6 +45,35 @@ REQUIRED_GATES = {
 }
 
 
+# BEGIN SCOPE-AWARE PROVENANCE BOOTSTRAP V1
+PROVENANCE_FILE_SHA256 = {
+    "qpx_bot/qualification_provenance.py": "422dbdbdb6f21b2e6e70ddd9b606c7f597847edfa9ac92923be66862121d9a35",
+    "qpx_bot/qualification_provenance.json": "08b3ba4a39e14b092b605ae6858a992d167a668aeb43183563c66405fbf48278",
+}
+
+
+def verify_provenance_mechanism_files(*, root: Path = ROOT) -> dict[str, str]:
+    """Authenticate provenance code and data before importing either."""
+    failures: list[str] = []
+    observed: dict[str, str] = {}
+    for relative, expected in PROVENANCE_FILE_SHA256.items():
+        path = root / relative
+        if not path.is_file():
+            failures.append(f"{relative}: missing")
+            continue
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        observed[relative] = actual
+        if actual != expected:
+            failures.append(f"{relative}: SHA-256 mismatch")
+    if failures:
+        raise RuntimeError(
+            "Provenance mechanism integrity verification failed: "
+            + "; ".join(failures)
+        )
+    return observed
+# END SCOPE-AWARE PROVENANCE BOOTSTRAP V1
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -56,6 +84,8 @@ def sha256_file(path: Path) -> str:
 
 def verify_fixed_definition() -> None:
     account.challenger.verify_immutable_baseline()
+    verify_provenance_mechanism_files()
+    from qpx_bot.qualification_provenance import verify_immutable_provenance
     verify_immutable_provenance()
     if account.challenger.BASELINE_COMMIT != BASELINE_COMMIT:
         raise RuntimeError("Unexpected Candidate V1 baseline commit.")

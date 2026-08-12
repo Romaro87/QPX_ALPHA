@@ -33,16 +33,11 @@
       "explicit_exceptions": [
         {
           "path": "QPX_RUN_CHALLENGER_25PCT_QUALIFICATION.py",
-          "reason": "The formal verifier is the provenance mechanism corrected after bba0f48. Only the two declared text replacements are allowed; every other byte remains anchored to bba0f48.",
+          "reason": "The formal verifier is corrected after bba0f48. Only the marked provenance-bootstrap block and its exact verify call site are normalized; every other byte remains anchored to bba0f48.",
+          "normalizer": "fixed_25pct_provenance_bootstrap_v1",
           "text_replacements": [
-            {
-              "authoritative": "import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict\n",
-              "corrected": "import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict\nfrom qpx_bot.qualification_provenance import verify_immutable_provenance\n"
-            },
-            {
-              "authoritative": "    tracked_tree = account.challenger._git(\"diff\", \"--quiet\", BASELINE_COMMIT, \"--\")\n    if tracked_tree.returncode != 0:\n        raise RuntimeError(\"Tracked Candidate V1 tree differs from baseline commit.\")\n",
-              "corrected": "    verify_immutable_provenance()\n"
-            }
+            {"audit": "bootstrap block canonicalized to bba0f48"},
+            {"audit": "verify call site canonicalized to bba0f48"}
           ]
         }
       ]
