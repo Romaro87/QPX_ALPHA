@@ -11,7 +11,7 @@ def main():
  for period,cap in CASES:
   source=serial["matrix"][period][cap]["hash_control"]
   for arm in ("control","regime_disabled"):
-   out=(a.output_root/period/f"{cap}_{arm}").resolve();job=ResearchJob(experiment_name="regime_allocation_v1_noop",worker_module="qpx_bot.research_parallel.regime_noop_worker",period=period,config_identity=f"cap_{cap}",accelerator_identity=arm,expected_dataset_fingerprint=source["dataset_fingerprint"],expected_configuration_fingerprint=source["configuration_fingerprint"],output_directory=str(out),result_artifact=str(out/"regime_noop.json"),worker_args=("--period",period,"--cap",cap,"--arm",arm),required_gates=tuple(sorted(source["causal_gates"].items())))
-   jobs.append(job.definition|{"job_id":job.job_id})
+   out=(a.output_root/period/f"{cap}_{arm}").resolve();job=ResearchJob(experiment="regime_allocation_v1_noop",worker_module="qpx_bot.research_parallel.regime_noop_worker",period=period,cap_identity=f"cap_{cap}",accelerator_identity=arm,expected_dataset_fingerprint=source["dataset_fingerprint"],expected_configuration_fingerprint=source["configuration_fingerprint"],output_directory=str(out),result_artifact=str(out/"regime_noop.json"),worker_args=("--period",period,"--cap",cap,"--arm",arm),required_gates=tuple(sorted(source["causal_gates"].items())))
+   jobs.append(job.identity_payload|{"job_id":job.job_id})
  a.manifest.parent.mkdir(parents=True,exist_ok=True);a.manifest.write_text(json.dumps({"schema_version":1,"disabled_configuration_fingerprint":cfg.fingerprint,"jobs":jobs},sort_keys=True,separators=(",",":")))
 if __name__=="__main__":main()
