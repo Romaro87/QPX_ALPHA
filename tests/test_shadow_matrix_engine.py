@@ -61,7 +61,7 @@ class ShadowMatrixEngineTests(unittest.TestCase):
     def test_decision_records_contain_deterministic_audit_fields(self) -> None:
         engine = ShadowMatrixEngine(load_registry())
         records = engine.dispatch(event(1))
-        self.assertEqual(len(records), 33)
+        self.assertEqual(len(records), 45)
         for record in records:
             self.assertEqual(len(record.record_id), 64)
             self.assertEqual(len(record.before_state_hash), 64)

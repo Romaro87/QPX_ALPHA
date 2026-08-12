@@ -30,7 +30,7 @@ class RecoveryObservabilityTests(unittest.TestCase):
    if state.configuration.shadow_id=="dynamic_25": state.swing_cash+=1
    return "ACK",None
   a=ShadowMatrixEngine(load_registry(),handler=handler); b=ShadowMatrixEngine(load_registry(),handler=handler); a.dispatch(event(1)); b.dispatch(event(1))
-  self.assertEqual(a.divergence_log,b.divergence_log); self.assertEqual(len(a.divergence_log),32)
+  self.assertEqual(a.divergence_log,b.divergence_log); self.assertEqual(len(a.divergence_log),44)
   self.assertTrue(next(x for x in a.divergence_log if x.comparison_shadow_id=="dynamic_25").divergence_occurred)
  def test_failure_rolls_back_quarantines_and_recovery_requires_exact_replay(self):
   def bad(ev,state):

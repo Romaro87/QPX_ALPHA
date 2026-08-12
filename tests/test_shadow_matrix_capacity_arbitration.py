@@ -5,10 +5,10 @@ from qpx_bot.shadow_matrix.registry import ARBITRATION_IDS, PYRAMID_IDS, LEGACY_
 
 class ShadowCapacityArbitrationTests(unittest.TestCase):
  def test_existing_seventeen_unchanged_and_exact_33(self):
-  r=load_registry();self.assertEqual(r.dispatch_order[:17],LEGACY_IDS+PYRAMID_IDS);self.assertEqual(r.dispatch_order[17:],ARBITRATION_IDS);self.assertEqual(len(r.configurations),33)
+  r=load_registry();self.assertEqual(r.dispatch_order[:17],LEGACY_IDS+PYRAMID_IDS);self.assertEqual(r.dispatch_order[17:33],ARBITRATION_IDS);self.assertEqual(len(r.configurations),45)
   for cap in (25,40,60,90):
    for policy in ("frozen_order","breakout_strength","trend_strength","volume_confirmation"):
-    c=r.by_id[f"{policy}_{cap}"];self.assertEqual({a.name:a.enabled for a in c.accelerators},{"dynamic_sizing":False,"pyramiding":False,"capacity_arbitration":True})
+    c=r.by_id[f"{policy}_{cap}"];self.assertEqual({a.name:a.enabled for a in c.accelerators},{"dynamic_sizing":False,"pyramiding":False,"capacity_arbitration":True,"regime_allocation":False})
   self.assertTrue(all(not a.enabled for a in r.by_id["permanent_control"].accelerators))
  def test_checkpoint_preserves_arbitration_metrics_and_state(self):
   r=load_registry();e=ShadowMatrixEngine(r);s=e.states["trend_strength_25"];s.accelerator_state["capacity_arbitration"]["last_decision_id"]="a"*64;s.performance_metrics.arbitration_events=3;s.performance_metrics.selected_score_distribution=[1.25]

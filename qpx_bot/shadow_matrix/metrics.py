@@ -55,6 +55,21 @@ class ShadowMetrics:
     selected_score_distribution: list[float] = field(default_factory=list)
     deferred_score_distribution: list[float] = field(default_factory=list)
     selection_divergence_from_hash_control: int = 0
+    regime_allocation_decisions: int = 0
+    regime_changes: int = 0
+    weekly_rebalances_considered: int = 0
+    allocation_trades_executed: int = 0
+    allocation_noops_within_tolerance: int = 0
+    allocation_deferred_minimum_trade: int = 0
+    allocation_partial_buys: int = 0
+    allocation_qdte_buys: int = 0
+    allocation_qdte_sells: int = 0
+    qdte_market_value_traded: float = 0.0
+    allocation_realized_pnl: float = 0.0
+    allocation_tax_reserved: float = 0.0
+    regime_decision_counts: dict[str, int] = field(default_factory=dict)
+    actual_qdte_weight_totals: dict[str, float] = field(default_factory=dict)
+    target_qdte_weight_total: float = 0.0
     event_count: int = 0
     lifetime_start_sequence: int | None = None
     rolling_observations: list[dict[str, Any]] = field(default_factory=list)
@@ -180,7 +195,7 @@ class ShadowMetrics:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ShadowMetrics":
         expected = set(cls.__dataclass_fields__)
-        accelerator_fields = {name for name in expected if name.startswith("pyramid_") or name.startswith("arbitration_") or name in {"maximum_pyramid_additions_reached_count","capacity_constrained_events","qualifying_candidates_at_collision","post_selection_entry_rejections","fills_after_selection","selected_frozen_rank_total","deferred_frozen_rank_total","selected_score_distribution","deferred_score_distribution","selection_divergence_from_hash_control"}}
+        accelerator_fields = {name for name in expected if name.startswith("pyramid_") or name.startswith("arbitration_") or name.startswith("regime_") or name.startswith("allocation_") or name in {"maximum_pyramid_additions_reached_count","capacity_constrained_events","qualifying_candidates_at_collision","post_selection_entry_rejections","fills_after_selection","selected_frozen_rank_total","deferred_frozen_rank_total","selected_score_distribution","deferred_score_distribution","selection_divergence_from_hash_control","weekly_rebalances_considered","qdte_market_value_traded","actual_qdte_weight_totals","target_qdte_weight_total"}}
         if not set(payload).issubset(expected) or not expected - accelerator_fields <= set(payload):
             raise ValueError("Shadow metrics schema differs from checkpoint schema.")
         return cls(**payload)

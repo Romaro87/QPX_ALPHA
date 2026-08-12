@@ -8,14 +8,17 @@ from typing import Mapping
 from qpx_bot.accelerators.dynamic_sizing import load_dynamic_sizing_config
 from qpx_bot.accelerators.pyramiding import load_pyramiding_config
 from qpx_bot.accelerators.capacity_arbitration import CapacityArbitrationConfig, POLICIES
+from qpx_bot.accelerators.regime_allocation import load_regime_allocation_config
 from qpx_bot.shadow_matrix.models import AcceleratorSnapshot,ShadowConfiguration,ShadowRole,canonical_hash,freeze_json
 DEFAULT_CONFIG_PATH=Path(__file__).with_name("configs")/"shadow_matrix_v1.json"
 PYRAMID_CONFIG_PATH=Path(__file__).with_name("configs")/"pyramiding_shadows_v1.json"
 ARBITRATION_CONFIG_PATH=Path(__file__).with_name("configs")/"capacity_arbitration_shadows_v1.json"
+REGIME_CONFIG_PATH=Path(__file__).with_name("configs")/"regime_allocation_shadows_v1.json"
 LEGACY_IDS=("permanent_control","fixed_25","dynamic_25","fixed_40","dynamic_40","fixed_60","dynamic_60","fixed_90","dynamic_90")
 PYRAMID_IDS=("pyramid_25","pyramid_40","pyramid_60","pyramid_90","dynamic_pyramid_25","dynamic_pyramid_40","dynamic_pyramid_60","dynamic_pyramid_90")
 ARBITRATION_IDS=tuple(f"{policy}_{cap}" for cap in (25,40,60,90) for policy in ("frozen_order","breakout_strength","trend_strength","volume_confirmation"))
-EXPECTED_IDS=LEGACY_IDS+PYRAMID_IDS+ARBITRATION_IDS
+REGIME_IDS=tuple(f"regime_{policy}_{cap}" for policy in ("stress","calm","ladder") for cap in (25,40,60,90))
+EXPECTED_IDS=LEGACY_IDS+PYRAMID_IDS+ARBITRATION_IDS+REGIME_IDS
 @dataclass(frozen=True,slots=True)
 class ShadowRegistry:
  configurations:tuple[ShadowConfiguration,...]; provenance:tuple[tuple[str,str],...]; matrix_version:str; automatic_promotion:bool
@@ -33,7 +36,12 @@ class ShadowRegistry:
     if item.hard_notional_cap!=fixed.hard_notional_cap:raise ValueError("Arbitration cap differs from matching fixed control.")
     if any(getattr(item,field)!=getattr(fixed,field) for field in ("strategy_id","strategy_reference_commit","starting_state_profile","starting_qdte_value","starting_swing_cash","starting_total_equity")):raise ValueError("Arbitration Shadow differs outside policy identity.")
     enabled={a.name:a.enabled for a in item.accelerators}
-    if enabled!={"dynamic_sizing":False,"pyramiding":False,"capacity_arbitration":True}:raise ValueError("Arbitration Shadow crossed accelerator boundaries.")
+    if enabled!={"dynamic_sizing":False,"pyramiding":False,"capacity_arbitration":True,"regime_allocation":False}:raise ValueError("Arbitration Shadow crossed accelerator boundaries.")
+  for sid in REGIME_IDS:
+   cap=int(sid.rsplit("_",1)[1]);item=d[sid];fixed=d[f"fixed_{cap}"]
+   if item.hard_notional_cap!=fixed.hard_notional_cap:raise ValueError("Regime cap differs from control")
+   enabled={a.name:a.enabled for a in item.accelerators}
+   if enabled!={"dynamic_sizing":False,"pyramiding":False,"capacity_arbitration":False,"regime_allocation":True}:raise ValueError("Regime Shadow crossed accelerator boundaries")
   for cap in (25,40,60,90):
    names=(f"fixed_{cap}",f"dynamic_{cap}",f"pyramid_{cap}",f"dynamic_pyramid_{cap}")
    if any(d[n].hard_notional_cap!=cap/100 for n in names):raise ValueError("Hard-cap family mismatch.")
@@ -41,7 +49,7 @@ class ShadowRegistry:
    for name in names:
     if any(getattr(d[name],field)!=getattr(d[f"fixed_{cap}"],field) for field in immutable_fields):raise ValueError("Shadow family differs outside accelerators.")
    enabled={n:{a.name:a.enabled for a in d[n].accelerators} for n in names}
-   expected={names[0]:{"dynamic_sizing":False,"pyramiding":False,"capacity_arbitration":False},names[1]:{"dynamic_sizing":True,"pyramiding":False,"capacity_arbitration":False},names[2]:{"dynamic_sizing":False,"pyramiding":True,"capacity_arbitration":False},names[3]:{"dynamic_sizing":True,"pyramiding":True,"capacity_arbitration":False}}
+   expected={names[0]:{"dynamic_sizing":False,"pyramiding":False,"capacity_arbitration":False,"regime_allocation":False},names[1]:{"dynamic_sizing":True,"pyramiding":False,"capacity_arbitration":False,"regime_allocation":False},names[2]:{"dynamic_sizing":False,"pyramiding":True,"capacity_arbitration":False,"regime_allocation":False},names[3]:{"dynamic_sizing":True,"pyramiding":True,"capacity_arbitration":False,"regime_allocation":False}}
    if enabled!=expected:raise ValueError("Accelerator combination matrix differs.")
  @property
  def by_id(self)->Mapping[str,ShadowConfiguration]:return MappingProxyType({x.shadow_id:x for x in self.configurations})
@@ -64,12 +72,16 @@ def load_registry(path:Path=DEFAULT_CONFIG_PATH)->ShadowRegistry:
  def pyramid_snapshot(enabled):return AcceleratorSnapshot("pyramiding",enabled,pyramid.accelerator_version,pyramid.configuration_version,load_pyramiding_config(root/"accelerators/configs/pyramiding_v1.json",enabled=enabled).fingerprint,freeze_json({"trigger_atr_multiple":1.0,"addition_fraction":0.5,"maximum_additions":2,"never_average_down":True}))
  def arbitration_snapshot(policy,enabled):
   config=CapacityArbitrationConfig(policy);return AcceleratorSnapshot("capacity_arbitration",enabled,config.policy_version,policy,config.fingerprint,freeze_json({"policy":policy,"no_tunable_coefficients":True}))
+ def regime_snapshot(policy,enabled):
+  name={"stress_income_shift_v1":"regime_stress_income_shift_v1.json","calm_swing_shift_v1":"regime_calm_swing_shift_v1.json","two_sided_ladder_v1":"regime_two_sided_ladder_v1.json"}[policy] if enabled else "regime_allocation_v1_foundation.json";c=load_regime_allocation_config(root/"accelerators/configs"/name);return AcceleratorSnapshot("regime_allocation",enabled,c.accelerator_version,c.configuration_version,c.fingerprint,freeze_json({"policy":policy if enabled else None,"boundaries":[20,25,32],"qdte_weights":list(c.qdte_weights)}))
  configs=[]
  for item in p["shadows"]:
-  acc=(dynamic_snapshot(item,item["accelerators"][0]),pyramid_snapshot(False),arbitration_snapshot("hash_control",False)); configs.append(ShadowConfiguration(item["shadow_id"],ShadowRole(item["role"]),item["strategy_id"],item["strategy_reference_commit"],item["starting_state_profile"],item["starting_qdte_value"],item["starting_swing_cash"],item["starting_total_equity"],item["hard_notional_cap"],acc,item["governance_identity"]))
+  acc=(dynamic_snapshot(item,item["accelerators"][0]),pyramid_snapshot(False),arbitration_snapshot("hash_control",False),regime_snapshot("stress_income_shift_v1",False)); configs.append(ShadowConfiguration(item["shadow_id"],ShadowRole(item["role"]),item["strategy_id"],item["strategy_reference_commit"],item["starting_state_profile"],item["starting_qdte_value"],item["starting_swing_cash"],item["starting_total_equity"],item["hard_notional_cap"],acc,item["governance_identity"]))
  base_by={x.shadow_id:x for x in configs}
  for definition in extension["shadows"]:
-  cap=round(definition["cap"]*100); source=base_by[f"dynamic_{cap}" if definition["dynamic_sizing"] else f"fixed_{cap}"]; configs.append(ShadowConfiguration(definition["shadow_id"],ShadowRole.RESEARCH,source.strategy_id,source.strategy_reference_commit,source.starting_state_profile,source.starting_qdte_value,source.starting_swing_cash,source.starting_total_equity,source.hard_notional_cap,(source.accelerators[0],pyramid_snapshot(True),arbitration_snapshot("hash_control",False)),definition["governance_identity"]))
+  cap=round(definition["cap"]*100); source=base_by[f"dynamic_{cap}" if definition["dynamic_sizing"] else f"fixed_{cap}"]; configs.append(ShadowConfiguration(definition["shadow_id"],ShadowRole.RESEARCH,source.strategy_id,source.strategy_reference_commit,source.starting_state_profile,source.starting_qdte_value,source.starting_swing_cash,source.starting_total_equity,source.hard_notional_cap,(source.accelerators[0],pyramid_snapshot(True),arbitration_snapshot("hash_control",False),regime_snapshot("stress_income_shift_v1",False)),definition["governance_identity"]))
  for definition in arbitration_extension["shadows"]:
-  cap=round(definition["cap"]*100);source=base_by[f"fixed_{cap}"];policy=definition["policy"];configs.append(ShadowConfiguration(definition["shadow_id"],ShadowRole.RESEARCH,source.strategy_id,source.strategy_reference_commit,source.starting_state_profile,source.starting_qdte_value,source.starting_swing_cash,source.starting_total_equity,source.hard_notional_cap,(source.accelerators[0],pyramid_snapshot(False),arbitration_snapshot(policy,True)),definition["shadow_id"].upper()+"_RESEARCH"))
- return ShadowRegistry(tuple(configs),tuple(sorted(p["provenance"].items())),p["matrix_version"]+"-pyramiding-v1-capacity-arbitration-v1",p["automatic_promotion"])
+  cap=round(definition["cap"]*100);source=base_by[f"fixed_{cap}"];policy=definition["policy"];configs.append(ShadowConfiguration(definition["shadow_id"],ShadowRole.RESEARCH,source.strategy_id,source.strategy_reference_commit,source.starting_state_profile,source.starting_qdte_value,source.starting_swing_cash,source.starting_total_equity,source.hard_notional_cap,(source.accelerators[0],pyramid_snapshot(False),arbitration_snapshot(policy,True),regime_snapshot("stress_income_shift_v1",False)),definition["shadow_id"].upper()+"_RESEARCH"))
+ for definition in json.loads(REGIME_CONFIG_PATH.read_text())["shadows"]:
+  cap=round(definition["cap"]*100);source=base_by[f"fixed_{cap}"];policy=definition["policy"];configs.append(ShadowConfiguration(definition["shadow_id"],ShadowRole.RESEARCH,source.strategy_id,source.strategy_reference_commit,source.starting_state_profile,source.starting_qdte_value,source.starting_swing_cash,source.starting_total_equity,source.hard_notional_cap,(source.accelerators[0],pyramid_snapshot(False),arbitration_snapshot("hash_control",False),regime_snapshot(policy,True)),definition["shadow_id"].upper()+"_RESEARCH"))
+ return ShadowRegistry(tuple(configs),tuple(sorted(p["provenance"].items())),p["matrix_version"]+"-pyramiding-v1-capacity-arbitration-v1-regime-allocation-v1",p["automatic_promotion"])
