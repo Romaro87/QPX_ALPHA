@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "accelerator_version": "1.0.0",
+  "configuration_version": "pyramiding-v1-fixed-atr-step",
+  "trigger_atr_multiple": 1.0,
+  "addition_fraction": 0.5,
+  "maximum_additions": 2
+}

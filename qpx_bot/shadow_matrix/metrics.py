@@ -35,6 +35,14 @@ class ShadowMetrics:
     capacity_deferrals: int = 0
     accelerator_interventions: int = 0
     divergence_from_permanent_control: int = 0
+    pyramid_opportunities_considered: int = 0
+    pyramid_additions_accepted: int = 0
+    pyramid_additions_rejected: int = 0
+    pyramid_shares_added: int = 0
+    pyramid_notional_added: float = 0.0
+    pyramid_rejection_reason_counts: dict[str, int] = field(default_factory=dict)
+    pyramid_attributable_pnl: float = 0.0
+    maximum_pyramid_additions_reached_count: int = 0
     event_count: int = 0
     lifetime_start_sequence: int | None = None
     rolling_observations: list[dict[str, Any]] = field(default_factory=list)
@@ -119,6 +127,23 @@ class ShadowMetrics:
         if count < 1:
             raise ValueError("Intervention count must be positive.")
         self.accelerator_interventions += count
+
+    def record_pyramid_decision(self, *, accepted_shares: int, notional: float, reasons: tuple[str, ...]) -> None:
+        self.pyramid_opportunities_considered += 1
+        if accepted_shares > 0:
+            self.pyramid_additions_accepted += 1
+            self.pyramid_shares_added += accepted_shares
+            self.pyramid_notional_added += notional
+        else:
+            self.pyramid_additions_rejected += 1
+        for reason in reasons:
+            if reason != "PYRAMID_ADDITION_ACCEPTED":
+                self.pyramid_rejection_reason_counts[reason] = self.pyramid_rejection_reason_counts.get(reason, 0) + 1
+
+    def record_pyramid_pnl(self, pnl: float) -> None:
+        if not math.isfinite(pnl):
+            raise ValueError("Pyramid P&L must be finite.")
+        self.pyramid_attributable_pnl += pnl
 
     def record_divergence(self) -> None:
         self.divergence_from_permanent_control += 1

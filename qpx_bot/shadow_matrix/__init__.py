@@ -15,12 +15,12 @@ from qpx_bot.shadow_matrix.models import (
 )
 from qpx_bot.shadow_matrix.registry import ShadowRegistry, load_registry
 from qpx_bot.shadow_matrix.metrics import ShadowMetrics
-from qpx_bot.shadow_matrix.state import ShadowPosition, ShadowState
+from qpx_bot.shadow_matrix.state import ShadowPosition, ShadowState, PyramidAdditionSnapshot
 
 __all__ = (
     "AcceleratorSnapshot", "DecisionRecord", "DivergenceRecord", "MarketEvent",
     "PositionEntrySnapshot", "ShadowConfiguration", "ShadowMatrixEngine",
     "QuarantineRecord", "RecoveryAuthorization", "ShadowCheckpointError", "ShadowMetrics",
-    "ShadowPosition", "ShadowRegistry", "ShadowRole", "ShadowState",
+    "PyramidAdditionSnapshot", "ShadowPosition", "ShadowRegistry", "ShadowRole", "ShadowState",
     "acknowledge_event", "load_registry", "restore_checkpoint", "serialize_checkpoint",
 )

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "accelerator": "pyramiding",
+  "accelerator_version": "1.0.0",
+  "configuration_version": "pyramiding-v1-fixed-atr-step",
+  "configuration_fingerprint": "4e69add84dec7aac26952231ef90b24578df29310d86b60cc2b7ba977877a1c4",
+  "shadows": [
+    {"shadow_id":"pyramid_25","cap":0.25,"dynamic_sizing":false,"governance_identity":"PYRAMID_25_RESEARCH"},
+    {"shadow_id":"dynamic_pyramid_25","cap":0.25,"dynamic_sizing":true,"governance_identity":"DYNAMIC_PYRAMID_25_RESEARCH"},
+    {"shadow_id":"pyramid_40","cap":0.40,"dynamic_sizing":false,"governance_identity":"PYRAMID_40_RESEARCH"},
+    {"shadow_id":"dynamic_pyramid_40","cap":0.40,"dynamic_sizing":true,"governance_identity":"DYNAMIC_PYRAMID_40_RESEARCH"},
+    {"shadow_id":"pyramid_60","cap":0.60,"dynamic_sizing":false,"governance_identity":"PYRAMID_60_RESEARCH"},
+    {"shadow_id":"dynamic_pyramid_60","cap":0.60,"dynamic_sizing":true,"governance_identity":"DYNAMIC_PYRAMID_60_RESEARCH"},
+    {"shadow_id":"pyramid_90","cap":0.90,"dynamic_sizing":false,"governance_identity":"PYRAMID_90_RESEARCH"},
+    {"shadow_id":"dynamic_pyramid_90","cap":0.90,"dynamic_sizing":true,"governance_identity":"DYNAMIC_PYRAMID_90_RESEARCH"}
+  ]
+}
