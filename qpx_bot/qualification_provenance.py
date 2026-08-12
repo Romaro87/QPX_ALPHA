@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
@@ -88,6 +89,42 @@ def _authoritative_blob(commit: str, relative: str) -> bytes:
     return result.stdout
 
 
+def _approved_bootstrap_text() -> str:
+    module_hash = hashlib.sha256(
+        (ROOT / "qpx_bot/qualification_provenance.py").read_bytes()
+    ).hexdigest()
+    manifest_hash = hashlib.sha256(
+        (ROOT / "qpx_bot/qualification_provenance.json").read_bytes()
+    ).hexdigest()
+    return (
+        "# BEGIN SCOPE-AWARE PROVENANCE BOOTSTRAP V1\n"
+        "PROVENANCE_FILE_SHA256 = {\n"
+        f"    \"qpx_bot/qualification_provenance.py\": \"{module_hash}\",\n"
+        f"    \"qpx_bot/qualification_provenance.json\": \"{manifest_hash}\",\n"
+        "}\n\n\n"
+        "def verify_provenance_mechanism_files(*, root: Path = ROOT) -> dict[str, str]:\n"
+        "    \"\"\"Authenticate provenance code and data before importing either.\"\"\"\n"
+        "    failures: list[str] = []\n"
+        "    observed: dict[str, str] = {}\n"
+        "    for relative, expected in PROVENANCE_FILE_SHA256.items():\n"
+        "        path = root / relative\n"
+        "        if not path.is_file():\n"
+        "            failures.append(f\"{relative}: missing\")\n"
+        "            continue\n"
+        "        actual = hashlib.sha256(path.read_bytes()).hexdigest()\n"
+        "        observed[relative] = actual\n"
+        "        if actual != expected:\n"
+        "            failures.append(f\"{relative}: SHA-256 mismatch\")\n"
+        "    if failures:\n"
+        "        raise RuntimeError(\n"
+        "            \"Provenance mechanism integrity verification failed: \"\n"
+        "            + \"; \".join(failures)\n"
+        "        )\n"
+        "    return observed\n"
+        "# END SCOPE-AWARE PROVENANCE BOOTSTRAP V1\n"
+    )
+
+
 def _normalize_explicit_exception(scope: dict, relative: str, current: bytes) -> bytes:
     exceptions = {
         item["path"]: item
@@ -105,6 +142,8 @@ def _normalize_explicit_exception(scope: dict, relative: str, current: bytes) ->
         return current
     start = text.index(begin)
     finish = text.index(end, start) + len(end)
+    if text[start:finish] != _approved_bootstrap_text():
+        return current
     text = text[:start] + text[finish:]
     text = text.replace("\n\n\n\n\ndef sha256_file", "\n\n\ndef sha256_file", 1)
     corrected = (

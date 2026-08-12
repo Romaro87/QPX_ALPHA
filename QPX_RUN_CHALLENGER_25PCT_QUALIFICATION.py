@@ -47,7 +47,7 @@ REQUIRED_GATES = {
 
 # BEGIN SCOPE-AWARE PROVENANCE BOOTSTRAP V1
 PROVENANCE_FILE_SHA256 = {
-    "qpx_bot/qualification_provenance.py": "422dbdbdb6f21b2e6e70ddd9b606c7f597847edfa9ac92923be66862121d9a35",
+    "qpx_bot/qualification_provenance.py": "081494a222a07ef910cc262bd1e2bb57317808088e4e8c8108e0cc259c9e794c",
     "qpx_bot/qualification_provenance.json": "08b3ba4a39e14b092b605ae6858a992d167a668aeb43183563c66405fbf48278",
 }
 
