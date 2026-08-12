@@ -21,3 +21,4 @@ __all__ = (
     "RiskTier",
     "load_dynamic_sizing_config",
 )
+from qpx_bot.accelerators.regime_allocation import RegimeAllocationConfig,RegimeAllocationContext,RegimeAllocationDecision,RegimeAllocationV1
