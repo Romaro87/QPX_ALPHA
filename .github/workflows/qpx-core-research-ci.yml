@@ -56,5 +56,6 @@ jobs:
             tests.test_shadow_matrix_capacity_arbitration \
             tests.test_parallel_research \
             tests.test_regime_allocation \
+            tests.test_profit_recycling \
             tests.test_pyramiding \
             tests.test_shadow_matrix_pyramiding
