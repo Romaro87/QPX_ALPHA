@@ -47,7 +47,7 @@ class ProfitRecyclingDecision:
  accelerator_version:str;configuration_fingerprint:str;policy_identity:str|None;timestamp:datetime;source_event_id:str;source_type:str;gross_realized_amount:float;attributable_tax_reserve:float;eligible_net_profit:float;amount_proposed_for_recycling:float;source_cash_balance_before:float;source_cash_balance_after:float;destination_identity:str;destination_amount:float;cumulative_recycled_amount:float;decision_reason:str;decision_id:str
 @dataclass(slots=True)
 class ProfitSourceLedger:
- original_start_capital:float;external_contributions:float=0.;gross_realized_swing_profit:float=0.;realized_swing_loss:float=0.;net_realized_swing_profit_after_tax:float=0.;qdte_distributions:float=0.;income_rebalance_realized_pnl:float=0.;tax_reserve_cash:float=0.;ordinary_unrestricted_swing_cash:float=0.;recycled_profit_balance:float=0.;withheld_profit_balance:float=0.;already_recycled_amount:float=0.;released_at_sleeve_rebalance:float=0.;loss_recovery_deficit:float=0.;profit_lots:list[ProfitLot]=field(default_factory=list);processed_source_event_ids:set[str]=field(default_factory=set);last_event_sequence:int=0
+ original_start_capital:float;external_contributions:float=0.;gross_realized_swing_profit:float=0.;realized_swing_loss:float=0.;net_realized_swing_profit_after_tax:float=0.;qdte_distributions:float=0.;income_rebalance_realized_pnl:float=0.;tax_reserve_cash:float=0.;ordinary_unrestricted_swing_cash:float=0.;recycled_profit_balance:float=0.;withheld_profit_balance:float=0.;already_recycled_amount:float=0.;released_at_sleeve_rebalance:float=0.;loss_recovery_deficit:float=0.;profit_lots:list[ProfitLot]=field(default_factory=list);processed_source_event_ids:set[str]=field(default_factory=set);last_source_event_sequence:int=0;last_sleeve_rebalance_event_sequence:int=0;last_state_event_sequence:int=0
  def __post_init__(self):
   for v in (self.original_start_capital,self.external_contributions,self.gross_realized_swing_profit,self.net_realized_swing_profit_after_tax,self.qdte_distributions,self.tax_reserve_cash,self.ordinary_unrestricted_swing_cash,self.recycled_profit_balance,self.already_recycled_amount):
    if not math.isfinite(v) or v<0:raise ValueError("Corrupted profit ledger balance")
@@ -55,7 +55,7 @@ class ProfitSourceLedger:
  def record(self,c,config):
   config.validate()
   if c.realized_event_id in self.processed_source_event_ids:raise ValueError("DUPLICATE_REALIZED_EVENT")
-  if c.event_sequence<=self.last_event_sequence:raise ValueError("OUT_OF_ORDER_REALIZED_EVENT")
+  if c.event_sequence<=self.last_state_event_sequence:raise ValueError("OUT_OF_ORDER_REALIZED_EVENT")
   source=c.realized_event_source;eligible=c.eligible_net_profit
   if source==ProfitSource.SWING_REALIZED_PROFIT:self.gross_realized_swing_profit+=c.gross_realized_pnl;self.net_realized_swing_profit_after_tax+=eligible;self.tax_reserve_cash+=c.tax_reserved
   elif source==ProfitSource.SWING_REALIZED_LOSS:self.realized_swing_loss+=c.gross_realized_pnl;self.loss_recovery_deficit+=abs(c.gross_realized_pnl)
@@ -66,7 +66,7 @@ class ProfitSourceLedger:
   if config.loss_recovery_mode==LossRecoveryMode.RECOVER_REALIZED_SWING_LOSSES_FIRST:
    recovered=min(candidate,self.loss_recovery_deficit);self.loss_recovery_deficit-=recovered;candidate-=recovered
   recyclable=candidate*config.recycling_fraction if config.enabled and candidate>=config.minimum_recyclable_profit_dollars else 0.
-  recyclable=min(recyclable,max(0.,c.ordinary_investable_cash-self.recycled_profit_balance-self.withheld_profit_balance));withheld=max(0.,eligible-recyclable);core={"source_event_id":c.realized_event_id,"source_event_sequence":c.event_sequence,"realized_timestamp":c.decision_timestamp.isoformat(),"gross_swing_profit":max(0,c.gross_realized_pnl),"tax_reserved":c.tax_reserved,"eligible_after_tax_amount":eligible,"configuration_fingerprint":config.fingerprint,"recycling_fraction":config.recycling_fraction,"recyclable_amount":recyclable,"withheld_until_rebalance_amount":withheld,"eligibility_event_sequence":c.event_sequence+config.redeployment_delay,"remaining_recyclable_amount":recyclable,"amount_consumed":0.,"amount_released_at_rebalance":0.,"status":"PENDING" if eligible else "INELIGIBLE"};lot=ProfitLot(**core,lot_id=fingerprint(core));self.profit_lots.append(lot);self.recycled_profit_balance+=recyclable;self.withheld_profit_balance+=withheld;self.ordinary_unrestricted_swing_cash=c.ordinary_investable_cash;self.processed_source_event_ids.add(c.realized_event_id);self.last_event_sequence=c.event_sequence;return lot
+  recyclable=min(recyclable,max(0.,c.ordinary_investable_cash-self.recycled_profit_balance-self.withheld_profit_balance));withheld=max(0.,eligible-recyclable);core={"source_event_id":c.realized_event_id,"source_event_sequence":c.event_sequence,"realized_timestamp":c.decision_timestamp.isoformat(),"gross_swing_profit":max(0,c.gross_realized_pnl),"tax_reserved":c.tax_reserved,"eligible_after_tax_amount":eligible,"configuration_fingerprint":config.fingerprint,"recycling_fraction":config.recycling_fraction,"recyclable_amount":recyclable,"withheld_until_rebalance_amount":withheld,"eligibility_event_sequence":c.event_sequence+config.redeployment_delay,"remaining_recyclable_amount":recyclable,"amount_consumed":0.,"amount_released_at_rebalance":0.,"status":"PENDING" if eligible else "INELIGIBLE"};lot=ProfitLot(**core,lot_id=fingerprint(core));self.profit_lots.append(lot);self.recycled_profit_balance+=recyclable;self.withheld_profit_balance+=withheld;self.ordinary_unrestricted_swing_cash=c.ordinary_investable_cash;self.processed_source_event_ids.add(c.realized_event_id);self.last_source_event_sequence=c.event_sequence;self.last_state_event_sequence=c.event_sequence;return lot
  def available_swing_cash(self,authoritative_cash,event_sequence):
   if authoritative_cash<0:raise ValueError("Authoritative cash cannot be negative")
   unavailable=self.withheld_profit_balance+sum(x.remaining_recyclable_amount for x in self.profit_lots if event_sequence<x.eligibility_event_sequence)
@@ -80,16 +80,18 @@ class ProfitSourceLedger:
   if remaining>1e-9:raise ValueError("Eligible lots cannot satisfy consumption")
   self.profit_lots=new;self.recycled_profit_balance-=amount;self.already_recycled_amount+=amount;return amount
  def on_sleeve_rebalance(self,authoritative_cash,event_sequence):
+  if type(event_sequence) is not int or event_sequence<=self.last_state_event_sequence:raise ValueError("OUT_OF_ORDER_SLEEVE_REBALANCE_EVENT")
   if self.withheld_profit_balance+self.recycled_profit_balance>authoritative_cash+1e-9:raise ValueError("Cannot settle classifications beyond authoritative cash")
   released=self.withheld_profit_balance+self.recycled_profit_balance;new=[]
   for lot in self.profit_lots:
    d=asdict(lot);d.update(amount_released_at_rebalance=lot.amount_released_at_rebalance+lot.withheld_until_rebalance_amount+lot.remaining_recyclable_amount,withheld_until_rebalance_amount=0.,remaining_recyclable_amount=0.,status="SETTLED_AT_SLEEVE_REBALANCE");new.append(ProfitLot(**d))
-  self.profit_lots=new;self.withheld_profit_balance=0.;self.recycled_profit_balance=0.;self.released_at_sleeve_rebalance+=released;self.ordinary_unrestricted_swing_cash=authoritative_cash;self.last_event_sequence=max(self.last_event_sequence,event_sequence);return released
+  self.profit_lots=new;self.withheld_profit_balance=0.;self.recycled_profit_balance=0.;self.released_at_sleeve_rebalance+=released;self.ordinary_unrestricted_swing_cash=authoritative_cash;self.last_sleeve_rebalance_event_sequence=event_sequence;self.last_state_event_sequence=event_sequence;return released
  def as_dict(self):return asdict(self)|{"processed_source_event_ids":sorted(self.processed_source_event_ids)}
  @classmethod
  def from_dict(cls,p):
   p=dict(p);p["profit_lots"]=[ProfitLot(**x) for x in p.get("profit_lots",[])];p["processed_source_event_ids"]=set(p.get("processed_source_event_ids",[]));o=cls(**p)
-  if o.processed_source_event_ids!={x.source_event_id for x in o.profit_lots} or o.last_event_sequence!=(o.profit_lots[-1].source_event_sequence if o.profit_lots else 0):raise ValueError("Corrupted ledger continuity")
+  expected_source=o.profit_lots[-1].source_event_sequence if o.profit_lots else 0;expected_state=max(expected_source,o.last_sleeve_rebalance_event_sequence)
+  if o.processed_source_event_ids!={x.source_event_id for x in o.profit_lots} or o.last_source_event_sequence!=expected_source or o.last_state_event_sequence!=expected_state:raise ValueError("Corrupted ledger continuity")
   return o
 class ProfitRecyclingRuntime:
  def __init__(self,config,starting_capital):config.validate();self.active_config=config;self.config_history=[config.fingerprint];self.rejected_configurations=[];self.ledger=ProfitSourceLedger(starting_capital);self.decision_history=[]

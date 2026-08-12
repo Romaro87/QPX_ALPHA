@@ -24,6 +24,22 @@ class ProfitRecyclingTests(unittest.TestCase):
  def test_checkpoint_roundtrip_and_corruption(self):
   l=ProfitSourceLedger(1300);l.record(self.context(2),self.config());p=json.loads(json.dumps(l.as_dict()));self.assertEqual(ProfitSourceLedger.from_dict(p).as_dict(),l.as_dict());p["processed_source_event_ids"]=[]
   with self.assertRaises(ValueError):ProfitSourceLedger.from_dict(p)
+ def test_checkpoint_after_profit_then_rebalance_restores_and_continues(self):
+  r=ProfitRecyclingRuntime(self.enabled(fraction=.25),1300);r.decide(self.context(1));lot=r.ledger.profit_lots[0]
+  self.assertEqual((lot.recyclable_amount,lot.withheld_until_rebalance_amount),(20,60));r.ledger.on_sleeve_rebalance(500,2)
+  self.assertEqual(r.ledger.profit_lots[0].status,"SETTLED_AT_SLEEVE_REBALANCE");payload=json.loads(json.dumps(r.ledger.as_dict()));restored=ProfitSourceLedger.from_dict(payload)
+  self.assertEqual(restored.as_dict(),payload);restored.record(self.context(3),self.enabled(fraction=.25));self.assertEqual(restored.last_source_event_sequence,3);self.assertEqual(restored.last_state_event_sequence,3)
+  with self.assertRaisesRegex(ValueError,"DUPLICATE"):restored.record(self.context(3),self.enabled())
+  with self.assertRaisesRegex(ValueError,"OUT_OF_ORDER"):restored.record(self.context(2),self.enabled())
+ def test_checkpoint_after_multiple_profits_and_zero_balance_rebalance(self):
+  r=ProfitRecyclingRuntime(self.enabled(fraction=1),1300);r.decide(self.context(1));r.decide(self.context(2));r.ledger.consume(160,2,500);self.assertEqual(r.ledger.recycled_profit_balance,0)
+  r.ledger.on_sleeve_rebalance(500,4);restored=ProfitSourceLedger.from_dict(json.loads(json.dumps(r.ledger.as_dict())))
+  self.assertEqual((restored.last_source_event_sequence,restored.last_sleeve_rebalance_event_sequence,restored.last_state_event_sequence),(2,4,4));self.assertEqual(restored.recycled_profit_balance,0)
+ def test_checkpoint_sequence_corruption_fails_closed(self):
+  r=ProfitRecyclingRuntime(self.enabled(),1300);r.decide(self.context(2));r.ledger.on_sleeve_rebalance(500,5);payload=json.loads(json.dumps(r.ledger.as_dict()))
+  for field,value in (("last_source_event_sequence",1),("last_state_event_sequence",4),("last_state_event_sequence",6),("last_sleeve_rebalance_event_sequence",1)):
+   corrupt=dict(payload);corrupt[field]=value
+   with self.assertRaisesRegex(ValueError,"continuity"):ProfitSourceLedger.from_dict(corrupt)
  def test_principal_cannot_be_fabricated_or_recycled(self):
   l=ProfitSourceLedger(1300)
   lot=l.record(self.context(source=ProfitSource.ORIGINAL_START_CAPITAL,pnl=1300,tax=0),ProfitRecyclingConfig(True,"1.0.0","x","x",1.0));self.assertEqual(lot.recyclable_amount,0)
