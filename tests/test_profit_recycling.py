@@ -47,6 +47,13 @@ class ProfitRecyclingTests(unittest.TestCase):
   s=Path("qpx_bot/portfolio.py").read_text();self.assertIn("self.cash += proceeds - tax_reserved",s);self.assertIn("self.tax_reserve_cash += tax_reserved",s);self.assertIn("self.realized_pnl += pnl",s);self.assertIn("tax_reserved=tax_reserved",s)
  def test_no_position_or_future_surface(self):
   names=set(ProfitRecyclingContext.__dataclass_fields__);self.assertFalse(names&{"positions","future_returns","future_prices","unrealized_pnl","dividend_opportunity"})
+ def test_fraction_matrix_causal_aggregate_uses_authoritative_overall_gate(self):
+  import QPX_RUN_PROFIT_RECYCLING_RESEARCH as research
+  gates={"OVERALL_PORTFOLIO_QUALIFICATION":"FULL_CAUSAL_ACCOUNTING_PASS","CURRENT_OPEN_FULL_OHLCV":"BLOCKED","SIMULATION_CLOCK":"STRICT_RECORDED_UNION"}
+  self.assertTrue(research.causal_gates_pass(gates))
+  self.assertFalse(research.causal_gates_pass({"OVERALL_PORTFOLIO_QUALIFICATION":"FAIL","CURRENT_OPEN_FULL_OHLCV":"PASS"}))
+  self.assertFalse(research.causal_gates_pass({}))
+
  def test_existing_45_registry_unchanged(self):
   from qpx_bot.shadow_matrix.registry import load_registry
   r=load_registry();self.assertEqual(len(r.configurations),45);self.assertTrue(all(not a.enabled for a in r.by_id["permanent_control"].accelerators))

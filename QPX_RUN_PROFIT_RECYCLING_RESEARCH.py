@@ -12,6 +12,10 @@ from qpx_bot.accelerators.profit_recycling import ProfitRecyclingContext,ProfitR
 from qpx_bot.portfolio import Portfolio
 from qpx_bot.risk import calculate_position_size
 ROOT=Path(__file__).resolve().parent
+
+def causal_gates_pass(gates):
+    """Return the authoritative causal qualification result, not diagnostic labels."""
+    return isinstance(gates,dict) and gates.get("OVERALL_PORTFOLIO_QUALIFICATION")=="FULL_CAUSAL_ACCOUNTING_PASS"
 @dataclass(slots=True)
 class RunState:
  runtime:object;event_sequence:int=0;current_event_sequence:int=0;deferrals:int=0;reductions:int=0;used:float=0.;matured:float=0.;decisions:list=field(default_factory=list)
