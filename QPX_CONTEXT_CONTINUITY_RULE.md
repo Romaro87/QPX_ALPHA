@@ -47,6 +47,12 @@ All recovered material must continue to be classified honestly as:
 - FUTURE_DECISION
 - UNKNOWN / UNRECOVERED
 
+## PARAMETER UNCERTAINTY RULE — LOAD BEFORE INTERPRETATION
+
+If an exact threshold, percentage, cap, delay, cooldown, allocation, weight, multiplier, mode, limit, timing value, or other strategy/operational parameter is not explicitly recovered, do not assume it was forgotten and do not invent or hard-code it. QPX architecture treats such values as user-configurable, versioned, fingerprinted, and hot-swappable where safe; engine code supplies capability and validation, while runtime/versioned configuration supplies values. Frozen historical values are experiment configurations, not universal defaults. Hard safety, accounting, and provenance invariants remain code invariants and are not tuneable. This rule applies across QPX engines, accelerators, ML, allocation, risk, scheduling, and future subsystems unless a documented architectural invariant explicitly overrides it.
+
+**MISSING CONTEXT MEANS RETRIEVE/VERIFY — NEVER REINTERPRET OR INVENT.**
+
 ## Purpose
 
 The purpose of this rule is to prevent another QPX context-loss event from forcing repeated reconstruction of settled decisions, capabilities, features, architecture, research state, or debugging history.

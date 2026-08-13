@@ -206,3 +206,39 @@ Current workflow action:
 Current next technical QPX milestone after Codex setup:
 
 **authentic QDTE dividend cash timing → strict-causal Candidate V1 rerun**
+
+
+<!-- QPX_DURABLE_RECOVERY_PROMPT_20260813 -->
+# DURABLE RECOVERY PROMPT — 2026-08-13
+
+## QPX GOVERNING RULES — APPLY IMMEDIATELY ON RESTORE
+
+Load governing rules before project history. **MISSING CONTEXT MEANS RETRIEVE/VERIFY — NEVER REINTERPRET OR INVENT.**
+
+### PARAMETER UNCERTAINTY RULE
+
+If an exact threshold, percentage, cap, delay, cooldown, allocation, weight, multiplier, mode, limit, timing value, or other strategy/operational parameter is not explicitly recovered, do not assume it was forgotten and do not invent or hard-code it. QPX values are generally user-configurable, versioned, fingerprinted, and hot-swappable where safe. Engine code supplies capability and validation; runtime configuration supplies values. Frozen experiment values are not universal defaults. Safety, accounting, and provenance invariants remain code invariants.
+
+## RESTORE NOW
+
+Repository `/mnt/sdcard/QPX_ALPHA`; branch `qpx-shadow-matrix-v1-review-2026-08-12`; local/remote HEAD `1ce96941e8fb1cbe8c9e7c5dabf3327842603814`; main/origin-main `2cab84accdfe79faa8097b7fdb976da46d8dbde5`; ahead/behind `0/0`; worktree clean before this context update.
+
+Read in order: `QPX_CONTEXT_CONTINUITY_RULE.md`, latest appended section in `QPX_RECOVERY_DECISION_LEDGER.md`, this prompt, and latest `QPX_CONVERSATION_JOURNAL_2026-08-13.md` if present. Then inspect `git status`, current HEAD, and artifact fingerprints.
+
+## COMPLETED TRAJECTORY
+
+The repository preserves strict Candidate V1 causal/provenance work; fixed-25 qualification; Dynamic Sizing V1; Pyramiding V1; Capacity Arbitration V1; process-isolated parallel research; Regime Allocation V1 foundation/no-op/policies/results; and Profit Recycling foundation, hot swap, governor, checkpoint continuity, equivalence, and fraction matrix. See the detailed ledger section for commits and evidence.
+
+Profit Recycling fraction matrix: 20/20 jobs, 0 failures, fixed-25/hash-control, fractions 100/75/50/25/0, periods full/2024/2025/2026, dataset `8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8`, manifest `4213719f443f7ed8285511e4268a8a1b181b32d082cde03a12e75538b1129133`. The former false causal flag was a reporting bug fixed by `1ce9694`; corrected flag is true, no economics changed.
+
+## CURRENT STATE / NEXT ACTION
+
+No active run, no unpushed commit, and no approved next Profit Recycling matrix. Do not tune or promote any fraction. Next action requires explicit user direction and predeclaration of exact values.
+
+## ROADMAP / LONG-TERM DIRECTION
+
+Preserve Top100 exactly; keep Dividend Opportunity Engine separate; test accelerator combinations only after evidence; use Champion/Challenger/Shadow governance; eventually harden trusted-core failover, broker reconciliation, unattended safe recovery, LAN workers, Tailscale phone access, energy-aware scheduling, and QPX-native constrained ML. AM4 is a replaceable role host, not QPX identity.
+
+## SECURITY / PRESERVATION
+
+Do not stage ignored reports, caches, raw data, `.env`, credentials, private broker data, or the malformed `qpx_bot/QPX_ALPHA` gitlink. Never use `git add .`. Main remains untouched.

@@ -1180,3 +1180,122 @@ Current technical next milestone after workflow setup:
 
 freeze authentic QDTE dividend payment/cash-availability timing and rerun
 strict-causal Candidate V1.
+
+
+<!-- QPX_DURABLE_RECOVERY_POINT_20260813_PROFIT_RECYCLING_MATRIX -->
+# DURABLE RECOVERY POINT — PROFIT RECYCLING FRACTION MATRIX — 2026-08-13
+
+**STATUS:** VERIFIED_REPO + VERIFIED_ARTIFACT + USER_CONFIRMED preservation snapshot
+**Purpose:** preserve the complete QPX trajectory before reducing Codex usage.
+
+## QPX GOVERNING RULES — APPLY IMMEDIATELY ON RESTORE
+
+Load this section before interpreting project history, proposing architecture, or generating future instructions.
+
+- Do not merge or modify `main` without explicit authorization.
+- Do not modify protected Candidate V1 behavior/files, frozen Top100 membership/order, frozen datasets, provenance protections, permanent control, or the malformed `qpx_bot/QPX_ALPHA` gitlink unless explicitly authorized.
+- Research results are evidence only; no Shadow/Challenger/ML component self-promotes.
+- Preserve causal accounting, deterministic replay, checkpoint integrity, and fail-closed behavior.
+- **MISSING CONTEXT MEANS RETRIEVE/VERIFY — NEVER REINTERPRET OR INVENT.**
+
+## PARAMETER UNCERTAINTY RULE
+
+If an exact threshold, percentage, cap, delay, cooldown, allocation, weight, multiplier, mode, limit, timing value, or other strategy/operational parameter is not explicitly recovered, **DO NOT assume it was forgotten and DO NOT invent or hard-code a value.**
+
+QPX architecture assumes exact operational/strategy parameters are generally **USER-CONFIGURABLE, VERSIONED, FINGERPRINTED, AND HOT-SWAPPABLE** where safe. The engine implements capability and validation; runtime/versioned configuration supplies values. Historical fixed values normally represent frozen experiment configurations, not universal permanent defaults. Hard safety, accounting, and provenance invariants remain code invariants and are not tuneable. This applies across every QPX engine, accelerator, ML component, allocation rule, risk mechanism, hardware scheduler, and future subsystem unless explicitly overridden by a documented architectural invariant.
+
+## A. EVERYTHING COMPLETED
+
+### Repository and workflow
+
+- Branch: `qpx-shadow-matrix-v1-review-2026-08-12`.
+- Current verified HEAD: `1ce96941e8fb1cbe8c9e7c5dabf3327842603814`, `Correct Profit Recycling matrix causal aggregate`.
+- Remote review branch matches local; ahead/behind is `0/0`.
+- Main and origin/main remain `2cab84accdfe79faa8097b7fdb976da46d8dbde5`; main was not modified.
+- No local unpushed commits or intentional untracked source files exist at this checkpoint.
+- Ignored generated reports/caches/raw data are disposable under repository policy and are not staged. Credentials/environment files are ignored and not committed.
+
+### Completed accelerator progression
+
+Verified by Git history/artifacts: Candidate V1 strict causal foundation and qualification work; Dynamic Sizing V1; Pyramiding V1; Capacity Arbitration V1; parallel research runner; Regime Allocation V1 foundation, no-op validation, fixed proposals, and matrix; Profit Recycling V1 foundation, no-op/equivalence validation, hot-swappable configuration, redeployment governor, checkpoint continuity repair, and fraction matrix.
+
+Key commits in order include: `837b51f` foundation; `971c823` hot-swappable Profit Recycling; `9cef0ee` governor integration; `f9c14d1` checkpoint continuity repair; `9acd7fe` fraction matrix results; `1ce9694` causal aggregation repair. Earlier Dynamic/Pyramiding/Capacity/Regime commits are preserved in Git history.
+
+### Profit Recycling fraction matrix
+
+Artifact: `docs/research_results/PROFIT_RECYCLING_V1_FRACTION_MATRIX_2026-08-12.json`. Manifest fingerprint: `4213719f443f7ed8285511e4268a8a1b181b32d082cde03a12e75538b1129133`. Dataset fingerprint: `8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8`. Frozen Top100 fingerprint: `8549b0cf69631a974cacb8b429c52da4e36c40665dce9d1d7c3f1800641cd914`.
+
+Five frozen research-only configs: PR_FRACTION_100 `148f702f9ba50ec788b0554ade08c9bebedb7219ddbe796d62feda884739f691`; PR_FRACTION_75 `90ecbd0541e902745e69ccf6d0ba8a615dedb858de5109f9112bba8f62d84359`; PR_FRACTION_50 `c8d634fcd6a5c1c9503f5dbe38de807b5ee607e21afbb6ea06d1903ba0b5c049`; PR_FRACTION_25 `49178a9864f1f0273a966f5a667693efcc5b6a2343b47eaf61f018b79191c190`; PR_FRACTION_0 `f01f285c44ba189eaeeed8cd4a2ef2f3bb7d0c86478e41c86a585f979743a9f0`.
+
+20/20 jobs completed, 0 failed, 4 workers. All causal gates now aggregate true. The prior false flag was an aggregation/reporting bug: every descriptive gate was required to literally equal `PASS`; valid statuses include `BLOCKED`, `STRICT_RECORDED_UNION`, `NONE`, and others. Commit `1ce9694` fixed this by using `OVERALL_PORTFOLIO_QUALIFICATION == FULL_CAUSAL_ACCOUNTING_PASS`. No historical jobs were rerun and economic values did not change.
+
+Full period: 100% control ending equity `$27,880.67`; 50% `$28,276.83` (+$396) but with worse drawdowns; 75% `$27,228.80` (-$652); 25% `$24,249.85` (-$3,631); 0% `$22,771.37` (-$5,109). Calendar partitions were mixed: 75% improved growth and EOD drawdown in 2025 only; no robust multi-period superiority. Do not tune, promote, or automatically start another matrix.
+
+### Validation and protections
+
+At `1ce9694`: focused Profit Recycling tests 29 passed; full offline core suite 179 passed; GitHub CI run `31657125971` succeeded. Candidate V1 protected provenance passed; frozen Top100, permanent control, Dynamic/Pyramiding/Capacity/Regime behavior, and main were unchanged.
+
+## B. EVERYTHING CURRENTLY IN PROGRESS
+
+- Current feature stage: Profit Recycling fraction-matrix audit/preservation is complete.
+- Current verified state: clean synchronized review branch at `1ce9694`; no active implementation or historical run.
+- Current blocker: no approved next Profit Recycling configuration family exists. Fixed withholding has mixed evidence and must not be treated as a Champion.
+- Immediate next action: on explicit user direction, retrieve/inspect this recovery package and decide whether to define a new research hypothesis. Do not infer one.
+
+## C. EVERYTHING STILL TO DO
+
+1. Preserve and verify recovery point (this task): acceptance = clean branch, pushed recovery docs, local/remote equality, main unchanged.
+2. Only after explicit direction, choose a research question and predeclare exact config values/fingerprints.
+3. If approved, run a bounded isolated matrix through the process-isolated parallel runner; require resumability, causal gates, and no tuning.
+4. Review evidence for mechanism and robustness; governance decides whether any Challenger/Shadow deserves further testing.
+5. Separately continue Dividend Opportunity Engine architecture; do not absorb dividend logic into Profit Recycling.
+6. Later, test approved accelerator combinations (Dynamic, Pyramiding, Capacity, Regime, Profit Recycling) in controlled isolated stages.
+7. Eventually establish Champion/Challenger qualification, paper-trading readiness, and production hardening.
+
+Explicitly not to do now: no broad parameter sweep, no Top100 rebuild, no Candidate baseline edits, no automatic promotion, no main merge, no ML/live adaptive mutation, no hardware procurement assumption.
+
+## D. DETAILED ROADMAP
+
+- **Profit Recycling:** foundation, hot swap, governor, continuity repair, control equivalence, and fraction matrix complete; next direction unknown pending user governance.
+- **Dividend Opportunity Engine:** separate future accelerator; exact opportunities, thresholds, ex-dividend rules, and policy values remain unrecovered/configurable unless explicitly approved.
+- **Combinations:** test only predeclared combinations after isolated evidence justifies them; preserve accelerator responsibility boundaries.
+- **Champion/Challenger:** no experiment self-promotes; establish formal qualification, Shadow evidence, risk and robustness review before any Champion change.
+- **Paper trading:** requires strict causal/provenance/accounting gates, checkpoint/recovery, broker reconciliation, secrets isolation, and operational readiness.
+- **Laptop/remote workflow:** prior recommendation discussion is recovered context, not a purchase. Phone-to-core remote path is Tailscale to trusted core; local workers remain LAN-managed.
+- **Home lab:** AM4 is initial trusted-core host role, not QPX identity. Reuse hardware first; workers are replaceable and opportunistic.
+- **ML/Adaptive Intelligence:** approved long-term direction, intentionally deferred until deterministic evidence constraints exist. QPX trains/controls data; ML recommends, Shadows test, governance decides; no self-promotion or silent mutation.
+- **Options/short/leverage:** future research only; no exact rules or parameters recovered.
+- **Production hardening:** replicated authoritative state, checksummed journals, fencing/lease, failover, broker reconciliation, unattended safe recovery, low-noise alerts, and fail-closed corruption handling remain future work.
+
+## E. UNCERTAINTY LEDGER
+
+### Unknown / unrecovered
+
+- Exact next Profit Recycling mechanism beyond fraction withholding.
+- Any approved delay, threshold, loss-recovery, cooldown, conditional trigger, or destination policy.
+- Exact Dividend Opportunity Engine policy and parameters.
+- Champion identity and live promotion decision.
+- Final paper-trading deployment date and broker operational choices.
+- Exact ML model family, features, targets, cadence, thresholds, and training schedule.
+- Exact home-lab failover hardware, lease protocol, and power/thermal thresholds.
+- Exact options/short/leverage research configurations.
+
+### Intentionally configurable
+
+Profit fractions, thresholds, delays, loss recovery, allocation weights, risk limits where architecture allows, worker quotas, wake/sleep policy, telemetry thresholds, model configuration, and operational schedules.
+
+### Frozen research values (not universal defaults)
+
+The five PR fraction configs, fixed-25/hash-control context, existing Regime schedules, Capacity policies, Pyramiding 1.0.0, and Dynamic tiers are reproducibility artifacts only unless separately approved.
+
+### Hypotheses / proposals
+
+Conditional/intelligent profit recycling may be more meaningful than permanent fixed withholding; this is an assistant/user research direction, not an approved policy. ML adaptive intelligence is an approved long-term direction, not an implementation decision.
+
+### Architecture questions requiring verification
+
+How future conditional recycling should interact with entry sizing, sleeve rebalance, capacity, and risk; how distributed trusted-core failover should fence authority; how paper trading will reconcile broker state; and how QPX-native ML evidence will be versioned and promoted.
+
+## RECOVERY RESTORE CONTRACT
+
+On restore: verify branch/HEAD/status and read `QPX_CONTEXT_CONTINUITY_RULE.md`, this section, `QPX_RECOVERY_PROMPT.md`, and the latest journal snapshot before interpreting history. Verify artifact fingerprints and Git provenance. Do not rerun or alter the fraction matrix merely because the aggregate was corrected.
