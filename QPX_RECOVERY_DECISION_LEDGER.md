@@ -1299,3 +1299,97 @@ How future conditional recycling should interact with entry sizing, sleeve rebal
 ## RECOVERY RESTORE CONTRACT
 
 On restore: verify branch/HEAD/status and read `QPX_CONTEXT_CONTINUITY_RULE.md`, this section, `QPX_RECOVERY_PROMPT.md`, and the latest journal snapshot before interpreting history. Verify artifact fingerprints and Git provenance. Do not rerun or alter the fraction matrix merely because the aggregate was corrected.
+
+
+<!-- QPX_AUGUST14_ARCHITECTURE_RECOVERY_20260814 -->
+# AUGUST 14 ARCHITECTURE RECOVERY POINT — 2026-08-14
+
+**Status:** USER_CONFIRMED + RECOVERED_CONTEXT; repository facts separately marked VERIFIED_REPO.
+**Recovery boundary:** approximately 2026-08-14 13:12 CDT, immediately after approval of the AI Wildcard concept. Anything after that point is UNKNOWN / UNRECOVERED unless independently verified.
+
+## QPX GOVERNING RULES — APPLY IMMEDIATELY ON RESTORE
+
+Load governing rules before interpreting project history, proposing architecture, or generating future instructions. **MISSING CONTEXT MEANS RETRIEVE/VERIFY — NEVER REINTERPRET OR INVENT.** Do not merge or modify main; preserve protected Candidate V1, frozen Top100/data, provenance, permanent controls, and economic accounting. Research, ML, Shadows, and Wildcard actors never self-promote or gain real-money authority.
+
+### PARAMETER UNCERTAINTY RULE
+
+If an exact threshold, percentage, cap, delay, cooldown, allocation, weight, multiplier, mode, limit, timing value, or other strategy/operational parameter is not explicitly recovered, do not assume it was forgotten and do not invent or hard-code it. QPX should keep these values USER-CONFIGURABLE, VERSIONED, FINGERPRINTED, and HOT-SWAPPABLE where safe. Engine code provides capability and validation; versioned runtime configuration supplies values. Historical fixed values are normally frozen research configurations, not universal defaults. Safety, accounting, and provenance invariants are code invariants, not tuneable parameters.
+
+## RECOVERED AUGUST 14 TRAJECTORY
+
+### 1. QPX Core and Indiana migration
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** The initial permanent trusted QPX Core should use Ubuntu 24.04 LTS and run as dedicated Linux services, not an interactive desktop session. Desired capabilities: pinned/runtime-controlled Python, persistent state and journals, watchdog/health monitoring, checkpoints/backups, SSH, and secure phone access. During the approximately one-week Indiana visit, family time remains the priority. Minimum successful outcome: one dedicated Linux QPX machine reachable from the phone, unattended, state-persistent, and able to survive/reconcile after reboot. Tailscale is the preferred first remote-access path; native WireGuard and broader networking can be evaluated later. Do not finalize the entire home-lab architecture during the trip.
+
+### 2. Development usability
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** Prioritize development speed using automation, clear commands, and PASS / FAIL / NEXT STEP workflows where useful. The user eventually wants to understand and independently change QPX, but learning must not block current progress. QPX should remain understandable and usable as a personal tool even if never public; it must not become an opaque black box.
+
+### 3. Hypothetical public/local ownership philosophy
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT; commercialization future governance.** A roughly $20 one-time purchase was discussed hypothetically; it is not a frozen commercial decision. Approved philosophy: affordability, local-first ownership, user control of the copy, user-supplied broker/data/API credentials, no mandatory subscription merely to keep a purchased local copy operating, no mandatory remote license heartbeat, private trading state/strategies/history/credentials local where practical, and strict isolation between public QPX infrastructure and private/home QPX. Final price, license, and commercialization remain undecided until QPX is mature and live-tested.
+
+### 4. Eventual one-minute architecture
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** QPX should eventually support 1-minute granularity before real-money deployment, but current work must not be derailed into an immediate wholesale conversion. Prerequisites: establish QPX Core, bring the 5900XT online as a worker, and prove Core↔worker operation. Existing qualified 15-minute research remains protected control. Future sequence: obtain authentic 1-minute data; validate/freeze it; aggregate it back to 15-minute; prove parity with the protected 15-minute reference; only then research whether finer decision/execution resolution adds value. Decision resolution and execution resolution remain separate concepts.
+
+### 5. Isolated timeframe Shadows
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** After canonical authentic 1-minute data exists, fixed decision resolutions may be tested as isolated Shadows. Each sees only completed candles at its assigned resolution, with no future or cross-resolution leakage. Results are evidence/recommendations only and cannot silently alter Champion.
+
+### 6. Strategy lineage
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** Permanent lineage is **Boundary → Challenger → Champion**. Boundary research earns Challenger consideration; Challengers compete for Champion; displaced Champions should remain live-paper forward references where practical. Replacement requires governed evidence, not merely recent profit.
+
+### 7. Governed Challenger capacity
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** Maintain approximately 10 active governed Challenger slots as a practical target, not a limit on broad Boundary/Shadow exploration. Scarce Challenger capacity is reserved for candidates earning forward evaluation. Concurrent instances may share canonical validated market data while isolating positions, cash/accounting, indicators/state, pending orders, configuration/version, checkpoints/history, and audit identity.
+
+### 8. Candidate Qualification Layer
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** Introduce a governed layer between broad Boundary/Shadow research and scarce Challenger slots. It aggregates evidence, compares quality, rejects candidates, requests missing tests, and nominates sufficiently supported candidates. Evidence can include causal validity, historical/OOS and forward behavior, risk/return, drawdown, stability, slippage/execution, capacity, correlation/novelty, regime dependence, robustness, and evidence gaps. It has no trading-capital authority. Boundary/Shadow/Research ML asks what is worth investigating; Qualification asks which investigated candidates deserve scarce Challenger capacity. Exact scores/thresholds remain configurable or UNKNOWN.
+
+### 9. Three separated ML roles
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** Research ML generates hypotheses, assists Boundary/Shadow research, prioritizes experiments, and discovers patterns; it has no promotion or real-money authority. Qualification ML independently evaluates robustness, overfitting, regime dependence, correlation/similarity, degradation, and evidence gaps; the researcher must not grade its own work. Operations ML observes live-paper/eventual operational behavior such as slippage, fills, broker/feed degradation, liquidity, paper/live divergence, and anomalies; bounded advice requires explicit deterministic permission. ML failure must mean loss of intelligence, not loss of safety or deterministic trading correctness.
+
+### 10. Jetson Orin Nano Super
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** Jetson Orin Nano Super is the intended dedicated AI/ML hardware direction. One physical device may host the three logical ML roles only with process/data/authority separation; co-location does not collapse governance boundaries.
+
+### 11. Permanent AI Wildcard #11
+
+**Classification: USER_CONFIRMED / RECOVERED_CONTEXT.** Create a permanent conceptual AI Wildcard outside approximately 10 governed Challenger slots. It continuously explores what an autonomous creative research actor would do and serves as an unconventional benchmark. It is LIVE PAPER ONLY, structurally incapable of real-money access, has no broker credentials or live-order authority, cannot self-promote or bypass deterministic safety/governance, uses only causal data, and is fully logged/auditable. “Secret 11th slot” is only a nickname; it must not be secret from provenance/audit. Exceptional discovery follows: freeze/reproduce → normal research/Shadow evidence → Candidate Qualification → Challenger consideration → normal governance.
+
+The Wildcard does not repeal existing AI governance: no silent Champion rewrite, no self-promotion, no safety/accounting/provenance bypass, and no real-money authority.
+
+## CURRENT STATE AT THIS RECOVERY POINT
+
+**Classification: VERIFIED_REPO.** Review branch remains `qpx-shadow-matrix-v1-review-2026-08-12`, current expected HEAD before this preservation commit is `458f26c420b62b1b9999adf9da3c0c4168c34d12`, upstream synchronized, worktree clean, and main/origin-main remain `2cab84accdfe79faa8097b7fdb976da46d8dbde5`. Profit Recycling fraction matrix and its reporting correction are complete; no new development or research is in progress.
+
+## STILL TO DO / ORDERED ROADMAP
+
+1. Indiana minimum: deploy one dedicated Ubuntu Core, secure Tailscale phone reachability, unattended service operation, persistence, reboot reconciliation, and verified checkpoint/backup. Acceptance: phone can observe/control safely and Core resumes from verified state after reboot.
+2. Bring up 5900XT as a replaceable worker and prove Core↔worker dispatch/recovery. Acceptance: worker loss cannot lose authoritative state.
+3. Keep protected 15-minute Candidate V1 as control; only after authentic 1-minute data is validated/frozen and parity is proven, add isolated timeframe Shadows.
+4. Implement Candidate Qualification as governance/evidence only, with approximately 10 Challenger slots and no capital authority. Exact scores remain configurable/UNKNOWN.
+5. Evaluate Jetson logical ML separation after deterministic QPX evidence and hardware needs are clearer.
+6. Keep Research/Qualification/Operations ML separate, causal, versioned, provenance-bound, and non-self-promoting.
+7. Define and test Wildcard #11 paper-only containment, audit, causal replay, and promotion handoff only after architecture review.
+8. Later harden replicated authoritative state, checksummed journals, automatic failover, leases/fencing, broker reconciliation, unattended recovery, low-noise alerts, and production readiness.
+
+Explicitly not to do now: no new historical matrix, no fraction tuning, no Top100 rebuild/rerank, no Candidate baseline edits, no automatic Champion promotion, no main merge, no public commercialization finalization, no one-minute conversion before prerequisites, and no real-money Wildcard.
+
+## UNCERTAINTY LEDGER
+
+**UNKNOWN / UNRECOVERED:** Anything after approximately 13:12 CDT on August 14; exact Candidate Qualification scoring/thresholds; exact Challenger slot enforcement mechanics; exact ML models/features/training cadence; exact Wildcard algorithm and resource limits; final Ubuntu hardware; Tailscale/WireGuard final topology; broker/reconciliation implementation; one-minute dataset/vendor and parity acceptance details; final price/license/commercialization; production date; options/short/leverage rules.
+
+**INTENTIONALLY CONFIGURABLE:** Core service quotas, worker availability, wake/sleep thresholds, ML configuration, qualification scores, Challenger capacity policy, Shadow resolutions, data retention, network controls, and operational schedules.
+
+**FROZEN / PROTECTED:** Existing Candidate V1, strict causal accounting, frozen Top100/data/fingerprints, permanent controls, completed accelerator definitions/results, and prior Profit Recycling artifacts.
+
+**ASSISTANT_PROPOSED / FUTURE HYPOTHESIS:** Conditional/intelligent Profit Recycling may be more meaningful than fixed withholding; this is not approved. Hardware/network implementation details remain proposals until explicitly selected.
+
+## RESTORE CONTRACT
+
+On restore, read `QPX_CONTEXT_CONTINUITY_RULE.md`, this appended ledger section, `QPX_RECOVERY_PROMPT.md`, and `QPX_CONVERSATION_JOURNAL_2026-08-14.md`; verify branch, HEAD, upstream, status, main refs, fingerprints, and protected provenance. Treat post-boundary events as UNKNOWN. Retrieve/verify before acting.

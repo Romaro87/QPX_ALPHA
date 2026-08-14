@@ -242,3 +242,39 @@ Preserve Top100 exactly; keep Dividend Opportunity Engine separate; test acceler
 ## SECURITY / PRESERVATION
 
 Do not stage ignored reports, caches, raw data, `.env`, credentials, private broker data, or the malformed `qpx_bot/QPX_ALPHA` gitlink. Never use `git add .`. Main remains untouched.
+
+
+<!-- QPX_AUGUST14_RECOVERY_PROMPT_20260814 -->
+# AUGUST 14 RECOVERY PROMPT — APPLY BEFORE RESUMING
+
+## QPX GOVERNING RULES — APPLY IMMEDIATELY ON RESTORE
+
+**MISSING CONTEXT MEANS RETRIEVE/VERIFY — NEVER REINTERPRET OR INVENT.** Do not modify main, protected Candidate V1, frozen Top100/data, provenance, permanent controls, or economic behavior. Do not self-promote research/ML/Wildcard outputs.
+
+### PARAMETER UNCERTAINTY RULE
+
+Unrecovered exact thresholds, percentages, caps, delays, allocations, weights, modes, limits, schedules, resource quotas, and ML values must not be invented or hard-coded. Treat them as versioned, fingerprinted, user-configurable/hot-swappable where safe; engine code validates capability and invariants.
+
+## RESTORE STATE
+
+Repository: `/mnt/sdcard/QPX_ALPHA`
+Branch: `qpx-shadow-matrix-v1-review-2026-08-12`
+Recovery HEAD before this snapshot: `458f26c420b62b1b9999adf9da3c0c4168c34d12`
+Main/origin-main: `2cab84accdfe79faa8097b7fdb976da46d8dbde5`
+Boundary: approximately 2026-08-14 13:12 CDT; later context is UNKNOWN / UNRECOVERED.
+
+Read the continuity rule, latest ledger section, this prompt, and `QPX_CONVERSATION_JOURNAL_2026-08-14.md`; then verify Git state before action.
+
+## RECOVERED DECISIONS
+
+- Ubuntu 24.04 LTS dedicated Linux services are the initial trusted QPX Core direction; Tailscale is the preferred fast phone path. Indiana success means one reachable, unattended, persistent, reboot-reconciling Core; family time remains priority.
+- Development speed and understandable PASS/FAIL/NEXT workflows matter; learning should not block progress and QPX must not become opaque.
+- Local-first ownership, user-supplied credentials, no mandatory subscription/heartbeat, and private-state locality are approved philosophy only; price/licensing remain future decisions.
+- One-minute support is eventual: Core + 5900XT worker first, authentic/frozen 1-minute data, 1-minute→15-minute parity against protected 15-minute control, then isolated resolution Shadows.
+- Strategy lineage is Boundary → Challenger → Champion; approximately 10 governed Challenger slots; Qualification Layer has no capital authority.
+- Research, Qualification, and Operations ML are logically separated. Jetson Orin Nano Super is intended ML hardware direction.
+- AI Wildcard #11 is permanent conceptual, paper-only, causal, logged, no credentials/live order/real-money authority/self-promotion, and must pass normal freeze/reproduce → evidence → qualification → governance if exceptional.
+
+## NEXT ACTION
+
+This is preservation-only. Verify the pushed recovery commit, then stop and await explicit direction. Do not begin Indiana deployment, one-minute work, Qualification implementation, ML work, Wildcard implementation, or research until separately requested and exact parameters/acceptance criteria are recovered or declared.
