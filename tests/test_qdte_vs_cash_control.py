@@ -387,6 +387,67 @@ class QDTEVersusCashHarnessTests(unittest.TestCase):
         self.assertTrue(imports.isdisjoint(experiment.FORBIDDEN_NETWORK_MODULES))
         experiment._assert_wrapper_boundaries()
 
+    # 36
+    def test_36_external_experiment_root_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "existing"
+            root.mkdir()
+            with self.assertRaisesRegex(FileExistsError, "output root already exists"):
+                experiment._prepare_output_root(root)
+
+    # 37
+    def test_37_internal_root_is_accepted_by_finalization(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "fresh"
+            report = root / "paired_report.json"
+            experiment._prepare_output_root(root)
+            experiment._write_paired_report(report, {"status": "complete"})
+            self.assertEqual(json.loads(report.read_text()), {"status": "complete"})
+
+    # 38
+    def test_38_existing_paired_report_fails_closed_without_overwrite(self):
+        with tempfile.TemporaryDirectory() as folder:
+            report = Path(folder) / "paired_report.json"
+            report.write_text("preserve me", encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                experiment._write_paired_report(report, {"status": "replacement"})
+            self.assertEqual(report.read_text(encoding="utf-8"), "preserve me")
+
+    # 39
+    def test_39_missing_internal_root_fails_finalization(self):
+        with tempfile.TemporaryDirectory() as folder:
+            report = Path(folder) / "missing" / "paired_report.json"
+            with self.assertRaisesRegex(RuntimeError, "output root is unavailable"):
+                experiment._write_paired_report(report, {"status": "complete"})
+            self.assertFalse(report.exists())
+
+    # 40
+    def test_40_paired_arithmetic_uses_canonical_values(self):
+        paired = experiment._paired_ending_equity(
+            {"ending_equity": 17370.695680213612},
+            {"ending_equity": 9782.741543721417},
+        )
+        self.assertEqual(paired["absolute_difference"], 7587.954136492195)
+        self.assertEqual(paired["percent_difference"], 77.56470006469873)
+        self.assertEqual(
+            paired["display_2dp"],
+            {
+                "control_a": "17370.70",
+                "control_b": "9782.74",
+                "absolute_difference": "7587.95",
+                "percent_difference": "77.56%",
+            },
+        )
+
+    # 41
+    def test_41_paired_arithmetic_is_deterministic(self):
+        control = {"ending_equity": 17370.695680213612}
+        cash = {"ending_equity": 9782.741543721417}
+        self.assertEqual(
+            experiment._paired_ending_equity(control, cash),
+            experiment._paired_ending_equity(dict(control), dict(cash)),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

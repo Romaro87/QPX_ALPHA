@@ -560,10 +560,46 @@ def _delta(control: dict[str, Any], cash: dict[str, Any]) -> dict[str, float]:
     return {name: float(control[name]) - float(cash[name]) for name in names}
 
 
+def _paired_ending_equity(
+    control: dict[str, Any], cash: dict[str, Any]
+) -> dict[str, Any]:
+    control_equity = float(control["ending_equity"])
+    cash_equity = float(cash["ending_equity"])
+    difference = control_equity - cash_equity
+    percent_difference = difference / cash_equity * 100.0
+    return {
+        "control_a": control_equity,
+        "control_b": cash_equity,
+        "absolute_difference": difference,
+        "percent_difference": percent_difference,
+        "display_2dp": {
+            "control_a": f"{control_equity:.2f}",
+            "control_b": f"{cash_equity:.2f}",
+            "absolute_difference": f"{difference:.2f}",
+            "percent_difference": f"{percent_difference:.2f}%",
+        },
+        "display_note": "Each display value is rounded independently from canonical values.",
+    }
+
+
+def _prepare_output_root(root: Path) -> None:
+    if root.exists():
+        raise FileExistsError(f"Experiment output root already exists: {root}")
+    root.mkdir(parents=True, exist_ok=False)
+
+
+def _write_paired_report(path: Path, comparison: dict[str, Any]) -> None:
+    if not path.parent.is_dir():
+        raise RuntimeError(f"Experiment output root is unavailable: {path.parent}")
+    with path.open("x", encoding="utf-8") as file:
+        file.write(
+            json.dumps(comparison, indent=2, sort_keys=True, allow_nan=False) + "\n"
+        )
+
+
 def run_experiment() -> dict[str, Any]:
     _assert_wrapper_boundaries()
-    if REPORT_ROOT.exists():
-        raise FileExistsError(f"Experiment output root already exists: {REPORT_ROOT}")
+    _prepare_output_root(REPORT_ROOT)
     before = protected_identity()
     control = _run_variant("control_a", "control")
     _validate_control(control)
@@ -589,6 +625,7 @@ def run_experiment() -> dict[str, Any]:
         "status": "RESEARCH_COMPLETE",
         "control_a": control,
         "control_b": cash,
+        "ending_equity_comparison": _paired_ending_equity(control, cash),
         "delta_control_a_minus_control_b": _delta(control, cash),
         "validation": {
             "qualified_control_reproduced": True,
@@ -603,11 +640,7 @@ def run_experiment() -> dict[str, Any]:
         },
         "protected_identity": before,
     }
-    REPORT_ROOT.mkdir(parents=True, exist_ok=False)
-    PAIRED_REPORT.write_text(
-        json.dumps(comparison, indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    _write_paired_report(PAIRED_REPORT, comparison)
     return comparison
 
 
