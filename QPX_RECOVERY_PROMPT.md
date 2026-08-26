@@ -53,7 +53,7 @@ For substantive milestones also update:
 
 `QPX_RECOVERY_DECISION_LEDGER.md`
 
-Verify local HEAD equals remote `main` after every push.
+After every push, verify local HEAD equals the configured upstream tracking ref for the current branch. When `main` is protected and work occurs on a review/research branch, separately verify `main` and `origin/main` remain at the expected protected SHA. Do not imply that a review-branch HEAD should equal `origin/main`.
 
 Continue warning the user roughly five exchanges before usable chat context is likely to run out.
 

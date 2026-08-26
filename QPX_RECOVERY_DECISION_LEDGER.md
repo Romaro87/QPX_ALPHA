@@ -1407,7 +1407,7 @@ On restore, read `QPX_CONTEXT_CONTINUITY_RULE.md`, this appended ledger section,
 - Its information flow is one-way: **raw causal market → Wildcard → sterile factual experience → downstream QPX**. Champion, Shadow, Qualification, Research, and Operations conclusions do not feed back into Wildcard.
 - Wildcard experiences market history once in chronological order, without rewind: **“Wildcard does not backtest. Wildcard experiences market history once.”** It may remember the past; it may never relive it.
 - Traditional QPX should eventually have a separate chronological continuity evidence lane. That lane supplements and does not replace frozen Candidate V1 qualification evidence.
-- Income sleeve is a portfolio role. QDTE is one qualified implementation, not the permanent identity of the role. No qualified income implementation may legitimately mean cash. This principle does not alter protected Candidate V1 economics.
+- Income sleeve is a portfolio role. QDTE is one qualified implementation, not the permanent identity of the role. If no qualified income implementation or opportunity exists, leaving that sleeve allocation in cash is legitimate. This principle does not alter protected Candidate V1 economics.
 
 ## 2. CORE, WORKERS, AND HOUSEHOLD HARDWARE
 

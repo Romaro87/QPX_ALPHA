@@ -52,7 +52,7 @@ The exact implementation needed to enforce sterile factual experience and one-wa
 
 - Income sleeve is a portfolio role.
 - QDTE is one qualified implementation, not the permanent identity of that role.
-- No qualified income implementation may legitimately mean cash.
+- If no qualified income implementation or opportunity exists, leaving that sleeve allocation in cash is legitimate.
 - This clarification does not authorize changing protected Candidate V1 economics or substituting another income implementation without qualification and governance.
 
 ### 2.5 Wildcard parameters still open
