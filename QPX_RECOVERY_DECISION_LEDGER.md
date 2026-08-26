@@ -1442,3 +1442,12 @@ The following remain **UNKNOWN / UNRECOVERED** or explicitly configurable: exact
 ## 6. PROTECTED BOUNDARY
 
 Candidate V1 lineage/economics, strict-causal accounting/provenance, frozen Top-100 data/fingerprints, completed accelerator evidence, permanent controls, and main remain protected. No research, Shadow, Challenger, Qualification, ML, or Wildcard component may self-promote. This addendum authorizes preservation only; the next development milestone requires explicit user direction.
+
+<!-- QPX_INCOME_ROLE_SELECTOR_FOUNDATION_20260826 -->
+# INCOME-ROLE SELECTOR FOUNDATION — 2026-08-26
+
+**Status: VERIFIED_REPO.** The isolated, non-integrated income-role selector foundation is complete. Candidate V1 remains untouched and continues to use its qualified QDTE behavior. The foundation represents the income sleeve as a portfolio role and QDTE as one qualified implementation of that role; it also provides an explicit CASH/no-deployment result.
+
+Qualification-registry enforcement fails closed. Canonical deterministic fingerprints and decision IDs exist, causal/nonfuture input is enforced, and decisions retain immutable selector, configuration, qualification, and context lineage. A legacy Candidate V1 QDTE adapter exists only as a compatibility representation and is not wired into Candidate V1.
+
+No paper/live execution, Shadow Matrix, Regime Allocation, or Dividend Opportunity Engine integration occurred. Focused foundation tests passed 14/14, and bounded existing offline/core regressions passed 39/39. No research or backtest matrix was run. Integration and governance questions remain deferred and require separate direction.
