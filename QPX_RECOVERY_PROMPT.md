@@ -278,3 +278,24 @@ Read the continuity rule, latest ledger section, this prompt, and `QPX_CONVERSAT
 ## NEXT ACTION
 
 This is preservation-only. Verify the pushed recovery commit, then stop and await explicit direction. Do not begin Indiana deployment, one-minute work, Qualification implementation, ML work, Wildcard implementation, or research until separately requested and exact parameters/acceptance criteria are recovered or declared.
+
+
+<!-- QPX_POST_AUG14_CONTINUITY_RESTORE_20260825 -->
+# POST-AUGUST-14 CONTINUITY RESTORE — 2026-08-25
+
+**Status:** USER_CONFIRMED continuity extension. **MISSING CONTEXT MEANS RETRIEVE/VERIFY — NEVER REINTERPRET OR INVENT.**
+
+The former August 14 recovery boundary is now extended by recovered August 15–17 material. This extension does not turn anything marked **UNKNOWN / UNRECOVERED** into known history; all such items remain **UNKNOWN / UNRECOVERED** until retrieved, verified, or explicitly decided.
+
+On restoration, read in this order:
+
+1. `QPX_CONTEXT_CONTINUITY_RULE.md`
+2. the latest section of `QPX_RECOVERY_DECISION_LEDGER.md`
+3. `QPX_RECOVERY_PROMPT.md`
+4. `QPX_POST_AUG14_CONTINUITY_CHECKPOINT_2026-08-17.md`
+5. `QPX_CONVERSATION_JOURNAL_2026-08-17.md`
+6. then verify branch, HEAD, upstream, worktree status, and main/origin-main refs before action
+
+Recovery completion is not authorization to begin development. Do not touch main. Do not modify Candidate V1, frozen data/fingerprints, strict-causal provenance, permanent controls, or completed accelerator evidence without separate explicit authorization. Research, Shadow, Challenger, ML, Qualification, and Wildcard actors retain no self-promotion authority.
+
+The next development milestone still requires explicit user direction. Until then, remain preservation-only.

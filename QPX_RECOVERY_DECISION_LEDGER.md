@@ -1393,3 +1393,52 @@ Explicitly not to do now: no new historical matrix, no fraction tuning, no Top10
 ## RESTORE CONTRACT
 
 On restore, read `QPX_CONTEXT_CONTINUITY_RULE.md`, this appended ledger section, `QPX_RECOVERY_PROMPT.md`, and `QPX_CONVERSATION_JOURNAL_2026-08-14.md`; verify branch, HEAD, upstream, status, main refs, fingerprints, and protected provenance. Treat post-boundary events as UNKNOWN. Retrieve/verify before acting.
+
+
+<!-- QPX_POST_AUG14_CONTINUITY_ADDENDUM_20260825 -->
+# POST-AUGUST-14 CONTINUITY ADDENDUM — 2026-08-25
+
+**Status:** USER_CONFIRMED + RECOVERED_CONTEXT durable principles. This addendum extends the recovered August 14 boundary with preserved August 15–17 context. It does not rewrite older history or resolve anything explicitly marked **UNKNOWN / UNRECOVERED**.
+
+## 1. ML, WILDCARD, AND CHRONOLOGICAL EVIDENCE
+
+- **Autonomy may increase; accountability never decreases.** Increased autonomy never removes causal, provenance, audit, safety, governance, or no-self-promotion requirements.
+- Wildcard is clean-room discovery. Teach it how to discover, not trading doctrine.
+- Its information flow is one-way: **raw causal market → Wildcard → sterile factual experience → downstream QPX**. Champion, Shadow, Qualification, Research, and Operations conclusions do not feed back into Wildcard.
+- Wildcard experiences market history once in chronological order, without rewind: **“Wildcard does not backtest. Wildcard experiences market history once.”** It may remember the past; it may never relive it.
+- Traditional QPX should eventually have a separate chronological continuity evidence lane. That lane supplements and does not replace frozen Candidate V1 qualification evidence.
+- Income sleeve is a portfolio role. QDTE is one qualified implementation, not the permanent identity of the role. No qualified income implementation may legitimately mean cash. This principle does not alter protected Candidate V1 economics.
+
+## 2. CORE, WORKERS, AND HOUSEHOLD HARDWARE
+
+- **Core owns authority; workers own horsepower.** Core remains correct and operable when workers or network storage disappear.
+- **Hardware can be weird; authority and state semantics cannot be weird.**
+- Household usefulness and family use outrank QPX convenience.
+- Heterogeneous workers advertise their real, deliberately offered capability. They do not gain authority merely by contributing compute or storage.
+- Native Linux is preferred for persistent Core service when practical. Old hardware remains a valid candidate until reliability is measured; unproven is not dead.
+
+## 3. GORILLA LABS AND DEFENSIBLE WEIRDNESS
+
+- Gorilla Labs documents real QPX infrastructure work; projects are not manufactured merely to supply content.
+- “Usefully weird computing” is the durable orientation.
+- Engineering Clown Shoes permits a ridiculous-looking implementation only when it remains technically defensible. Measurement, electrical awareness, safety, reliability, bounded risk, known failure modes, and failure planning remain mandatory.
+- Magic Smoke is shorthand for electrical survival under unconventional but defensible hardware use; it is not permission for recklessness.
+
+## 4. ROAD-SIGN RECOVERY METHOD AND CORRECTIONS
+
+- Recover tangents through purpose and adjacency rather than as a bag of nouns.
+- Use positive road signs to preserve known landmarks and their relationships; use negative road signs to prevent contaminated reconstructions from returning.
+- The pelican-case reference was assistant contamination and must not return unless independently introduced by the user later.
+- There is no third-party keyboard story.
+- Do not invent a warning color.
+- Multiple “brainstorm while Codex replenishes” remarks must not be collapsed into one unique event.
+- Mel Brooks is a genuine comedic influence, not a one-off reference.
+- The sea-level/mountain-ahead metaphor refers to QPX as a whole, not context recovery.
+
+## 5. UNKNOWN / UNRECOVERED BOUNDARY
+
+The following remain **UNKNOWN / UNRECOVERED** or explicitly configurable: exact Qualification scoring/thresholds; exact Challenger-slot enforcement; ML models/features/training cadence; Wildcard algorithm, reward weights, bankruptcy threshold, report cadence, providers, causal-field rules, resource quotas, and sibling count; final Core/network/storage topology; one-minute provider/data/parity criteria; scheduler quotas/worker policy; unrecovered Blu-ray jukebox mechanics; and whether the HAL speaker became mandatory.
+
+## 6. PROTECTED BOUNDARY
+
+Candidate V1 lineage/economics, strict-causal accounting/provenance, frozen Top-100 data/fingerprints, completed accelerator evidence, permanent controls, and main remain protected. No research, Shadow, Challenger, Qualification, ML, or Wildcard component may self-promote. This addendum authorizes preservation only; the next development milestone requires explicit user direction.
