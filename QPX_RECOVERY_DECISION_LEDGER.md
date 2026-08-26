@@ -1451,3 +1451,12 @@ Candidate V1 lineage/economics, strict-causal accounting/provenance, frozen Top-
 Qualification-registry enforcement fails closed. Canonical deterministic fingerprints and decision IDs exist, causal/nonfuture input is enforced, and decisions retain immutable selector, configuration, qualification, and context lineage. A legacy Candidate V1 QDTE adapter exists only as a compatibility representation and is not wired into Candidate V1.
 
 No paper/live execution, Shadow Matrix, Regime Allocation, or Dividend Opportunity Engine integration occurred. Focused foundation tests passed 14/14, and bounded existing offline/core regressions passed 39/39. No research or backtest matrix was run. Integration and governance questions remain deferred and require separate direction.
+
+<!-- QPX_GOVERNED_INCOME_QUALIFICATION_REGISTRY_FOUNDATION_20260826 -->
+# GOVERNED INCOME QUALIFICATION REGISTRY FOUNDATION — 2026-08-26
+
+**Status: VERIFIED_REPO.** The governed income qualification registry foundation is complete, isolated, and non-integrated. It provides deterministic immutable governed qualification records and causal, order-independent registry snapshots, with explicit revocation and deterministic expiry behavior. Governance and evidence validation fail closed.
+
+The Candidate V1 QDTE compatibility record points only to the existing qualified Candidate V1 provenance; it performs no new qualification and is not wired into Candidate V1. The isolated selector consumes registry snapshots, while neither selector nor registry performs research, scoring, economic-merit assessment, or promotion. No paper/live, Shadow Matrix, Regime Allocation, Dividend Opportunity Engine, ML, portfolio-construction, or qualified-replay integration occurred.
+
+Focused governed-registry tests passed 19/19, existing income-role tests passed 14/14, and bounded existing offline/core regressions passed 39/39. No research or backtest matrix was run. Operational governance authentication/rotation, durable artifact storage/loading, registry issuance/archival, and all integration questions remain deferred. Candidate V1 lineage/economics and main remain protected.
