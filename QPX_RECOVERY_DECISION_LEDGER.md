@@ -1460,3 +1460,13 @@ No paper/live execution, Shadow Matrix, Regime Allocation, or Dividend Opportuni
 The Candidate V1 QDTE compatibility record points only to the existing qualified Candidate V1 provenance; it performs no new qualification and is not wired into Candidate V1. The isolated selector consumes registry snapshots, while neither selector nor registry performs research, scoring, economic-merit assessment, or promotion. No paper/live, Shadow Matrix, Regime Allocation, Dividend Opportunity Engine, ML, portfolio-construction, or qualified-replay integration occurred.
 
 Focused governed-registry tests passed 19/19, existing income-role tests passed 14/14, and bounded existing offline/core regressions passed 39/39. No research or backtest matrix was run. Operational governance authentication/rotation, durable artifact storage/loading, registry issuance/archival, and all integration questions remain deferred. Candidate V1 lineage/economics and main remain protected.
+
+
+<!-- QPX_DIVIDEND_OPPORTUNITY_ENGINE_FOUNDATION_V1_20260827 -->
+# DIVIDEND OPPORTUNITY ENGINE FOUNDATION V1 — 2026-08-27
+
+**Status: VERIFIED_REPO research-only foundation; no economic or promotion claim.** The isolated Dividend Opportunity Engine Foundation V1 represents immutable, deterministic opportunity evidence for dividend capture, post-ex-dividend recovery, pre-ex-dividend momentum, quality/income rotation, and related dividend opportunities. It preserves corporate-action effective time separately from information-availability and evaluation times, rejects incomplete or future information, and emits only explicit `NO_OPPORTUNITY` / `NO_ACTION` decisions because no scoring or actionable policy is approved.
+
+The foundation has no capital-allocation, execution, qualification, promotion, income-role-selection, paper, or live authority. It is not Candidate V1, the income sleeve, QDTE, or a replacement for any qualified income implementation, and it is not integrated with those systems. Candidate V1, qualified QDTE behavior, frozen Top-100 artifacts, and existing qualification evidence remain unchanged.
+
+Scoring weights, thresholds, ranking formulas, holding/capture/recovery windows, capital sizes, comparison controls, and qualification criteria remain unresolved governance/configuration questions. No economic replay, incremental-benefit result, qualification, or promotion occurred in this milestone.

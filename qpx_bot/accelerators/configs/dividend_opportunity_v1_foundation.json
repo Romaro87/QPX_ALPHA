@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "accelerator_version": "1.0.0",
+  "configuration_version": "dividend-opportunity-foundation-disabled-v1",
+  "policy_identity": null,
+  "scoring_policy_identity": null,
+  "capital_authority": false,
+  "execution_authority": false,
+  "qualification_authority": false,
+  "promotion_authority": false
+}
