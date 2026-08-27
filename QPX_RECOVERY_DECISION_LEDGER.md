@@ -1470,3 +1470,11 @@ Focused governed-registry tests passed 19/19, existing income-role tests passed 
 The foundation has no capital-allocation, execution, qualification, promotion, income-role-selection, paper, or live authority. It is not Candidate V1, the income sleeve, QDTE, or a replacement for any qualified income implementation, and it is not integrated with those systems. Candidate V1, qualified QDTE behavior, frozen Top-100 artifacts, and existing qualification evidence remain unchanged.
 
 Scoring weights, thresholds, ranking formulas, holding/capture/recovery windows, capital sizes, comparison controls, and qualification criteria remain unresolved governance/configuration questions. No economic replay, incremental-benefit result, qualification, or promotion occurred in this milestone.
+
+
+<!-- QPX_DIVIDEND_OPPORTUNITY_ENGINE_POST_EX_RECOVERY_V1_20260827 -->
+# DIVIDEND OPPORTUNITY ENGINE — POST-EX RECOVERY V1 MECHANISM — 2026-08-27
+
+**Status: VERIFIED_REPO research-only mechanism; no economic or promotion claim.** Post-Ex Recovery V1 consumes only a causally supplied ex-dividend reference price and chronologically ordered post-ex observations whose information-availability timestamps are no later than evaluation. It preserves event-effective, information-available, observed, and evaluation times separately and fails closed on future or incomplete inputs.
+
+Recovery threshold and evaluation/lookback windows are explicit research configuration, not production-qualified policy. The mechanism emits deterministic opportunity evidence or explicit `NO_OPPORTUNITY` / `NO_ACTION`; it has no capital, execution, qualification, promotion, income-role, paper, or live authority. Candidate V1, qualified QDTE behavior, frozen Top-100 artifacts, and existing qualification evidence remain unchanged.

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "accelerator_version": "1.0.0",
+  "configuration_version": "post-ex-recovery-research-v1",
+  "recovery_threshold": 0.05,
+  "evaluation_window_seconds": 2592000.0,
+  "lookback_window_seconds": 2592000.0,
+  "research_only": true,
+  "capital_authority": false,
+  "execution_authority": false,
+  "qualification_authority": false,
+  "promotion_authority": false
+}
