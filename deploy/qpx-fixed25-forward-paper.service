@@ -1,0 +1,16 @@
+[Unit]
+Description=QPX Fixed-25 Forward Paper Runner (simulated only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ron/QPX_ALPHA
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_RUN_FIXED25_FORWARD_PAPER.py --daemon
+Restart=on-failure
+RestartSec=15
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
