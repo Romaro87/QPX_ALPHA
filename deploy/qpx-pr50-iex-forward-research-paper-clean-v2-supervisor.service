@@ -1,0 +1,19 @@
+[Unit]
+Description=QPX Clean-V2 Market-Aware Lifecycle Supervisor
+After=default.target
+StartLimitIntervalSec=900
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ron/QPX_ALPHA
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_CONTROL_CLEAN_V2_MARKET_SCHEDULE.py --daemon
+Restart=always
+RestartSec=60
+TimeoutStopSec=420
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

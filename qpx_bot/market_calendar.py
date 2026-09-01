@@ -9,6 +9,7 @@ from datetime import (
     timedelta,
     tzinfo,
 )
+from dataclasses import dataclass
 
 
 ZERO = timedelta(0)
@@ -108,6 +109,17 @@ class EasternMarketTime(tzinfo):
 
 NEW_YORK = EasternMarketTime()
 DEFAULT_READY_TIME = time(17, 15)
+REGULAR_SESSION_OPEN = time(9, 30)
+REGULAR_SESSION_CLOSE = time(16, 0)
+EARLY_SESSION_CLOSE = time(13, 0)
+
+
+@dataclass(frozen=True, slots=True)
+class MarketSession:
+    trading_date: date
+    regular_open: datetime
+    regular_close: datetime
+    early_close: bool
 
 
 def _observed(day: date) -> date:
@@ -248,6 +260,35 @@ def next_market_session(
         current += timedelta(days=1)
 
     return current
+
+
+def _thanksgiving_day(year: int) -> date:
+    return _nth_weekday(year, 11, 3, 4)
+
+
+def is_early_close_session(day: date) -> bool:
+    """Return the established QPX/NYSE standard early-close classification."""
+    if not is_market_session(day):
+        return False
+    return (
+        day == _thanksgiving_day(day.year) + timedelta(days=1)
+        or (day.month, day.day) == (7, 3)
+        or (day.month, day.day) == (12, 24)
+    )
+
+
+def market_session(day: date) -> MarketSession:
+    """Return fail-closed, timezone-aware regular-session endpoints."""
+    if not is_market_session(day):
+        raise ValueError(f"Not a QPX market session: {day.isoformat()}")
+    early_close = is_early_close_session(day)
+    close = EARLY_SESSION_CLOSE if early_close else REGULAR_SESSION_CLOSE
+    return MarketSession(
+        trading_date=day,
+        regular_open=datetime.combine(day, REGULAR_SESSION_OPEN, tzinfo=NEW_YORK),
+        regular_close=datetime.combine(day, close, tzinfo=NEW_YORK),
+        early_close=early_close,
+    )
 
 
 def latest_completed_session(

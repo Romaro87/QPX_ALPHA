@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
-import time
+import secrets
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
@@ -31,6 +32,167 @@ def _sha256_bytes(value: bytes) -> str:
 
 def _parse_date(value: str | None) -> date | None:
     return date.fromisoformat(value) if value else None
+
+
+def write_checksummed_state(
+    state_path: Path,
+    checksum_path: Path,
+    encoded: bytes,
+) -> None:
+    """Persist an encoded state using the established QPX temp/fsync/replace contract."""
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    checksum = _sha256_bytes(encoded)
+    state_temporary = state_path.with_suffix(state_path.suffix + ".tmp")
+    checksum_temporary = checksum_path.with_suffix(checksum_path.suffix + ".tmp")
+    with state_temporary.open("wb") as file:
+        file.write(encoded)
+        file.flush()
+        os.fsync(file.fileno())
+    with checksum_temporary.open("w", encoding="utf-8") as file:
+        file.write(checksum + "\n")
+        file.flush()
+        os.fsync(file.fileno())
+    state_temporary.replace(state_path)
+    checksum_temporary.replace(checksum_path)
+
+
+def read_checksummed_state(
+    state_path: Path,
+    checksum_path: Path,
+    *,
+    label: str = "Paper state",
+) -> bytes:
+    if not state_path.exists():
+        raise FileNotFoundError(f"{label} was not found: {state_path}")
+    if not checksum_path.exists():
+        raise RuntimeError(f"{label} checksum is missing.")
+    encoded = state_path.read_bytes()
+    expected = checksum_path.read_text(encoding="utf-8").strip()
+    if _sha256_bytes(encoded) != expected:
+        raise RuntimeError(
+            f"{label} checksum mismatch. Runtime state may be incomplete or corrupted."
+        )
+    return encoded
+
+
+def _boot_id() -> str:
+    try:
+        return Path("/proc/sys/kernel/random/boot_id").read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise RuntimeError("Cannot establish lock-owner boot identity.") from exc
+
+
+def _process_start_ticks(pid: int) -> int | None:
+    try:
+        raw = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise RuntimeError(f"Cannot establish process identity for lock owner pid={pid}.") from exc
+    closing = raw.rfind(")")
+    fields = raw[closing + 2:].split() if closing >= 0 else []
+    if len(fields) <= 19:
+        raise RuntimeError(f"Malformed process identity for lock owner pid={pid}.")
+    return int(fields[19])
+
+
+def _read_lock_owner(lock_path: Path) -> dict[str, Any] | None:
+    try:
+        raw = lock_path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    if raw.isdigit():
+        return {"pid": int(raw), "legacy_pid_only": True}
+    try:
+        owner = json.loads(raw)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("Lock owner identity is malformed; refusing unsafe recovery.") from exc
+    if not isinstance(owner, dict) or "pid" not in owner:
+        raise RuntimeError("Lock owner identity is incomplete; refusing unsafe recovery.")
+    if not {"process_start_ticks", "boot_id", "token"}.issubset(owner):
+        return {**owner, "legacy_pid_only": True}
+    return owner
+
+
+def _lock_owner_is_live(owner: Mapping[str, Any]) -> bool:
+    try:
+        pid = int(owner["pid"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("Lock owner pid is invalid; refusing unsafe recovery.") from exc
+    if pid <= 0:
+        raise RuntimeError("Lock owner pid is invalid; refusing unsafe recovery.")
+    actual_start = _process_start_ticks(pid)
+    if actual_start is None:
+        return False
+    if owner.get("legacy_pid_only"):
+        return True
+    if str(owner.get("boot_id")) != _boot_id():
+        return False
+    try:
+        expected_start = int(owner["process_start_ticks"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("Lock owner process identity is invalid; refusing unsafe recovery.") from exc
+    return actual_start == expected_start
+
+
+@contextmanager
+def runtime_lock(lock_path: str | Path) -> Iterator[None]:
+    """Own one QPX runtime with live/dead process identity and safe stale recovery."""
+    path = Path(lock_path).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    guard = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    owner = {
+        "schema_version": 1,
+        "pid": os.getpid(),
+        "process_start_ticks": _process_start_ticks(os.getpid()),
+        "boot_id": _boot_id(),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "token": secrets.token_hex(32),
+    }
+    try:
+        fcntl.flock(guard, fcntl.LOCK_EX)
+        existing = _read_lock_owner(path)
+        if existing is not None:
+            if _lock_owner_is_live(existing):
+                raise RuntimeError(
+                    "Another QPX paper runner is active "
+                    f"(owner pid={existing.get('pid', 'unknown')}). Lock file: {path}"
+                )
+            path.unlink()
+        temporary = path.with_name(
+            f".{path.name}.{owner['pid']}.{owner['token']}.tmp"
+        )
+        descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            encoded_owner = (_canonical_json(owner) + "\n").encode("utf-8")
+            if os.write(descriptor, encoded_owner) != len(encoded_owner):
+                raise OSError("Incomplete lock-owner identity write.")
+            os.fsync(descriptor)
+            os.close(descriptor)
+            descriptor = -1
+            os.link(temporary, path)
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            temporary.unlink(missing_ok=True)
+    finally:
+        fcntl.flock(guard, fcntl.LOCK_UN)
+        os.close(guard)
+    try:
+        yield
+    finally:
+        guard = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            fcntl.flock(guard, fcntl.LOCK_EX)
+            existing = _read_lock_owner(path)
+            if existing is not None and existing.get("token") == owner["token"]:
+                path.unlink()
+        finally:
+            fcntl.flock(guard, fcntl.LOCK_UN)
+            os.close(guard)
 
 
 @dataclass(slots=True)
@@ -364,7 +526,6 @@ class StateStore:
 
     def save(self, state: PaperState) -> None:
         state.validate()
-        self.directory.mkdir(parents=True, exist_ok=True)
         encoded = (
             json.dumps(
                 state.to_dict(),
@@ -373,53 +534,10 @@ class StateStore:
             )
             + "\n"
         ).encode("utf-8")
-        checksum = _sha256_bytes(encoded)
-
-        state_temporary = self.state_path.with_suffix(
-            ".json.tmp"
-        )
-        checksum_temporary = self.checksum_path.with_suffix(
-            ".sha256.tmp"
-        )
-
-        with state_temporary.open("wb") as file:
-            file.write(encoded)
-            file.flush()
-            os.fsync(file.fileno())
-
-        with checksum_temporary.open(
-            "w",
-            encoding="utf-8",
-        ) as file:
-            file.write(checksum + "\n")
-            file.flush()
-            os.fsync(file.fileno())
-
-        state_temporary.replace(self.state_path)
-        checksum_temporary.replace(self.checksum_path)
+        write_checksummed_state(self.state_path, self.checksum_path, encoded)
 
     def load(self) -> PaperState:
-        if not self.state_path.exists():
-            raise FileNotFoundError(
-                f"Paper state was not found: {self.state_path}"
-            )
-
-        if not self.checksum_path.exists():
-            raise RuntimeError(
-                "Paper state checksum is missing."
-            )
-
-        encoded = self.state_path.read_bytes()
-        expected = self.checksum_path.read_text(
-            encoding="utf-8"
-        ).strip()
-        actual = _sha256_bytes(encoded)
-
-        if actual != expected:
-            raise RuntimeError(
-                "Paper state checksum mismatch. Runtime state "
-                "may be incomplete or corrupted."
-            )
+        encoded = read_checksummed_state(self.state_path, self.checksum_path)
 
         payload = json.loads(encoded.decode("utf-8"))
 
@@ -555,53 +673,9 @@ class StateStore:
         *,
         stale_after_seconds: float = 21_600.0,
     ) -> Iterator[None]:
-        self.directory.mkdir(parents=True, exist_ok=True)
-
-        for attempt in range(2):
-            try:
-                descriptor = os.open(
-                    self.lock_path,
-                    os.O_CREAT | os.O_EXCL | os.O_WRONLY,
-                )
-                with os.fdopen(
-                    descriptor,
-                    "w",
-                    encoding="utf-8",
-                ) as file:
-                    file.write(
-                        json.dumps(
-                            {
-                                "pid": os.getpid(),
-                                "created_utc": datetime.now(
-                                    timezone.utc
-                                ).isoformat(),
-                            }
-                        )
-                    )
-                break
-            except FileExistsError:
-                age = (
-                    time.time()
-                    - self.lock_path.stat().st_mtime
-                )
-                if (
-                    attempt == 0
-                    and age > stale_after_seconds
-                ):
-                    self.lock_path.unlink(missing_ok=True)
-                    continue
-
-                raise RuntimeError(
-                    "Another QPX paper runner is active. "
-                    f"Lock file: {self.lock_path}"
-                )
-        else:
-            raise RuntimeError("Unable to acquire paper lock.")
-
-        try:
+        del stale_after_seconds
+        with runtime_lock(self.lock_path):
             yield
-        finally:
-            self.lock_path.unlink(missing_ok=True)
 
     def activate_kill_switch(
         self,

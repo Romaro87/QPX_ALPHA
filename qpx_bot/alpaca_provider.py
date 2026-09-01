@@ -71,6 +71,10 @@ def _regular_session_close(day: date):
 
 ALPACA_URL = "https://data.alpaca.markets/v2/stocks/bars"
 
+REQUEST_TIMEOUT_SECONDS = 30
+MAX_REQUEST_ATTEMPTS = 4
+MAX_RETRY_DELAY_SECONDS = 30
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 CACHE_ROOT = (
@@ -398,11 +402,11 @@ def _request(
         },
     )
 
-    for attempt in range(8):
+    for attempt in range(MAX_REQUEST_ATTEMPTS):
         try:
             with urllib.request.urlopen(
                 request,
-                timeout=45,
+                timeout=REQUEST_TIMEOUT_SECONDS,
             ) as response:
                 payload = json.loads(
                     response.read().decode("utf-8")
@@ -429,10 +433,16 @@ def _request(
                 except ValueError:
                     delay = 5.0
 
+                delay = min(
+                    MAX_RETRY_DELAY_SECONDS,
+                    max(0.0, delay),
+                )
+
                 print(
                     f"Rate limit reached; waiting {delay:.0f}s"
                 )
-                time.sleep(delay)
+                if attempt + 1 < MAX_REQUEST_ATTEMPTS:
+                    time.sleep(delay)
                 continue
 
             raise RuntimeError(
@@ -451,7 +461,8 @@ def _request(
                 f"retrying in {delay}s"
             )
 
-            time.sleep(delay)
+            if attempt + 1 < MAX_REQUEST_ATTEMPTS:
+                time.sleep(delay)
 
     raise RuntimeError(
         "Alpaca history request failed after retries."

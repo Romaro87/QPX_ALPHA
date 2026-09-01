@@ -1,0 +1,17 @@
+[Unit]
+Description=QPX PR_FRACTION_50 IEX Clean V2 Forward Research Paper Runner (simulated only; no SIP parity)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=900
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ron/QPX_ALPHA
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_RUN_PR50_IEX_FORWARD_RESEARCH_PAPER.py --daemon --runtime-dir /home/ron/QPX_ALPHA/runtime/qpx_pr50_iex_forward_research_paper_clean_v2
+Restart=on-failure
+RestartSec=60
+TimeoutStopSec=360
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
