@@ -42,6 +42,14 @@ class FakeClient:
         return {"corporate_actions": {}, "next_page_token": None}
 
 
+class InvalidThenValidClient(FakeClient):
+    def request(self, url, params):
+        self.request_count += 1
+        if "BAD" in params.get("symbols", ""):
+            raise ProviderError('Alpaca HTTP 400: {"message":"invalid symbol: BAD"}', status=400)
+        return {"bars": {}, "next_page_token": None}
+
+
 class MLHistoricalAcquisitionTests(unittest.TestCase):
     def test_exact_ten_year_range_and_valid_start(self):
         result = calculate_range(NOW)
@@ -112,6 +120,15 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             state = {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
             acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA", "BBB"], "asset_ids": ["a", "b"]})
             self.assertEqual(client.request_count, 1)
+
+    def test_provider_rejected_symbol_is_bounded_and_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            client = InvalidThenValidClient(); acquisition = Acquisition(Path(folder), client, now=lambda: NOW)
+            acquisition.disk_gate = lambda: 900_000_000_000
+            state = {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "unqueryable_symbols": [], "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
+            acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["BAD", "AAA"], "asset_ids": ["bad-id", "good-id"]})
+            self.assertEqual(state["unqueryable_symbols"][0]["provider_asset_id"], "bad-id")
+            self.assertEqual(client.request_count, 2)
 
     def test_interrupted_page_resume_uses_saved_token(self):
         with tempfile.TemporaryDirectory() as folder:

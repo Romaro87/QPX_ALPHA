@@ -13,6 +13,7 @@ import io
 import json
 import os
 import random
+import re
 import shutil
 import signal
 import time
@@ -384,6 +385,7 @@ class Acquisition:
             "api_request_count": self.client.request_count, "retry_count": self.client.retry_count,
             "failure_count": 0, "current_partition": None, "completed": [],
             "observed_ranges": {},
+            "unqueryable_symbols": [],
             "partitions": partitions, "checkpoint_at_utc": acquired.isoformat(),
             "started_at_utc": acquired.isoformat(), "morning_deadline": "08:45 America/New_York",
             "survivorship_status": "ACTIVE_AND_INACTIVE_PROVIDER_ASSETS_RECOVERED",
@@ -405,7 +407,9 @@ class Acquisition:
     def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
         year, batch = int(item["year"]), int(item["batch"])
         start, end = self._partition_bounds(year, state["requested_range"])
-        symbols = list(item["symbols"]); identity = dict(zip(symbols, item["asset_ids"]))
+        identity = dict(zip(item["symbols"], item["asset_ids"]))
+        previously_unqueryable = {entry["symbol"] for entry in state.setdefault("unqueryable_symbols", [])}
+        symbols = [symbol for symbol in item["symbols"] if symbol not in previously_unqueryable]
         part_id = f"year={year}/batch={batch:05d}"
         destination = self.root / "bars_15m" / f"year={year}" / f"batch={batch:05d}.csv.gz"
         manifest = destination.with_suffix(destination.suffix + ".manifest.json")
@@ -422,7 +426,21 @@ class Acquisition:
         while True:
             params = dict(request_core)
             if token: params["page_token"] = token
-            payload = self.client.request(BARS_URL, params)
+            try:
+                payload = self.client.request(BARS_URL, params)
+            except ProviderError as exc:
+                invalid = re.search(r"invalid symbol:\s*([^\"}\s]+)", str(exc), re.IGNORECASE)
+                bad_symbol = invalid.group(1).upper() if invalid else None
+                if exc.status != 400 or bad_symbol not in symbols or page:
+                    raise
+                state["unqueryable_symbols"].append({"symbol": bad_symbol, "provider_asset_id": identity[bad_symbol], "reason": "PROVIDER_REJECTED_SYMBOL", "observed_at_utc": self.now().isoformat()})
+                symbols.remove(bad_symbol)
+                request_core["symbols"] = ",".join(symbols)
+                request_fp = fingerprint(request_core)
+                self.sync_provider_counts(state); self.save_state(state)
+                if symbols:
+                    continue
+                payload = {"bars": {}, "next_page_token": None}
             if not isinstance(payload, dict) or not isinstance(payload.get("bars", {}), dict):
                 raise ProviderError("Malformed bars response.", systemic=True)
             accepted: list[dict[str, Any]] = []
@@ -516,6 +534,7 @@ class Acquisition:
         record = {"recorded_at_utc": self.now().isoformat(), "partition": {"year": item.get("year"), "batch": item.get("batch")}, "error_type": type(exc).__name__, "message": str(exc)[:1000]}
         with path.open("a", encoding="utf-8") as handle: handle.write(json.dumps(record, sort_keys=True) + "\n"); handle.flush(); os.fsync(handle.fileno())
         state["failure_count"] += 1
+        self.sync_provider_counts(state)
 
     def run(self, max_partitions: int | None = None) -> dict[str, Any]:
         state = self.load_state() or self.initialize()
