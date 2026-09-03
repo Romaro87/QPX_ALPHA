@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, time as wall_time, timedelta, timezone
 from pathlib import Path
@@ -48,6 +49,9 @@ FEED = "sip"
 ADJUSTMENT = "raw"
 TIMEFRAME = "15Min"
 SCHEMA_VERSION = 1
+CHECKPOINT_SCHEMA_VERSION = 2
+ACQUISITION_PROVENANCE_VERSION = "QPX_ML_HISTORICAL_15M_V2"
+PROVIDER_INPUT_SEMANTIC_VERSION = "ALPACA_SIP_RAW_15M_HISTORICAL_V1"
 BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
@@ -74,6 +78,17 @@ def canonical_bytes(value: Any) -> bytes:
 
 def fingerprint(value: Any) -> str:
     return hashlib.sha256(canonical_bytes(value)).hexdigest()
+
+
+def canonical_provider_asset_id(value: Any) -> str:
+    """Canonicalize UUID identities and preserve exact non-UUID provider IDs."""
+    text = str(value)
+    if not text or text != text.strip():
+        raise ValueError("Provider asset identity is empty or has surrounding whitespace.")
+    try:
+        return str(uuid.UUID(text))
+    except ValueError:
+        return text
 
 
 def sha256_path(path: Path) -> str:
@@ -223,7 +238,10 @@ def build_security_master(active: Iterable[Mapping[str, Any]], inactive: Iterabl
     by_id: dict[str, dict[str, Any]] = {}
     for source_status, items in (("active", active), ("inactive", inactive)):
         for raw in items:
-            asset_id = str(raw.get("id", "")).strip()
+            try:
+                asset_id = canonical_provider_asset_id(raw.get("id", ""))
+            except ValueError:
+                continue
             symbol = str(raw.get("symbol", "")).strip().upper()
             if not asset_id or not symbol or str(raw.get("class")) != "us_equity":
                 continue
@@ -244,6 +262,39 @@ def build_security_master(active: Iterable[Mapping[str, Any]], inactive: Iterabl
             if previous is None or (not previous["active"] and facts["active"]):
                 by_id[asset_id] = facts
     return sorted(by_id.values(), key=lambda item: (item["provider_asset_id"], item["canonical_current_symbol"]))
+
+
+def batch_descriptor(
+    *, year: int, start: date, end: date, symbols: Iterable[str], asset_ids: Iterable[str]
+) -> dict[str, Any]:
+    symbol_values = list(symbols)
+    identity_values = list(asset_ids)
+    if len(symbol_values) != len(identity_values) or not identity_values:
+        raise ValueError("Batch symbols and provider identities must be non-empty and one-to-one.")
+    members = sorted(
+        (
+            {"provider_asset_id": canonical_provider_asset_id(asset_id), "canonical_symbol": str(symbol).strip().upper()}
+            for symbol, asset_id in zip(symbol_values, identity_values)
+        ),
+        key=lambda item: (item["provider_asset_id"], item["canonical_symbol"]),
+    )
+    identity = {
+        "year": int(year), "requested_start": start.isoformat(),
+        "requested_end": end.isoformat(), "feed": FEED, "adjustment": ADJUSTMENT,
+        "timeframe": TIMEFRAME, "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+        "members": members,
+    }
+    return {**identity, "batch_fingerprint": fingerprint(identity)}
+
+
+def page_evidence(path: Path, *, page: int, row_count: int, request_fingerprint: str, batch_fingerprint: str) -> dict[str, Any]:
+    core = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION, "page": page,
+        "sha256": sha256_path(path), "row_count": row_count,
+        "request_fingerprint": request_fingerprint, "batch_fingerprint": batch_fingerprint,
+        "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+    }
+    return {**core, "evidence_fingerprint": fingerprint(core)}
 
 
 def validate_bar(raw: Mapping[str, Any], symbol: str, asset_id: str, request_fp: str, start: date, end: date, now: datetime) -> dict[str, Any] | None:
@@ -374,7 +425,14 @@ class Acquisition:
         atomic_json(master_path.with_suffix(master_path.suffix + ".manifest.json"), {"sha256": sha256_path(master_path), "security_count": len(master), "active_count": sum(i["active"] for i in master), "inactive_count": sum(not i["active"] for i in master), "provenance_fingerprint": master_payload["manifest_fingerprint"]})
         years = list(range(date.fromisoformat(requested["actual_first_requested_session"]).year, date.fromisoformat(requested["actual_last_completed_session"]).year + 1))
         batches = [master[index:index + BATCH_SIZE] for index in range(0, len(master), BATCH_SIZE)]
-        partitions = [{"year": year, "batch": index, "symbols": [item["canonical_current_symbol"] for item in batch], "asset_ids": [item["provider_asset_id"] for item in batch]} for year in years for index, batch in enumerate(batches)]
+        partitions = []
+        for year in years:
+            start, end = self._partition_bounds(year, requested)
+            for index, batch in enumerate(batches):
+                symbols = [item["canonical_current_symbol"] for item in batch]
+                asset_ids = [item["provider_asset_id"] for item in batch]
+                descriptor = batch_descriptor(year=year, start=start, end=end, symbols=symbols, asset_ids=asset_ids)
+                partitions.append({"year": year, "batch": index, "symbols": symbols, "asset_ids": asset_ids, "batch_fingerprint": descriptor["batch_fingerprint"]})
         state = {
             "schema_version": SCHEMA_VERSION, "status": "PARTIAL", "stage": "BARS_15M",
             "requested_range": requested, "provider": PROVIDER, "feed": FEED,
@@ -404,9 +462,74 @@ class Acquisition:
     def _partition_bounds(self, year: int, requested: Mapping[str, str]) -> tuple[date, date]:
         return max(date(year, 1, 1), date.fromisoformat(requested["actual_first_requested_session"])), min(date(year, 12, 31), date.fromisoformat(requested["actual_last_completed_session"]))
 
+    def _quarantine_partial(self, page_root: Path, reason: str, evidence: Mapping[str, Any]) -> None:
+        if not page_root.exists():
+            return
+        quarantine_root = self.root / "acquisition_state" / "rebuild_evidence"
+        quarantine_root.mkdir(parents=True, exist_ok=True)
+        suffix = fingerprint({"reason": reason, "evidence": evidence, "observed_at": self.now().isoformat()})[:16]
+        destination = quarantine_root / f"{page_root.parent.name}-{page_root.name}-{suffix}"
+        page_root.rename(destination)
+        atomic_json(destination / "rebuild_reason.json", {"reason": reason, "evidence": dict(evidence), "recorded_at_utc": self.now().isoformat(), "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION})
+
+    def _validated_resume(
+        self, page_root: Path, *, expected_request_fingerprint: str,
+        expected_batch_fingerprint: str, descriptor: Mapping[str, Any],
+    ) -> tuple[int, str | None]:
+        checkpoint = page_root / "checkpoint.json"
+        fragments = sorted(page_root.glob("page-*.csv.gz")) if page_root.exists() else []
+        if not checkpoint.exists():
+            if fragments:
+                self._quarantine_partial(page_root, "FRAGMENTS_WITHOUT_CHECKPOINT", descriptor)
+            return 0, None
+        try:
+            saved = json.loads(checkpoint.read_text())
+        except Exception as exc:
+            self._quarantine_partial(page_root, "UNREADABLE_CHECKPOINT_REBUILD", {"error_type": type(exc).__name__, **descriptor})
+            return 0, None
+        if saved.get("schema_version") != CHECKPOINT_SCHEMA_VERSION:
+            self._quarantine_partial(page_root, "LEGACY_CHECKPOINT_SCHEMA_REBUILD", {"legacy_keys": sorted(saved), **descriptor})
+            return 0, None
+        claimed_checkpoint_fingerprint = saved.get("checkpoint_fingerprint")
+        checkpoint_core = {key: value for key, value in saved.items() if key != "checkpoint_fingerprint"}
+        if claimed_checkpoint_fingerprint != fingerprint(checkpoint_core):
+            self._quarantine_partial(page_root, "CHECKPOINT_INTEGRITY_FAILURE", descriptor)
+            return 0, None
+        checks = {
+            "request_fingerprint": expected_request_fingerprint,
+            "batch_fingerprint": expected_batch_fingerprint,
+            "year": descriptor["year"], "requested_start": descriptor["requested_start"],
+            "requested_end": descriptor["requested_end"],
+            "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+        }
+        if any(saved.get(key) != value for key, value in checks.items()):
+            self._quarantine_partial(page_root, "CHECKPOINT_IDENTITY_MISMATCH", {"expected": checks, "observed": {key: saved.get(key) for key in checks}})
+            return 0, None
+        page = int(saved.get("page", 0))
+        expected_names = [f"page-{number:06d}.csv.gz" for number in range(1, page + 1)]
+        if [path.name for path in fragments] != expected_names:
+            self._quarantine_partial(page_root, "PAGE_SEQUENCE_MISMATCH", {"expected": expected_names, "observed": [path.name for path in fragments]})
+            return 0, None
+        for number, fragment in enumerate(fragments, start=1):
+            manifest_path = fragment.with_suffix(fragment.suffix + ".manifest.json")
+            try:
+                evidence = json.loads(manifest_path.read_text())
+                rows = read_gzip_csv(fragment)
+                valid = (
+                    evidence == page_evidence(fragment, page=number, row_count=len(rows), request_fingerprint=expected_request_fingerprint, batch_fingerprint=expected_batch_fingerprint)
+                    and all(row.get("request_fingerprint") == expected_request_fingerprint for row in rows)
+                )
+            except Exception:
+                valid = False
+            if not valid:
+                self._quarantine_partial(page_root, "PAGE_FRAGMENT_INTEGRITY_FAILURE", {"page": number, **descriptor})
+                return 0, None
+        return page, saved.get("next_page_token")
+
     def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
         year, batch = int(item["year"]), int(item["batch"])
         start, end = self._partition_bounds(year, state["requested_range"])
+        descriptor = batch_descriptor(year=year, start=start, end=end, symbols=item["symbols"], asset_ids=item["asset_ids"])
         identity = dict(zip(item["symbols"], item["asset_ids"]))
         previously_unqueryable = {entry["symbol"] for entry in state.setdefault("unqueryable_symbols", [])}
         symbols = [symbol for symbol in item["symbols"] if symbol not in previously_unqueryable]
@@ -418,17 +541,20 @@ class Acquisition:
             return
         page_root = self.root / "acquisition_state" / "pages" / f"year={year}" / f"batch={batch:05d}"
         checkpoint = page_root / "checkpoint.json"
-        token = None; page = 0
-        if checkpoint.exists():
-            saved = json.loads(checkpoint.read_text()); token = saved.get("next_page_token"); page = int(saved["page"])
         request_core = {"symbols": ",".join(symbols), "timeframe": TIMEFRAME, "start": start.isoformat() + "T00:00:00Z", "end": (end + timedelta(days=1)).isoformat() + "T00:00:00Z", "limit": str(PAGE_LIMIT), "feed": FEED, "adjustment": ADJUSTMENT, "sort": "asc"}
-        request_fp = fingerprint(request_core)
-        while True:
+        request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request_core})
+        page, token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
+        pagination_complete = page > 0 and token is None
+        while not pagination_complete:
             params = dict(request_core)
             if token: params["page_token"] = token
             try:
                 payload = self.client.request(BARS_URL, params)
             except ProviderError as exc:
+                if token and exc.status in {400, 404, 410, 422}:
+                    self._quarantine_partial(page_root, "OPAQUE_PAGE_TOKEN_REJECTED_REBUILD", {"status": exc.status, **descriptor})
+                    page, token = 0, None
+                    continue
                 invalid = re.search(r"invalid symbol:\s*([^\"}\s]+)", str(exc), re.IGNORECASE)
                 bad_symbol = invalid.group(1).upper() if invalid else None
                 if exc.status != 400 or bad_symbol not in symbols or page:
@@ -436,7 +562,7 @@ class Acquisition:
                 state["unqueryable_symbols"].append({"symbol": bad_symbol, "provider_asset_id": identity[bad_symbol], "reason": "PROVIDER_REJECTED_SYMBOL", "observed_at_utc": self.now().isoformat()})
                 symbols.remove(bad_symbol)
                 request_core["symbols"] = ",".join(symbols)
-                request_fp = fingerprint(request_core)
+                request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request_core})
                 self.sync_provider_counts(state); self.save_state(state)
                 if symbols:
                     continue
@@ -453,12 +579,20 @@ class Acquisition:
                     else: accepted.append(bar)
             page += 1
             accepted.sort(key=lambda row: (row["provider_asset_id"], row["market_timestamp"]))
-            atomic_bytes(page_root / f"page-{page:06d}.csv.gz", encode_gzip_csv(accepted, BAR_COLUMNS))
+            fragment = page_root / f"page-{page:06d}.csv.gz"
+            atomic_bytes(fragment, encode_gzip_csv(accepted, BAR_COLUMNS))
+            atomic_json(fragment.with_suffix(fragment.suffix + ".manifest.json"), page_evidence(fragment, page=page, row_count=len(accepted), request_fingerprint=request_fp, batch_fingerprint=descriptor["batch_fingerprint"]))
             token = payload.get("next_page_token")
-            atomic_json(checkpoint, {"page": page, "next_page_token": token, "invalid_rows": invalid, "request_fingerprint": request_fp})
+            last_boundary = ([accepted[-1]["provider_asset_id"], accepted[-1]["market_timestamp"]] if accepted else None)
+            checkpoint_payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "year": year, "batch": batch, "batch_fingerprint": descriptor["batch_fingerprint"], "requested_start": start.isoformat(), "requested_end": end.isoformat(), "page": page, "next_page_token": token, "last_completed_boundary": last_boundary, "invalid_rows": invalid, "request_fingerprint": request_fp, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION}
+            checkpoint_payload["checkpoint_fingerprint"] = fingerprint(checkpoint_payload)
+            atomic_json(checkpoint, checkpoint_payload)
             self.sync_provider_counts(state)
             state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
-            if not token: break
+            if not token: pagination_complete = True
+        verified_page, verified_token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
+        if verified_page != page or verified_token is not None:
+            raise RuntimeError(f"Final page-fragment validation failed for {part_id}.")
         combined: dict[tuple[str, str], dict[str, str]] = {}
         for page_path in sorted(page_root.glob("page-*.csv.gz")):
             for row in read_gzip_csv(page_path):
@@ -469,7 +603,7 @@ class Acquisition:
         encoded = encode_gzip_csv(ordered, BAR_COLUMNS)
         self.disk_gate(); atomic_bytes(destination, encoded)
         sessions = sorted({row["session_date"] for row in ordered})
-        partition_manifest = {"schema_version": SCHEMA_VERSION, "partition": part_id, "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT, "resolution": TIMEFRAME, "request_fingerprint": request_fp, "security_count": len({r["provider_asset_id"] for r in ordered}), "row_count": len(ordered), "first_observed_bar": min((r["market_timestamp"] for r in ordered), default=None), "last_observed_bar": max((r["market_timestamp"] for r in ordered), default=None), "first_session": sessions[0] if sessions else None, "last_session": sessions[-1] if sessions else None, "sha256": sha256_path(destination), "synthetic_bars": False, "forward_fill": False, "timestamp_substitution": False, "completed_at_utc": self.now().isoformat()}
+        partition_manifest = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION, "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "partition": part_id, "year": year, "batch": batch, "batch_fingerprint": descriptor["batch_fingerprint"], "ordered_provider_asset_ids": [member["provider_asset_id"] for member in descriptor["members"]], "ordered_symbol_mapping": descriptor["members"], "requested_start": start.isoformat(), "requested_end": end.isoformat(), "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT, "timeframe": TIMEFRAME, "request_fingerprint": request_fp, "requested_security_count": len(descriptor["members"]), "security_count": len({r["provider_asset_id"] for r in ordered}), "row_count": len(ordered), "actual_first_observation": min((r["market_timestamp"] for r in ordered), default=None), "actual_last_observation": max((r["market_timestamp"] for r in ordered), default=None), "first_observed_bar": min((r["market_timestamp"] for r in ordered), default=None), "last_observed_bar": max((r["market_timestamp"] for r in ordered), default=None), "first_session": sessions[0] if sessions else None, "last_session": sessions[-1] if sessions else None, "sha256": sha256_path(destination), "page_count": page, "synthetic_bars": False, "forward_fill": False, "timestamp_substitution": False, "completed_at_utc": self.now().isoformat()}
         partition_manifest["manifest_fingerprint"] = fingerprint(partition_manifest)
         atomic_json(manifest, partition_manifest)
         for path in page_root.glob("*"): path.unlink()

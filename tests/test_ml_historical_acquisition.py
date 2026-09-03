@@ -9,10 +9,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from qpx_bot.ml_historical_acquisition import (
-    ADJUSTMENT, BARS_URL, DEFAULT_ROOT, FEED, QUALIFIED_FROZEN_ROOT,
+    ACQUISITION_PROVENANCE_VERSION, ADJUSTMENT, BAR_COLUMNS, BARS_URL,
+    CHECKPOINT_SCHEMA_VERSION, DEFAULT_ROOT, FEED, PAGE_LIMIT,
+    PROVIDER_INPUT_SEMANTIC_VERSION, QUALIFIED_FROZEN_ROOT, TIMEFRAME,
     Acquisition, ProviderError, RateGovernor, aggregate_bars, atomic_bytes,
-    build_security_master, calculate_range, encode_gzip_csv, fingerprint,
-    initial_estimate, normalize_corporate_action, read_gzip_csv, sha256_path,
+    atomic_json, batch_descriptor, build_security_master, calculate_range,
+    canonical_provider_asset_id, encode_gzip_csv, fingerprint, initial_estimate,
+    normalize_corporate_action, page_evidence, read_gzip_csv, sha256_path,
     status, validate_bar,
 )
 
@@ -29,14 +32,13 @@ def raw_bar(stamp="2026-09-03T13:30:00Z"):
 
 
 class FakeClient:
-    request_count = 0
-    retry_count = 0
-    def __init__(self, pages=None): self.pages = list(pages or [])
+    def __init__(self, pages=None):
+        self.pages = list(pages or []); self.request_count = 0; self.retry_count = 0; self.calls = []
     def assets(self, state):
         self.request_count += 1
         return [asset("active-id", "AAA", "active")] if state == "active" else [asset("inactive-id", "OLD", "inactive")]
     def request(self, url, params):
-        self.request_count += 1
+        self.request_count += 1; self.calls.append((url, dict(params)))
         if url == BARS_URL:
             return self.pages.pop(0) if self.pages else {"bars": {}, "next_page_token": None}
         return {"corporate_actions": {}, "next_page_token": None}
@@ -50,7 +52,63 @@ class InvalidThenValidClient(FakeClient):
         return {"bars": {}, "next_page_token": None}
 
 
+class RejectedTokenClient(FakeClient):
+    def request(self, url, params):
+        self.request_count += 1; self.calls.append((url, dict(params)))
+        if params.get("page_token"):
+            raise ProviderError("expired page token", status=400)
+        return {"bars": {}, "next_page_token": None}
+
+
+def resume_identity(symbols=("AAA",), asset_ids=("a",)):
+    start, end = date(2026, 9, 1), date(2026, 9, 3)
+    descriptor = batch_descriptor(year=2026, start=start, end=end, symbols=symbols, asset_ids=asset_ids)
+    request = {"symbols": ",".join(symbols), "timeframe": TIMEFRAME, "start": "2026-09-01T00:00:00Z", "end": "2026-09-04T00:00:00Z", "limit": str(PAGE_LIMIT), "feed": FEED, "adjustment": ADJUSTMENT, "sort": "asc"}
+    request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request})
+    return descriptor, request_fp
+
+
+def write_v2_resume(root: Path, *, token="resume", request_fp=None, batch_fp=None, corrupt=False):
+    descriptor, expected_request = resume_identity()
+    request_fp = request_fp or expected_request; batch_fp = batch_fp or descriptor["batch_fingerprint"]
+    page_root = root / "acquisition_state/pages/year=2026/batch=00000"; page_root.mkdir(parents=True)
+    fragment = page_root / "page-000001.csv.gz"
+    row = validate_bar(raw_bar(), "AAA", "a", request_fp, date(2026, 9, 1), date(2026, 9, 3), NOW)
+    atomic_bytes(fragment, encode_gzip_csv([row], BAR_COLUMNS))
+    evidence = page_evidence(fragment, page=1, row_count=1, request_fingerprint=request_fp, batch_fingerprint=batch_fp)
+    if corrupt: evidence["sha256"] = "0" * 64
+    atomic_json(fragment.with_suffix(fragment.suffix + ".manifest.json"), evidence)
+    checkpoint = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "year": 2026, "batch": 0, "batch_fingerprint": batch_fp, "requested_start": "2026-09-01", "requested_end": "2026-09-03", "page": 1, "next_page_token": token, "last_completed_boundary": ["a", row["market_timestamp"]], "invalid_rows": 0, "request_fingerprint": request_fp, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION}
+    checkpoint["checkpoint_fingerprint"] = fingerprint(checkpoint)
+    atomic_json(page_root / "checkpoint.json", checkpoint)
+    return page_root
+
+
 class MLHistoricalAcquisitionTests(unittest.TestCase):
+    @staticmethod
+    def partition_state():
+        return {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "unqueryable_symbols": [], "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
+
+    def test_enumeration_order_does_not_change_batch_membership(self):
+        values = [asset("00000000-0000-0000-0000-000000000002", "BBB"), asset("00000000-0000-0000-0000-000000000001", "AAA")]
+        first = build_security_master(values, [], NOW)
+        second = build_security_master(reversed(values), [], NOW)
+        self.assertEqual(first, second)
+
+    def test_uuid_provider_identity_is_canonical(self):
+        self.assertEqual(canonical_provider_asset_id("00000000-0000-0000-0000-00000000000A"), "00000000-0000-0000-0000-00000000000a")
+        self.assertEqual(canonical_provider_asset_id("provider:CaseSensitive"), "provider:CaseSensitive")
+
+    def test_batch_fingerprint_is_deterministic_and_order_independent(self):
+        a = batch_descriptor(year=2026, start=date(2026, 1, 1), end=date(2026, 9, 3), symbols=["B", "A"], asset_ids=["b", "a"])
+        b = batch_descriptor(year=2026, start=date(2026, 1, 1), end=date(2026, 9, 3), symbols=["A", "B"], asset_ids=["a", "b"])
+        self.assertEqual(a["batch_fingerprint"], b["batch_fingerprint"])
+
+    def test_membership_change_changes_batch_fingerprint(self):
+        a = batch_descriptor(year=2026, start=date(2026, 1, 1), end=date(2026, 9, 3), symbols=["A"], asset_ids=["a"])
+        b = batch_descriptor(year=2026, start=date(2026, 1, 1), end=date(2026, 9, 3), symbols=["B"], asset_ids=["b"])
+        self.assertNotEqual(a["batch_fingerprint"], b["batch_fingerprint"])
+
     def test_exact_ten_year_range_and_valid_start(self):
         result = calculate_range(NOW)
         self.assertEqual(result["requested_start"], "2016-09-03")
@@ -121,6 +179,74 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA", "BBB"], "asset_ids": ["a", "b"]})
             self.assertEqual(client.request_count, 1)
 
+    def test_final_manifest_contains_exact_membership(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); client = FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}])
+            acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
+            acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            manifest = json.loads((root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json").read_text())
+            self.assertEqual(manifest["ordered_provider_asset_ids"], ["a"])
+            self.assertEqual(manifest["ordered_symbol_mapping"], [{"provider_asset_id": "a", "canonical_symbol": "AAA"}])
+            self.assertEqual(manifest["requested_start"], "2026-09-01")
+
+    def test_matching_checkpoint_fingerprint_resumes_with_token(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); write_v2_resume(root)
+            client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
+            acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertEqual(client.calls[0][1]["page_token"], "resume")
+
+    def test_mismatched_request_fingerprint_rebuilds_without_token(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); write_v2_resume(root, request_fp="f" * 64)
+            client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
+            acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertNotIn("page_token", client.calls[0][1]); self.assertTrue(list((root / "acquisition_state/rebuild_evidence").iterdir()))
+
+    def test_missing_token_finalizes_valid_pages_without_provider_request(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); write_v2_resume(root, token=None)
+            client = FakeClient(); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
+            acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertEqual(client.request_count, 0)
+
+    def test_rejected_token_rebuilds_only_current_partition(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); write_v2_resume(root)
+            client = RejectedTokenClient(); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
+            acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertIn("page_token", client.calls[0][1]); self.assertNotIn("page_token", client.calls[1][1])
+
+    def test_completed_partition_is_not_redownloaded(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); destination = root / "bars_15m/year=2026/batch=00000.csv.gz"; atomic_bytes(destination, b"done")
+            atomic_json(destination.with_suffix(destination.suffix + ".manifest.json"), {"sha256": sha256_path(destination)})
+            client = FakeClient(); acquisition = Acquisition(root, client, now=lambda: NOW)
+            state = self.partition_state(); acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertEqual(client.request_count, 0); self.assertEqual(destination.read_bytes(), b"done")
+
+    def test_corrupt_page_fragment_is_rejected_and_rebuilt(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); write_v2_resume(root, corrupt=True)
+            client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
+            acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertNotIn("page_token", client.calls[0][1])
+
+    def test_valid_page_fragment_checksum_passes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); write_v2_resume(root, token=None); acquisition = Acquisition(root, FakeClient(), now=lambda: NOW)
+            descriptor, request_fp = resume_identity()
+            page, token = acquisition._validated_resume(root / "acquisition_state/pages/year=2026/batch=00000", expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
+            self.assertEqual((page, token), (1, None))
+
+    def test_pages_from_different_requests_cannot_be_combined(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); page_root = write_v2_resume(root)
+            manifest = next(page_root.glob("*.csv.gz.manifest.json")); evidence = json.loads(manifest.read_text()); evidence["request_fingerprint"] = "0" * 64; atomic_json(manifest, evidence)
+            client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
+            acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertNotIn("page_token", client.calls[0][1])
+
     def test_provider_rejected_symbol_is_bounded_and_preserved(self):
         with tempfile.TemporaryDirectory() as folder:
             client = InvalidThenValidClient(); acquisition = Acquisition(Path(folder), client, now=lambda: NOW)
@@ -130,7 +256,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             self.assertEqual(state["unqueryable_symbols"][0]["provider_asset_id"], "bad-id")
             self.assertEqual(client.request_count, 2)
 
-    def test_interrupted_page_resume_uses_saved_token(self):
+    def test_legacy_checkpoint_is_explicitly_rebuilt(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW)
             acquisition.disk_gate = lambda: 900_000_000_000
@@ -138,7 +264,8 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             (page_root / "checkpoint.json").write_text(json.dumps({"page": 1, "next_page_token": "resume", "invalid_rows": 0, "request_fingerprint": "x"}))
             state = {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
             acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
-            self.assertEqual(client.request_count, 1)
+            evidence = list((root / "acquisition_state/rebuild_evidence").rglob("rebuild_reason.json"))
+            self.assertEqual(client.request_count, 1); self.assertEqual(json.loads(evidence[0].read_text())["reason"], "LEGACY_CHECKPOINT_SCHEMA_REBUILD")
 
     def test_rate_governor_waits_globally(self):
         values = iter([0.0, 0.0, 0.1, 0.5]); sleeps=[]
