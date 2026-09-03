@@ -122,6 +122,7 @@ alpaca.json
 # Generated datasets, caches, and runtime state
 qpx_bot/scenario_runtime/
 operator_state/
+research_data/qpx_ml_historical_v1/
 cache/
 data/
 storage/

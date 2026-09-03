@@ -1,0 +1,575 @@
+"""Resumable whole-market Alpaca SIP 15-minute historical reservoir.
+
+This is acquisition software only.  It does not train, qualify, trade, or read
+any QPX forward/broker runtime.  Daily and hourly views are deterministic local
+derivations from the canonical 15-minute partitions.
+"""
+from __future__ import annotations
+
+import csv
+import gzip
+import hashlib
+import io
+import json
+import os
+import random
+import shutil
+import signal
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from datetime import date, datetime, time as wall_time, timedelta, timezone
+from pathlib import Path
+from typing import Any, Callable, Iterable, Mapping
+from zoneinfo import ZoneInfo
+
+from qpx_bot.alpaca_provider import credentials
+from qpx_bot.market_calendar import (
+    NEW_YORK,
+    is_market_session,
+    latest_completed_session,
+    market_session,
+    next_market_session,
+)
+from qpx_bot.paper_state import read_checksummed_state, write_checksummed_state
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_ROOT = ROOT / "research_data" / "qpx_ml_historical_v1"
+QUALIFIED_FROZEN_ROOT = ROOT / "research_data" / "qpx_frozen_alpaca_top100_v1"
+ASSET_URL = "https://paper-api.alpaca.markets/v2/assets"
+BARS_URL = "https://data.alpaca.markets/v2/stocks/bars"
+CORPORATE_ACTION_URL = "https://data.alpaca.markets/v1/corporate-actions"
+PROVIDER = "alpaca"
+FEED = "sip"
+ADJUSTMENT = "raw"
+TIMEFRAME = "15Min"
+SCHEMA_VERSION = 1
+BATCH_SIZE = 50
+PAGE_LIMIT = 10_000
+REQUESTS_PER_MINUTE = 120
+MAX_ATTEMPTS = 5
+MIN_FREE_BYTES = 200_000_000_000
+MORNING_DEADLINE = wall_time(8, 45)
+EASTERN = ZoneInfo("America/New_York")
+CA_TYPES = (
+    "forward_split", "reverse_split", "stock_dividend", "spin_off",
+    "cash_merger", "stock_merger", "stock_and_cash_merger", "unit_split",
+    "cash_dividend", "redemption", "name_change", "worthless_removal",
+    "rights_distribution", "contract_adjustment", "partial_call", "reorganization",
+)
+BAR_COLUMNS = (
+    "provider_asset_id", "observation_symbol", "market_timestamp",
+    "session_date", "open", "high", "low", "close", "volume",
+    "provider", "feed", "adjustment", "request_fingerprint",
+)
+
+
+def canonical_bytes(value: Any) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def fingerprint(value: Any) -> str:
+    return hashlib.sha256(canonical_bytes(value)).hexdigest()
+
+
+def sha256_path(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def atomic_bytes(path: Path, encoded: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("wb") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
+    temporary.replace(path)
+
+
+def atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
+    atomic_bytes(path, json.dumps(payload, indent=2, sort_keys=True, allow_nan=False).encode() + b"\n")
+
+
+def calculate_range(now: datetime | None = None) -> dict[str, str]:
+    end, end_status = latest_completed_session(now)
+    try:
+        requested_start = end.replace(year=end.year - 10)
+    except ValueError:
+        requested_start = end.replace(year=end.year - 10, day=28)
+    actual_start = next_market_session(requested_start, include_day=True)
+    return {
+        "requested_start": requested_start.isoformat(),
+        "actual_first_requested_session": actual_start.isoformat(),
+        "requested_end": end.isoformat(),
+        "actual_last_completed_session": end.isoformat(),
+        "end_status": end_status,
+    }
+
+
+def session_dates(start: date, end: date) -> list[date]:
+    values: list[date] = []
+    current = start
+    while current <= end:
+        if is_market_session(current):
+            values.append(current)
+        current += timedelta(days=1)
+    return values
+
+
+def initial_estimate(security_count: int, requested: Mapping[str, str], free_bytes: int) -> dict[str, Any]:
+    sessions = len(session_dates(date.fromisoformat(requested["actual_first_requested_session"]), date.fromisoformat(requested["actual_last_completed_session"])))
+    upper_rows = security_count * sessions * 26
+    estimated_rows_low = int(upper_rows * 0.22)
+    estimated_rows_high = int(upper_rows * 0.55)
+    compressed_low = estimated_rows_low * 45
+    compressed_high = estimated_rows_high * 75
+    uncompressed_low = estimated_rows_low * 115
+    uncompressed_high = estimated_rows_high * 180
+    partitions = ((security_count + BATCH_SIZE - 1) // BATCH_SIZE) * len({d.year for d in session_dates(date.fromisoformat(requested["actual_first_requested_session"]), date.fromisoformat(requested["actual_last_completed_session"]))})
+    request_low = max(partitions, estimated_rows_low // PAGE_LIMIT)
+    request_high = max(partitions, estimated_rows_high // PAGE_LIMIT + partitions)
+    return {
+        "security_count": security_count,
+        "trading_sessions": sessions,
+        "bars_per_full_session": 26,
+        "upper_bound_rows": upper_rows,
+        "estimated_rows_range": [estimated_rows_low, estimated_rows_high],
+        "estimated_compressed_bytes_range": [compressed_low, compressed_high],
+        "estimated_uncompressed_bytes_range": [uncompressed_low, uncompressed_high],
+        "free_bytes_before_start": free_bytes,
+        "safety_reserve_bytes": MIN_FREE_BYTES,
+        "expected_remaining_free_bytes_range": [free_bytes - compressed_high, free_bytes - compressed_low],
+        "partition_count": partitions,
+        "estimated_api_requests_range": [request_low, request_high],
+        "governor_requests_per_minute": REQUESTS_PER_MINUTE,
+        "estimated_provider_minutes_range": [round(request_low / REQUESTS_PER_MINUTE, 1), round(request_high / REQUESTS_PER_MINUTE, 1)],
+    }
+
+
+class ProviderError(RuntimeError):
+    def __init__(self, message: str, *, status: int | None = None, systemic: bool = False):
+        super().__init__(message)
+        self.status = status
+        self.systemic = systemic
+
+
+class RateGovernor:
+    def __init__(self, requests_per_minute: int = REQUESTS_PER_MINUTE, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep):
+        self.interval = 60.0 / requests_per_minute
+        self.clock, self.sleep, self.next_at = clock, sleep, 0.0
+
+    def wait(self) -> None:
+        now = self.clock()
+        if now < self.next_at:
+            self.sleep(self.next_at - now)
+            now = self.clock()
+        self.next_at = max(now, self.next_at) + self.interval
+
+
+@dataclass
+class AlpacaHistoricalClient:
+    governor: RateGovernor
+    attempts: int = MAX_ATTEMPTS
+    request_count: int = 0
+    retry_count: int = 0
+
+    def request(self, url: str, params: Mapping[str, str]) -> dict[str, Any] | list[Any]:
+        key, secret = credentials()
+        request = urllib.request.Request(
+            url + "?" + urllib.parse.urlencode(params),
+            headers={"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret, "Accept": "application/json", "Accept-Encoding": "identity", "User-Agent": "QPX-ML-HISTORICAL-V1"},
+        )
+        last: Exception | None = None
+        for attempt in range(1, self.attempts + 1):
+            self.governor.wait()
+            self.request_count += 1
+            try:
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    payload = json.loads(response.read())
+                if not isinstance(payload, (dict, list)):
+                    raise ProviderError("Provider returned a non-container response.", systemic=True)
+                return payload
+            except urllib.error.HTTPError as exc:
+                body = exc.read().decode("utf-8", "replace")[:500]
+                last = ProviderError(f"Alpaca HTTP {exc.code}: {body}", status=exc.code, systemic=exc.code in {401, 403})
+                if exc.code not in {429, 500, 502, 503, 504}:
+                    raise last
+                retry_after = exc.headers.get("Retry-After")
+                delay = float(retry_after) if retry_after and retry_after.isdigit() else min(30.0, 2 ** attempt + random.random())
+            except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+                last = exc
+                delay = min(30.0, 2 ** attempt + random.random())
+            if attempt < self.attempts:
+                self.retry_count += 1
+                time.sleep(delay)
+        raise ProviderError(f"Provider request exhausted bounded retries: {last}", systemic=True)
+
+    def assets(self, status: str) -> list[dict[str, Any]]:
+        payload = self.request(ASSET_URL, {"status": status, "asset_class": "us_equity"})
+        if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+            raise ProviderError("Malformed Alpaca assets response.", systemic=True)
+        return payload
+
+
+def build_security_master(active: Iterable[Mapping[str, Any]], inactive: Iterable[Mapping[str, Any]], acquired_at: datetime) -> list[dict[str, Any]]:
+    by_id: dict[str, dict[str, Any]] = {}
+    for source_status, items in (("active", active), ("inactive", inactive)):
+        for raw in items:
+            asset_id = str(raw.get("id", "")).strip()
+            symbol = str(raw.get("symbol", "")).strip().upper()
+            if not asset_id or not symbol or str(raw.get("class")) != "us_equity":
+                continue
+            facts = {
+                "provider_asset_id": asset_id, "canonical_current_symbol": symbol,
+                "historical_symbols": [], "exchange": raw.get("exchange"),
+                "asset_class": raw.get("class"), "provider_status": raw.get("status", source_status),
+                "active": raw.get("status", source_status) == "active",
+                "tradable": bool(raw.get("tradable")), "fractionable": bool(raw.get("fractionable")),
+                "marginable": bool(raw.get("marginable")), "shortable": bool(raw.get("shortable")),
+                "easy_to_borrow": bool(raw.get("easy_to_borrow")), "attributes": raw.get("attributes") or [],
+                "authoritative_listing_date": None, "authoritative_delisting_date": None,
+                "first_observed_bar": None, "last_observed_bar": None,
+                "source": PROVIDER, "acquired_at_utc": acquired_at.astimezone(timezone.utc).isoformat(),
+            }
+            facts["provenance_fingerprint"] = fingerprint(facts)
+            previous = by_id.get(asset_id)
+            if previous is None or (not previous["active"] and facts["active"]):
+                by_id[asset_id] = facts
+    return sorted(by_id.values(), key=lambda item: (item["provider_asset_id"], item["canonical_current_symbol"]))
+
+
+def validate_bar(raw: Mapping[str, Any], symbol: str, asset_id: str, request_fp: str, start: date, end: date, now: datetime) -> dict[str, Any] | None:
+    try:
+        timestamp = datetime.fromisoformat(str(raw["t"]).replace("Z", "+00:00")).astimezone(EASTERN)
+        values = [float(raw[name]) for name in ("o", "h", "l", "c")]
+        volume = int(raw["v"])
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+    if not start <= timestamp.date() <= end or timestamp >= now.astimezone(EASTERN):
+        return None
+    if timestamp.minute % 15 or timestamp.second or timestamp.microsecond:
+        return None
+    if not is_market_session(timestamp.date()):
+        return None
+    session = market_session(timestamp.date())
+    if not session.regular_open <= timestamp < session.regular_close:
+        return None
+    o, h, l, c = values
+    if min(values) <= 0 or h < max(o, l, c) or l > min(o, h, c) or volume < 0:
+        return None
+    return {
+        "provider_asset_id": asset_id, "observation_symbol": symbol,
+        "market_timestamp": timestamp.isoformat(), "session_date": timestamp.date().isoformat(),
+        "open": repr(o), "high": repr(h), "low": repr(l), "close": repr(c), "volume": str(volume),
+        "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT,
+        "request_fingerprint": request_fp,
+    }
+
+
+def encode_gzip_csv(rows: Iterable[Mapping[str, Any]], columns: tuple[str, ...]) -> bytes:
+    raw = io.StringIO(newline="")
+    writer = csv.DictWriter(raw, fieldnames=columns, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    output = io.BytesIO()
+    with gzip.GzipFile(fileobj=output, mode="wb", mtime=0) as zipped:
+        zipped.write(raw.getvalue().encode())
+    return output.getvalue()
+
+
+def read_gzip_csv(path: Path) -> list[dict[str, str]]:
+    with gzip.open(path, "rt", newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def aggregate_bars(rows: Iterable[Mapping[str, str]], period: str) -> list[dict[str, str]]:
+    if period not in {"hourly", "daily"}:
+        raise ValueError("Aggregation period must be hourly or daily.")
+    groups: dict[tuple[str, str], list[Mapping[str, str]]] = {}
+    for row in rows:
+        stamp = datetime.fromisoformat(row["market_timestamp"])
+        bucket = row["session_date"] if period == "daily" else stamp.replace(minute=(stamp.minute // 60) * 60, second=0, microsecond=0).isoformat()
+        groups.setdefault((row["provider_asset_id"], bucket), []).append(row)
+    result: list[dict[str, str]] = []
+    for (asset_id, bucket), values in sorted(groups.items()):
+        values.sort(key=lambda item: item["market_timestamp"])
+        result.append({"provider_asset_id": asset_id, "bucket": bucket, "open": values[0]["open"], "high": repr(max(float(v["high"]) for v in values)), "low": repr(min(float(v["low"]) for v in values)), "close": values[-1]["close"], "volume": str(sum(int(v["volume"]) for v in values)), "source_resolution": TIMEFRAME})
+    return result
+
+
+def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, acquired_at: datetime) -> dict[str, Any]:
+    """Preserve provider facts without inventing unavailable causal dates."""
+    action_id = str(raw.get("id", "")).strip()
+    symbol = str(raw.get("symbol", "")).strip().upper()
+    if not action_id or not symbol:
+        raise ValueError("Corporate action requires authoritative id and symbol.")
+    result = {
+        "provider_event_id": action_id, "action_type": action_type,
+        "symbol": symbol, "provider": PROVIDER,
+        "announcement_or_observation_date": raw.get("announcement_date"),
+        "ex_or_effective_date": raw.get("ex_date") or raw.get("effective_date"),
+        "record_date": raw.get("record_date"), "payable_date": raw.get("payable_date"),
+        "process_date": raw.get("process_date"), "old_symbol": raw.get("old_symbol"),
+        "new_symbol": raw.get("new_symbol"), "rate": raw.get("rate"),
+        "cash": raw.get("cash"), "acquired_at_utc": acquired_at.astimezone(timezone.utc).isoformat(),
+        "raw_provider_fingerprint": fingerprint(raw),
+    }
+    result["provenance_fingerprint"] = fingerprint(result)
+    return result
+
+
+class Acquisition:
+    def __init__(self, root: Path = DEFAULT_ROOT, client: AlpacaHistoricalClient | None = None, now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
+        self.root = root.resolve()
+        self.client = client or AlpacaHistoricalClient(RateGovernor())
+        self.now = now
+        self.stop_requested = False
+        self.request_count_base = 0
+        self.retry_count_base = 0
+        self.state_path = self.root / "acquisition_state" / "state.json"
+        self.state_checksum = self.state_path.with_suffix(".sha256")
+
+    def load_state(self) -> dict[str, Any] | None:
+        if not self.state_path.exists() and not self.state_checksum.exists():
+            return None
+        return json.loads(read_checksummed_state(self.state_path, self.state_checksum, label="ML historical acquisition state"))
+
+    def save_state(self, state: Mapping[str, Any]) -> None:
+        encoded = json.dumps(state, indent=2, sort_keys=True, allow_nan=False).encode() + b"\n"
+        write_checksummed_state(self.state_path, self.state_checksum, encoded)
+
+    def sync_provider_counts(self, state: dict[str, Any]) -> None:
+        state["api_request_count"] = self.request_count_base + self.client.request_count
+        state["retry_count"] = self.retry_count_base + self.client.retry_count
+
+    def disk_gate(self) -> int:
+        free = shutil.disk_usage(self.root.parent if self.root.parent.exists() else ROOT).free
+        if free < MIN_FREE_BYTES:
+            raise RuntimeError(f"Disk safety gate failed: {free} free bytes is below {MIN_FREE_BYTES}.")
+        return free
+
+    def initialize(self) -> dict[str, Any]:
+        if self.root == QUALIFIED_FROZEN_ROOT.resolve() or QUALIFIED_FROZEN_ROOT.resolve() in self.root.parents:
+            raise RuntimeError("ML reservoir may not overlap the qualified frozen dataset.")
+        free = self.disk_gate()
+        acquired = self.now()
+        active = self.client.assets("active")
+        inactive = self.client.assets("inactive")
+        master = build_security_master(active, inactive, acquired)
+        if not master or not any(not item["active"] for item in master):
+            raise RuntimeError("Survivorship gate failed: inactive provider assets were not recovered.")
+        requested = calculate_range(acquired)
+        master_payload = {"schema_version": SCHEMA_VERSION, "provider": PROVIDER, "assets": master}
+        master_payload["manifest_fingerprint"] = fingerprint(master_payload)
+        master_path = self.root / "security_master" / "alpaca_us_equity_assets.json.gz"
+        atomic_bytes(master_path, gzip.compress(json.dumps(master_payload, sort_keys=True, separators=(",", ":")).encode(), mtime=0))
+        atomic_json(master_path.with_suffix(master_path.suffix + ".manifest.json"), {"sha256": sha256_path(master_path), "security_count": len(master), "active_count": sum(i["active"] for i in master), "inactive_count": sum(not i["active"] for i in master), "provenance_fingerprint": master_payload["manifest_fingerprint"]})
+        years = list(range(date.fromisoformat(requested["actual_first_requested_session"]).year, date.fromisoformat(requested["actual_last_completed_session"]).year + 1))
+        batches = [master[index:index + BATCH_SIZE] for index in range(0, len(master), BATCH_SIZE)]
+        partitions = [{"year": year, "batch": index, "symbols": [item["canonical_current_symbol"] for item in batch], "asset_ids": [item["provider_asset_id"] for item in batch]} for year in years for index, batch in enumerate(batches)]
+        state = {
+            "schema_version": SCHEMA_VERSION, "status": "PARTIAL", "stage": "BARS_15M",
+            "requested_range": requested, "provider": PROVIDER, "feed": FEED,
+            "adjustment": ADJUSTMENT, "canonical_resolution": TIMEFRAME,
+            "security_count": len(master), "active_count": sum(i["active"] for i in master),
+            "inactive_count": sum(not i["active"] for i in master), "partitions_total": len(partitions),
+            "partitions_complete": 0, "rows_15m": 0, "bytes_stored": sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file()),
+            "api_request_count": self.client.request_count, "retry_count": self.client.retry_count,
+            "failure_count": 0, "current_partition": None, "completed": [],
+            "observed_ranges": {},
+            "partitions": partitions, "checkpoint_at_utc": acquired.isoformat(),
+            "started_at_utc": acquired.isoformat(), "morning_deadline": "08:45 America/New_York",
+            "survivorship_status": "ACTIVE_AND_INACTIVE_PROVIDER_ASSETS_RECOVERED",
+            "training_eligibility": "ACQUISITION_PARTIAL_NOT_TRAINING_ELIGIBLE",
+            "corporate_action_status": "PENDING", "estimate": initial_estimate(len(master), requested, free),
+            "limitations": ["Provider assets omit authoritative listing/delisting dates; first/last observed bars are observational only.", "Historical observation symbols are limited to provider-returned/request symbols plus authoritative name-change actions."],
+        }
+        atomic_json(self.root / "manifests" / "dataset_plan.json", {k: state[k] for k in ("schema_version", "requested_range", "provider", "feed", "adjustment", "canonical_resolution", "security_count", "active_count", "inactive_count", "partitions_total", "estimate", "limitations")})
+        self.save_state(state)
+        return state
+
+    def _deadline_reached(self) -> bool:
+        local = self.now().astimezone(EASTERN)
+        return local.time().replace(tzinfo=None) >= MORNING_DEADLINE and local.time().replace(tzinfo=None) < wall_time(16, 30)
+
+    def _partition_bounds(self, year: int, requested: Mapping[str, str]) -> tuple[date, date]:
+        return max(date(year, 1, 1), date.fromisoformat(requested["actual_first_requested_session"])), min(date(year, 12, 31), date.fromisoformat(requested["actual_last_completed_session"]))
+
+    def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
+        year, batch = int(item["year"]), int(item["batch"])
+        start, end = self._partition_bounds(year, state["requested_range"])
+        symbols = list(item["symbols"]); identity = dict(zip(symbols, item["asset_ids"]))
+        part_id = f"year={year}/batch={batch:05d}"
+        destination = self.root / "bars_15m" / f"year={year}" / f"batch={batch:05d}.csv.gz"
+        manifest = destination.with_suffix(destination.suffix + ".manifest.json")
+        if destination.exists() and manifest.exists() and json.loads(manifest.read_text())["sha256"] == sha256_path(destination):
+            if part_id not in state["completed"]: state["completed"].append(part_id)
+            return
+        page_root = self.root / "acquisition_state" / "pages" / f"year={year}" / f"batch={batch:05d}"
+        checkpoint = page_root / "checkpoint.json"
+        token = None; page = 0
+        if checkpoint.exists():
+            saved = json.loads(checkpoint.read_text()); token = saved.get("next_page_token"); page = int(saved["page"])
+        request_core = {"symbols": ",".join(symbols), "timeframe": TIMEFRAME, "start": start.isoformat() + "T00:00:00Z", "end": (end + timedelta(days=1)).isoformat() + "T00:00:00Z", "limit": str(PAGE_LIMIT), "feed": FEED, "adjustment": ADJUSTMENT, "sort": "asc"}
+        request_fp = fingerprint(request_core)
+        while True:
+            params = dict(request_core)
+            if token: params["page_token"] = token
+            payload = self.client.request(BARS_URL, params)
+            if not isinstance(payload, dict) or not isinstance(payload.get("bars", {}), dict):
+                raise ProviderError("Malformed bars response.", systemic=True)
+            accepted: list[dict[str, Any]] = []
+            invalid = 0
+            for symbol, rows in payload.get("bars", {}).items():
+                if symbol not in identity or not isinstance(rows, list): continue
+                for raw in rows:
+                    bar = validate_bar(raw, symbol, identity[symbol], request_fp, start, end, self.now()) if isinstance(raw, Mapping) else None
+                    if bar is None: invalid += 1
+                    else: accepted.append(bar)
+            page += 1
+            accepted.sort(key=lambda row: (row["provider_asset_id"], row["market_timestamp"]))
+            atomic_bytes(page_root / f"page-{page:06d}.csv.gz", encode_gzip_csv(accepted, BAR_COLUMNS))
+            token = payload.get("next_page_token")
+            atomic_json(checkpoint, {"page": page, "next_page_token": token, "invalid_rows": invalid, "request_fingerprint": request_fp})
+            self.sync_provider_counts(state)
+            state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
+            if not token: break
+        combined: dict[tuple[str, str], dict[str, str]] = {}
+        for page_path in sorted(page_root.glob("page-*.csv.gz")):
+            for row in read_gzip_csv(page_path):
+                key = (row["provider_asset_id"], row["market_timestamp"])
+                if key in combined: raise RuntimeError(f"Duplicate provider identity/timestamp in {part_id}.")
+                combined[key] = row
+        ordered = [combined[key] for key in sorted(combined)]
+        encoded = encode_gzip_csv(ordered, BAR_COLUMNS)
+        self.disk_gate(); atomic_bytes(destination, encoded)
+        sessions = sorted({row["session_date"] for row in ordered})
+        partition_manifest = {"schema_version": SCHEMA_VERSION, "partition": part_id, "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT, "resolution": TIMEFRAME, "request_fingerprint": request_fp, "security_count": len({r["provider_asset_id"] for r in ordered}), "row_count": len(ordered), "first_observed_bar": min((r["market_timestamp"] for r in ordered), default=None), "last_observed_bar": max((r["market_timestamp"] for r in ordered), default=None), "first_session": sessions[0] if sessions else None, "last_session": sessions[-1] if sessions else None, "sha256": sha256_path(destination), "synthetic_bars": False, "forward_fill": False, "timestamp_substitution": False, "completed_at_utc": self.now().isoformat()}
+        partition_manifest["manifest_fingerprint"] = fingerprint(partition_manifest)
+        atomic_json(manifest, partition_manifest)
+        for path in page_root.glob("*"): path.unlink()
+        page_root.rmdir()
+        state["completed"].append(part_id); state["partitions_complete"] = len(state["completed"])
+        state["rows_15m"] += len(ordered); state["bytes_stored"] = sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file())
+        for row in ordered:
+            observed = state["observed_ranges"].setdefault(row["provider_asset_id"], [row["market_timestamp"], row["market_timestamp"]])
+            observed[0] = min(observed[0], row["market_timestamp"]); observed[1] = max(observed[1], row["market_timestamp"])
+
+    def acquire_corporate_actions(self, state: dict[str, Any]) -> None:
+        """Acquire all supported action types once after bar partitions complete."""
+        requested = state["requested_range"]
+        params = {
+            "types": ",".join(CA_TYPES), "start": requested["requested_start"],
+            "end": requested["requested_end"], "limit": "1000", "sort": "asc",
+        }
+        token = None; page = 0; records: dict[str, dict[str, Any]] = {}
+        while True:
+            request = dict(params)
+            if token: request["page_token"] = token
+            payload = self.client.request(CORPORATE_ACTION_URL, request)
+            if not isinstance(payload, dict) or not isinstance(payload.get("corporate_actions", {}), dict):
+                raise ProviderError("Malformed corporate-actions response.", systemic=True)
+            for collection, values in payload["corporate_actions"].items():
+                if not isinstance(values, list): continue
+                action_type = collection.removesuffix("s")
+                for raw in values:
+                    if not isinstance(raw, Mapping): continue
+                    normalized = normalize_corporate_action(raw, action_type, self.now())
+                    key = normalized["provider_event_id"]
+                    if key in records and records[key] != normalized:
+                        raise RuntimeError(f"Corporate-action identity conflict: {key}")
+                    records[key] = normalized
+            page += 1; token = payload.get("next_page_token")
+            self.sync_provider_counts(state)
+            state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
+            if not token: break
+        path = self.root / "corporate_actions" / "alpaca_us_equity_actions.jsonl.gz"
+        lines = b"".join(canonical_bytes(records[key]) + b"\n" for key in sorted(records))
+        atomic_bytes(path, gzip.compress(lines, mtime=0))
+        manifest = {"schema_version": SCHEMA_VERSION, "provider": PROVIDER, "requested_start": requested["requested_start"], "requested_end": requested["requested_end"], "supported_types": list(CA_TYPES), "event_count": len(records), "sha256": sha256_path(path), "pages": page, "completed_at_utc": self.now().isoformat()}
+        manifest["manifest_fingerprint"] = fingerprint(manifest); atomic_json(path.with_suffix(path.suffix + ".manifest.json"), manifest)
+        state["corporate_action_status"] = "COMPLETE"
+
+    def finalize(self, state: dict[str, Any]) -> None:
+        master_path = self.root / "security_master" / "alpaca_us_equity_assets.json.gz"
+        master = json.loads(gzip.decompress(master_path.read_bytes()))
+        for asset in master["assets"]:
+            observed = state.get("observed_ranges", {}).get(asset["provider_asset_id"])
+            if observed: asset["first_observed_bar"], asset["last_observed_bar"] = observed
+            asset["provenance_fingerprint"] = fingerprint({k: v for k, v in asset.items() if k != "provenance_fingerprint"})
+        master["manifest_fingerprint"] = fingerprint({k: v for k, v in master.items() if k != "manifest_fingerprint"})
+        atomic_bytes(master_path, gzip.compress(json.dumps(master, sort_keys=True, separators=(",", ":")).encode(), mtime=0))
+        atomic_json(master_path.with_suffix(master_path.suffix + ".manifest.json"), {"sha256": sha256_path(master_path), "security_count": len(master["assets"]), "active_count": sum(i["active"] for i in master["assets"]), "inactive_count": sum(not i["active"] for i in master["assets"]), "provenance_fingerprint": master["manifest_fingerprint"]})
+        state["status"] = "COMPLETE"; state["stage"] = "COMPLETE"; state["current_partition"] = None
+        state["training_eligibility"] = "TRAINING_ELIGIBLE"; state["completed_at_utc"] = self.now().isoformat()
+
+    def record_failure(self, state: dict[str, Any], item: Mapping[str, Any], exc: Exception) -> None:
+        path = self.root / "failures" / "acquisition_failures.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        record = {"recorded_at_utc": self.now().isoformat(), "partition": {"year": item.get("year"), "batch": item.get("batch")}, "error_type": type(exc).__name__, "message": str(exc)[:1000]}
+        with path.open("a", encoding="utf-8") as handle: handle.write(json.dumps(record, sort_keys=True) + "\n"); handle.flush(); os.fsync(handle.fileno())
+        state["failure_count"] += 1
+
+    def run(self, max_partitions: int | None = None) -> dict[str, Any]:
+        state = self.load_state() or self.initialize()
+        self.request_count_base = int(state.get("api_request_count", 0)) - self.client.request_count
+        self.retry_count_base = int(state.get("retry_count", 0)) - self.client.retry_count
+        completed_now = 0
+        for item in state["partitions"]:
+            part_id = f"year={item['year']}/batch={int(item['batch']):05d}"
+            if part_id in state["completed"]: continue
+            if self.stop_requested or self._deadline_reached():
+                state["status"] = "STOPPED"; state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"; break
+            state["status"] = "RUNNING"; state["current_partition"] = part_id; self.save_state(state)
+            try:
+                self.acquire_partition(state, item)
+            except Exception as exc:
+                self.record_failure(state, item, exc); state["status"] = "PARTIAL"; state["stop_reason"] = "SYSTEMIC_PROVIDER_FAILURE" if isinstance(exc, ProviderError) and exc.systemic else "PARTITION_FAILURE"; self.save_state(state); raise
+            completed_now += 1; state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
+            if max_partitions is not None and completed_now >= max_partitions: break
+        else:
+            state["stage"] = "CORPORATE_ACTIONS"; state["status"] = "RUNNING"; state["current_partition"] = "corporate_actions"; self.save_state(state)
+            self.acquire_corporate_actions(state); self.finalize(state)
+        if max_partitions is not None and completed_now >= max_partitions:
+            state["status"] = "PARTIAL"; state["stop_reason"] = "BOUNDED_RUN_COMPLETE"
+        self.sync_provider_counts(state); state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
+        return state
+
+
+def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
+    state_path = root / "acquisition_state" / "state.json"; checksum = state_path.with_suffix(".sha256")
+    if not state_path.exists(): return {"status": "STOPPED", "root": str(root), "state_exists": False, "free_disk_bytes": shutil.disk_usage(root.parent if root.parent.exists() else ROOT).free}
+    state = json.loads(read_checksummed_state(state_path, checksum, label="ML historical acquisition state"))
+    manifests = list((root / "bars_15m").rglob("*.manifest.json")) if (root / "bars_15m").exists() else []
+    integrity = all(json.loads(p.read_text()).get("sha256") == sha256_path(Path(str(p)[:-len(".manifest.json")])) for p in manifests)
+    partition_metadata = [json.loads(path.read_text()) for path in manifests]
+    acquired_sessions = [value for item in partition_metadata for value in (item.get("first_session"), item.get("last_session")) if value]
+    elapsed = max(0.001, (datetime.now(timezone.utc) - datetime.fromisoformat(state["started_at_utc"])).total_seconds())
+    rate = state.get("rows_15m", 0) / elapsed
+    remaining = state["partitions_total"] - state["partitions_complete"]
+    payload = {k: state.get(k) for k in ("status", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
+    systemd_state = "UNKNOWN"
+    try:
+        import subprocess
+        result = subprocess.run(("systemctl", "--user", "is-active", "qpx-ml-historical-acquisition.service"), capture_output=True, text=True, timeout=5, check=False)
+        systemd_state = result.stdout.strip().upper() or "STOPPED"
+    except Exception:
+        pass
+    payload.update({"partitions_pending": remaining, "actual_acquired_range": {"first_session": min(acquired_sessions) if acquired_sessions else None, "last_session": max(acquired_sessions) if acquired_sessions else None}, "free_disk_bytes": shutil.disk_usage(root).free, "rows_per_second": round(rate, 2), "estimated_remaining_seconds": round(remaining / (state["partitions_complete"] / elapsed), 0) if state["partitions_complete"] else None, "latest_manifest_integrity": integrity, "stored_partition_manifests": len(manifests), "systemd_state": systemd_state, "root": str(root)})
+    return payload
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    parser = argparse.ArgumentParser(); parser.add_argument("--root", type=Path, default=DEFAULT_ROOT); parser.add_argument("--max-partitions", type=int); args = parser.parse_args(argv)
+    acquisition = Acquisition(args.root)
+    def stop(_signum: int, _frame: Any) -> None: acquisition.stop_requested = True
+    signal.signal(signal.SIGTERM, stop); signal.signal(signal.SIGINT, stop)
+    result = acquisition.run(args.max_partitions); print(json.dumps({"status": result["status"], "partitions_complete": result["partitions_complete"], "rows_15m": result["rows_15m"]}, sort_keys=True), flush=True); return 0

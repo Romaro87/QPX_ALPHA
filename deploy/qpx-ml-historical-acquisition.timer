@@ -1,0 +1,10 @@
+[Unit]
+Description=Run QPX whole-market 15m acquisition overnight
+
+[Timer]
+OnCalendar=*-*-* 18:30:00 America/New_York
+Persistent=true
+Unit=qpx-ml-historical-acquisition.service
+
+[Install]
+WantedBy=timers.target

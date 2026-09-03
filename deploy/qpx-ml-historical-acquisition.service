@@ -1,0 +1,21 @@
+[Unit]
+Description=QPX low-priority resumable whole-market 15m historical acquisition
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ron/QPX_ALPHA
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_ML_HISTORICAL_ACQUISITION.py
+Nice=15
+IOSchedulingClass=idle
+CPUWeight=10
+IOWeight=10
+MemoryHigh=6G
+MemoryMax=8G
+TimeoutStopSec=900
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
