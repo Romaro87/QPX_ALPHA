@@ -7,7 +7,7 @@ import json
 import shutil
 import subprocess
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import qpx_bot.actual_two_year_15m_six as research
@@ -49,6 +49,7 @@ CLOCK_ROOT = FROZEN_ROOT / "clocks"
 
 STATE_PATH = FROZEN_ROOT / "freeze_state.json"
 DATASET_MANIFEST = FROZEN_ROOT / "dataset_manifest.json"
+ACQUISITION_LOG = FROZEN_ROOT / "acquisition_failures.jsonl"
 
 START = date(2024, 3, 7)
 END = date(2026, 8, 7)
@@ -149,6 +150,44 @@ def atomic_copy(
     )
 
     temporary.replace(target)
+
+
+def record_acquisition_failure(
+    *,
+    index: int,
+    symbol: str,
+    error: Exception,
+) -> dict[str, object]:
+    record = {
+        "recorded_at_utc": datetime.now(
+            timezone.utc
+        ).isoformat(),
+        "index": index,
+        "symbol": symbol,
+        "error_type": type(error).__name__,
+        "message": str(error)[:1000],
+    }
+
+    ACQUISITION_LOG.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with ACQUISITION_LOG.open(
+        "a",
+        encoding="utf-8",
+    ) as handle:
+        handle.write(
+            json.dumps(
+                record,
+                sort_keys=True,
+                allow_nan=False,
+            )
+            + "\n"
+        )
+        handle.flush()
+
+    return record
 
 
 def load_selection():
@@ -1242,20 +1281,71 @@ def freeze_dataset():
         "QDTE",
     )
 
+    failed_symbols = []
+
+    completed = 0
+
     for index, symbol in enumerate(
         ordered_symbols,
         start=1,
     ):
-        (
-            bars,
-            validation,
-            metadata,
-            action,
-        ) = freeze_symbol(
-            symbol,
-            qdte_times=qdte_times,
-            qdte_sessions=qdte_sessions,
+        atomic_json(
+            STATE_PATH,
+            {
+                "schema_version": 1,
+                "freeze_version": FREEZE_VERSION,
+                "status": "IN_PROGRESS",
+                "completed": completed,
+                "total": len(ordered_symbols),
+                "current_symbol": symbol,
+                "current_index": index,
+                "failed_symbols": failed_symbols,
+            },
         )
+
+        try:
+            (
+                bars,
+                validation,
+                metadata,
+                action,
+            ) = freeze_symbol(
+                symbol,
+                qdte_times=qdte_times,
+                qdte_sessions=qdte_sessions,
+            )
+        except Exception as exc:
+            failure = record_acquisition_failure(
+                index=index,
+                symbol=symbol,
+                error=exc,
+            )
+            failed_symbols.append(failure)
+
+            atomic_json(
+                STATE_PATH,
+                {
+                    "schema_version": 1,
+                    "freeze_version": FREEZE_VERSION,
+                    "status": "IN_PROGRESS_WITH_FAILURES",
+                    "completed": completed,
+                    "total": len(ordered_symbols),
+                    "last_failed_symbol": symbol,
+                    "last_failed_index": index,
+                    "failed_symbols": failed_symbols,
+                },
+            )
+
+            print(
+                f"[{index:03d}/"
+                f"{len(ordered_symbols):03d}] "
+                f"{symbol:<8} FAILED   | "
+                f"{type(exc).__name__}: {exc}",
+                flush=True,
+            )
+            continue
+
+        completed += 1
 
         if symbol == "QDTE":
             qdte_times = set(
@@ -1303,11 +1393,12 @@ def freeze_dataset():
                     FREEZE_VERSION
                 ),
                 "status": "IN_PROGRESS",
-                "completed": index,
+                "completed": completed,
                 "total": len(
                     ordered_symbols
                 ),
                 "last_symbol": symbol,
+                "failed_symbols": failed_symbols,
             },
         )
 
@@ -1316,7 +1407,26 @@ def freeze_dataset():
             f"{len(ordered_symbols):03d}] "
             f"{symbol:<8} {action:<8} | "
             f"{metadata['bar_count']:,} bars | "
-            f"{overlap:.2%} QDTE overlap"
+            f"{overlap:.2%} QDTE overlap",
+            flush=True,
+        )
+
+    if failed_symbols:
+        atomic_json(
+            STATE_PATH,
+            {
+                "schema_version": 1,
+                "freeze_version": FREEZE_VERSION,
+                "status": "INCOMPLETE_FAILED_SYMBOLS",
+                "completed": completed,
+                "total": len(ordered_symbols),
+                "failed_symbols": failed_symbols,
+            },
+        )
+        raise RuntimeError(
+            "Frozen acquisition completed its pass with "
+            f"{len(failed_symbols)} failed symbol(s); rerun to retry "
+            "only missing or invalid artifacts."
         )
 
     assert qdte_times is not None

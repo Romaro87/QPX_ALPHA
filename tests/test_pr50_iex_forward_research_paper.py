@@ -14,16 +14,35 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import qpx_bot.fixed25_forward_paper as sip
+from qpx_bot.broker_account_provider import (
+    BrokerAccountSnapshot,
+    ProviderSelection,
+    build_broker_account_provider,
+    write_dummy_broker_account_state,
+)
 from qpx_bot.pr50_iex_forward_research_paper import (
+    BROKER_PROVIDER_BASELINE_EVENT,
+    BROKER_RECONCILIATION_MODE,
+    BROKER_RECONCILIATION_POLL_SECONDS,
     DEFAULT_RUNTIME,
+    EXTERNAL_BROKER_RECONCILIATION_EVENT,
+    EXTERNAL_BROKER_RISK_BLOCK,
+    OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+    SEMANTIC_TRANSITION_EVENT,
+    SEMANTIC_VERSION_NEW,
+    _transition_semantic_contract_if_required,
+    _flush_pending_semantic_transition,
     IEXResearchStore,
     ProviderFailure,
     VARIANT,
+    _broker_configuration_fingerprint,
     _cycle,
     _expire_pending,
     _heartbeat_payload,
+    _observe_broker_provider,
     _provider_failure,
     _request_json,
+    broker_reconciliation_due,
     decision_processing_due,
     execution_clock_action,
     expected_completed_decision_start,
@@ -31,6 +50,8 @@ from qpx_bot.pr50_iex_forward_research_paper import (
     initialize,
     load_contract,
     main,
+    observe_and_reconcile_broker_account,
+    process_pending_execution_clock,
     request_bars,
 )
 
@@ -52,6 +73,82 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         self.assertFalse(contract["pyramiding_enabled"])
         self.assertFalse(contract["sip_parity_claimed"])
         self.assertNotEqual(DEFAULT_RUNTIME, sip.DEFAULT_RUNTIME)
+
+    def test_allowlisted_semantic_transition_preserves_flat_account(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = IEXResearchStore(Path(folder))
+            state = {
+                "contract_fingerprint": OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+                "contract": {"semantic_version": "PR50_IEX_PRE_PARITY_V1"},
+                "initialization_fingerprint": "i" * 64,
+                "positions": {}, "pending": {}, "revision": 7,
+                "cash": 1400.0, "qdte_shares": 0.0,
+                "broker_reconciliation": {
+                    "broker_account_provider": "DUMMY",
+                    "risk_block_reason": None,
+                    "last_snapshot": {
+                        "provider_identity": "DUMMY",
+                        "account_identity_fingerprint": "a" * 64,
+                        "account_status": "ACTIVE",
+                        "account_blocked": False,
+                        "trading_blocked": False,
+                    },
+                },
+            }
+            store.event("TEST_RUNTIME_INITIALIZED", {})
+            store.save(state)
+            with patch.dict(os.environ, {"QPX_BROKER_ACCOUNT_PROVIDER_CONFIG": "dummy"}):
+                self.assertTrue(_transition_semantic_contract_if_required(
+                    state, store, load_contract(), datetime(2026, 9, 3, 13, 25, tzinfo=timezone.utc)
+                ))
+            self.assertEqual(state["semantic_contract_version"], SEMANTIC_VERSION_NEW)
+            self.assertEqual(state["cash"], 1400.0)
+            self.assertEqual(state["revision"], 8)
+            self.assertEqual(sum(
+                json.loads(line)["event_type"] == SEMANTIC_TRANSITION_EVENT
+                for line in store.journal.read_text().splitlines()
+            ), 1)
+
+    def test_semantic_transition_blocks_positions_and_unknown_old_identity(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = IEXResearchStore(Path(folder))
+            state = {
+                "contract_fingerprint": OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+                "initialization_fingerprint": "i" * 64,
+                "positions": {"TSLL": {}}, "pending": {}, "revision": 1,
+                "broker_reconciliation": {"broker_account_provider": "DUMMY",
+                    "risk_block_reason": None, "last_snapshot": {"provider_identity": "DUMMY", "account_identity_fingerprint": "a" * 64, "account_status": "ACTIVE"}},
+            }
+            store.event("TEST_RUNTIME_INITIALIZED", {})
+            store.save(state)
+            with self.assertRaisesRegex(RuntimeError, "no open positions"):
+                with patch.dict(os.environ, {"QPX_BROKER_ACCOUNT_PROVIDER_CONFIG": "dummy"}):
+                    _transition_semantic_contract_if_required(state, store, load_contract(), datetime(2026, 9, 3, 13, 25, tzinfo=timezone.utc))
+            state["positions"] = {}
+            state["contract_fingerprint"] = "x" * 64
+            with self.assertRaisesRegex(RuntimeError, "allowlisted OLD"):
+                _transition_semantic_contract_if_required(state, store, load_contract(), datetime(2026, 9, 3, 13, 25, tzinfo=timezone.utc))
+
+    def test_transition_pending_event_recovery_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = IEXResearchStore(Path(folder))
+            details = {"event_id": "t" * 64, "old_contract_fingerprint": OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+                       "new_contract_fingerprint": "n" * 64}
+            state = {"revision": 2, "semantic_transition_event_pending": details,
+                     "contract_fingerprint": "n" * 64}
+            store.save(state)
+            self.assertTrue(_flush_pending_semantic_transition(state, store))
+            self.assertFalse(_flush_pending_semantic_transition(state, store))
+            records = [json.loads(line) for line in store.journal.read_text().splitlines()]
+            self.assertEqual(sum(r["event_type"] == SEMANTIC_TRANSITION_EVENT for r in records), 1)
+
+    def test_position_entry_semantic_snapshot_round_trips(self):
+        snapshot = {"semantic_contract_fingerprint": "n" * 64,
+                    "candidate_v1_semantic_version": "CANDIDATE_V1_HISTORICAL_NINE_GATE_V1"}
+        position = sip.Position("TSLL", 2, datetime(2026, 9, 3).date(), 10.0, 1.0, 8.0, 15.0, 10.0,
+                                entry_semantic_snapshot=snapshot)
+        restored = sip._position(sip._position_dict(position))
+        self.assertEqual(restored.entry_semantic_snapshot, snapshot)
 
     def test_market_request_uses_iex_without_mutating_sip_provider(self):
         class Response:
@@ -138,6 +235,658 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
             self.assertEqual(len(state["completed_execution_ids"]), 1)
 
 
+class BrokerAccountReconciliationTests(unittest.TestCase):
+    observed = datetime(2026, 9, 2, 14, 0, tzinfo=timezone.utc)
+
+    @staticmethod
+    def dummy_state(cash: str, positions: list[dict]) -> dict:
+        market_value = sum(float(item.get("market_value", "0")) for item in positions)
+        return {
+            "schema_version": 1,
+            "provider_identity": "DUMMY",
+            "account_identity": "clean-v2-focused-test-account",
+            "account_status": "ACTIVE",
+            "cash": cash,
+            "equity": str(float(cash) + market_value),
+            "portfolio_value": str(float(cash) + market_value),
+            "buying_power": cash,
+            "currency": "USD",
+            "positions": positions,
+            "trading_blocked": False,
+            "account_blocked": False,
+            "restriction_flags": [],
+        }
+
+    @staticmethod
+    def position(
+        symbol: str,
+        quantity: str,
+        average_entry_price: str,
+        *,
+        current_price: str | None = None,
+    ) -> dict:
+        return {
+            "symbol": symbol,
+            "side": "long",
+            "quantity": quantity,
+            "average_entry_price": average_entry_price,
+            "cost_basis": str(float(quantity) * float(average_entry_price)),
+            "market_value": str(
+                float(quantity) * float(current_price or average_entry_price)
+            ),
+            "current_price": current_price or average_entry_price,
+            "asset_class": "us_equity",
+        }
+
+    @staticmethod
+    def selection(state_path: Path) -> ProviderSelection:
+        return ProviderSelection(
+            schema_version=1,
+            market_data_provider="ALPACA_IEX",
+            broker_account_provider="DUMMY",
+            order_execution_provider="SIMULATED",
+            broker_account_configuration={"state_path": str(state_path)},
+        )
+
+    def initialized(self, folder: str) -> tuple[IEXResearchStore, dict]:
+        store = IEXResearchStore(Path(folder))
+        with patch(
+            "qpx_bot.pr50_iex_forward_research_paper.request_bars",
+            return_value={"QDTE": [{"t": "2026-09-02T13:59:00Z", "c": 40.0}]},
+        ):
+            state = initialize(store, load_contract(), self.observed)
+        return store, state
+
+    def compatible_dummy_state(self, state: dict) -> dict:
+        positions: list[dict] = []
+        qdte_shares = float(state.get("qdte_shares", 0.0))
+        if qdte_shares > 0:
+            qdte_cost = float(state["qdte_cost"])
+            positions.append(
+                self.position(
+                    "QDTE",
+                    str(qdte_shares),
+                    str(qdte_cost / qdte_shares),
+                )
+            )
+        for symbol, managed in sorted(state.get("positions", {}).items()):
+            positions.append(
+                self.position(
+                    symbol,
+                    str(managed["shares"]),
+                    str(managed["entry_price"]),
+                )
+            )
+        cash = float(state["cash"]) + float(state.get("tax_reserve_cash", 0.0))
+        return self.dummy_state(str(cash), positions)
+
+    def reconcile(
+        self,
+        state: dict,
+        store: IEXResearchStore,
+        selection: ProviderSelection,
+        observed: datetime,
+    ) -> bool:
+        return observe_and_reconcile_broker_account(
+            state,
+            store,
+            observed,
+            force=True,
+            selection=selection,
+            provider=build_broker_account_provider(selection),
+        )
+
+    def test_manual_liquidation_reconciles_without_reinitializing_or_strategy_pnl(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state_path = Path(folder) / "dummy_broker_account.json"
+            selection = self.selection(state_path)
+            write_dummy_broker_account_state(
+                state_path,
+                self.compatible_dummy_state(state),
+            )
+            self.assertFalse(self.reconcile(state, store, selection, self.observed))
+            initial_broker_cash = float(
+                state["broker_reconciliation"]["last_snapshot"]["cash"]
+            )
+
+            state["positions"] = {
+                "TSLL": {
+                    "symbol": "TSLL",
+                    "shares": 10,
+                    "entry_date": "2026-09-02",
+                    "entry_price": 10.0,
+                    "entry_atr": 1.0,
+                    "stop_price": 8.0,
+                    "target_price": 14.0,
+                    "highest_price": 10.0,
+                }
+            }
+            state["pending"] = {
+                "JMIA": {
+                    "signal_id": "s" * 64,
+                    "decision_observed_at_utc": "2026-09-02T14:00:10+00:00",
+                    "first_eligible_execution_minute_utc": "2026-09-02T14:01:00+00:00",
+                }
+            }
+            state["realized_pnl"] = 123.45
+            strategy_history = list(state["completed_execution_ids"])
+            profit_state = json.loads(json.dumps(state["profit_recycling"]))
+            contributed = state["contributed_capital"]
+            initialization = dict(state["initialization"])
+            store.save(state)
+
+            revision_before = state["revision"]
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("1600.25", []),
+            )
+            self.assertTrue(
+                self.reconcile(
+                    state,
+                    store,
+                    selection,
+                    self.observed + timedelta(minutes=5),
+                )
+            )
+            self.assertEqual(state["cash"], 1600.25)
+            self.assertEqual(state["qdte_shares"], 0.0)
+            self.assertEqual(state["qdte_cost"], 0.0)
+            self.assertEqual(state["positions"], {})
+            self.assertEqual(state["pending"], {})
+            self.assertEqual(state["realized_pnl"], 123.45)
+            self.assertEqual(state["contributed_capital"], contributed)
+            self.assertEqual(state["profit_recycling"], profit_state)
+            self.assertEqual(state["initialization"], initialization)
+            self.assertEqual(state["revision"], revision_before + 1)
+            self.assertEqual(
+                state["completed_execution_ids"][: len(strategy_history)],
+                strategy_history,
+            )
+            self.assertEqual(len(state["completed_execution_ids"]), len(strategy_history) + 1)
+            broker = state["broker_reconciliation"]
+            self.assertEqual(broker["external_positions"], {})
+            self.assertIsNone(broker["risk_block_reason"])
+            self.assertEqual(
+                broker["external_account_cash_delta_total"],
+                1600.25 - initial_broker_cash,
+            )
+
+            records = [
+                json.loads(line)
+                for line in store.journal.read_text(encoding="utf-8").splitlines()
+            ]
+            reconciliations = [
+                item
+                for item in records
+                if item["event_type"] == EXTERNAL_BROKER_RECONCILIATION_EVENT
+            ]
+            self.assertEqual(len(reconciliations), 1)
+            last = reconciliations[-1]["details"]
+            self.assertEqual(
+                last["cash_change_classification"],
+                "EXTERNAL_ACCOUNT_CASH_CHANGE_UNCLASSIFIED_NOT_STRATEGY_PNL",
+            )
+            self.assertEqual(last["strategy_realized_pnl_before"], 123.45)
+            self.assertEqual(last["strategy_realized_pnl_after"], 123.45)
+            self.assertEqual(len(last["invalidated_pending_actions"]), 1)
+            self.assertFalse(last["broker_orders_submitted"])
+
+            restarted = IEXResearchStore(Path(folder))
+            recovered = restarted.reconcile()
+            self.assertEqual(recovered, state)
+            self.assertEqual(restarted.verify_journal()[2], len(records))
+            revision_after = state["revision"]
+            self.assertFalse(
+                self.reconcile(
+                    state,
+                    restarted,
+                    selection,
+                    self.observed + timedelta(minutes=10),
+                )
+            )
+            self.assertEqual(state["revision"], revision_after)
+            self.assertEqual(state["positions"], {})
+            self.assertEqual(state["pending"], {})
+            repeated_records = restarted.journal.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(repeated_records), len(records))
+
+    def test_external_positions_are_preserved_exactly_and_block_new_entries(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state_path = Path(folder) / "dummy_broker_account.json"
+            selection = self.selection(state_path)
+            write_dummy_broker_account_state(
+                state_path,
+                self.compatible_dummy_state(state),
+            )
+            self.assertFalse(self.reconcile(state, store, selection, self.observed))
+            qdte = self.position("QDTE", "12.5", "41.25")
+            aapl = self.position("AAPL", "3", "230.50")
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("500", [aapl, qdte]),
+            )
+            self.assertTrue(
+                self.reconcile(
+                    state,
+                    store,
+                    selection,
+                    self.observed + timedelta(minutes=5),
+                )
+            )
+            self.assertEqual(state["qdte_shares"], 12.5)
+            self.assertEqual(state["qdte_cost"], 515.625)
+            self.assertEqual(state["positions"], {})
+            broker = state["broker_reconciliation"]
+            self.assertEqual(list(broker["external_positions"]), ["AAPL"])
+            self.assertEqual(
+                broker["external_positions"]["AAPL"]["quantity"],
+                "3",
+            )
+            self.assertEqual(broker["risk_block_reason"], EXTERNAL_BROKER_RISK_BLOCK)
+
+            symbols = ("AAPL", "TSLL")
+            bar_time = datetime(2026, 9, 2, 10, 0, tzinfo=sip.NY)
+            with patch.object(sip, "_entry_inputs") as inputs, patch.object(
+                sip, "evaluate_candidate_v1_causal"
+            ) as evaluate:
+                qualifying, census = sip._evaluate_candidate_v1_cycle(
+                    symbols=symbols,
+                    histories={symbol: [{}] for symbol in symbols},
+                    indices={symbol: {bar_time: 0} for symbol in symbols},
+                    indicators={symbol: object() for symbol in symbols},
+                    positions={},
+                    pending={},
+                    bar_time=bar_time,
+                    vix=18.0,
+                    config=object(),
+                    global_entry_block_reason=broker["risk_block_reason"],
+                )
+            self.assertEqual(qualifying, [])
+            inputs.assert_not_called()
+            evaluate.assert_not_called()
+            self.assertEqual(
+                census["other"],
+                [
+                    {"symbol": "AAPL", "reason_code": EXTERNAL_BROKER_RISK_BLOCK},
+                    {"symbol": "TSLL", "reason_code": EXTERNAL_BROKER_RISK_BLOCK},
+                ],
+            )
+
+    def test_dummy_cash_and_position_changes_are_discovered_as_external(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state_path = Path(folder) / "dummy_broker_account.json"
+            selection = self.selection(state_path)
+            state["realized_pnl"] = 77.0
+            store.save(state)
+
+            write_dummy_broker_account_state(
+                state_path,
+                self.compatible_dummy_state(state),
+            )
+            self.assertFalse(self.reconcile(state, store, selection, self.observed))
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("1200", []),
+            )
+            self.assertTrue(
+                self.reconcile(
+                    state,
+                    store,
+                    selection,
+                    self.observed + timedelta(minutes=5),
+                )
+            )
+            self.assertEqual(state["cash"], 1200.0)
+            self.assertEqual(state["realized_pnl"], 77.0)
+
+            external = self.position("EXAMPLE", "2", "50")
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("900", [external]),
+            )
+            self.assertTrue(
+                self.reconcile(
+                    state,
+                    store,
+                    selection,
+                    self.observed + timedelta(minutes=10),
+                )
+            )
+            self.assertEqual(
+                list(state["broker_reconciliation"]["external_positions"]),
+                ["EXAMPLE"],
+            )
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("950", []),
+            )
+            self.assertTrue(
+                self.reconcile(
+                    state,
+                    store,
+                    selection,
+                    self.observed + timedelta(minutes=15),
+                )
+            )
+            self.assertEqual(state["cash"], 950.0)
+            self.assertEqual(state["broker_reconciliation"]["external_positions"], {})
+            self.assertEqual(state["realized_pnl"], 77.0)
+            revision = state["revision"]
+            event_count = store.verify_journal()[2]
+            self.assertFalse(
+                self.reconcile(
+                    state,
+                    store,
+                    selection,
+                    self.observed + timedelta(minutes=20),
+                )
+            )
+            self.assertEqual(state["revision"], revision)
+            self.assertEqual(store.verify_journal()[2], event_count)
+
+    def test_compatible_initial_binding_is_not_external_reconciliation_and_repeats_noop(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state_path = Path(folder) / "dummy_broker_account.json"
+            selection = self.selection(state_path)
+            write_dummy_broker_account_state(
+                state_path,
+                self.compatible_dummy_state(state),
+            )
+            account_before = {
+                key: json.loads(json.dumps(state[key]))
+                for key in ("initialization", "cash", "qdte_shares", "qdte_cost", "positions")
+            }
+            revision_before = state["revision"]
+
+            self.assertFalse(self.reconcile(state, store, selection, self.observed))
+            self.assertEqual(state["revision"], revision_before + 1)
+            self.assertEqual(
+                {
+                    key: state[key]
+                    for key in ("initialization", "cash", "qdte_shares", "qdte_cost", "positions")
+                },
+                account_before,
+            )
+            records = [
+                json.loads(line)
+                for line in store.journal.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(
+                sum(item["event_type"] == BROKER_PROVIDER_BASELINE_EVENT for item in records),
+                1,
+            )
+            self.assertEqual(
+                sum(
+                    item["event_type"] == EXTERNAL_BROKER_RECONCILIATION_EVENT
+                    for item in records
+                ),
+                0,
+            )
+            stable_revision = state["revision"]
+            stable_events = len(records)
+            for minutes in (5, 10):
+                self.assertFalse(
+                    self.reconcile(
+                        state,
+                        store,
+                        selection,
+                        self.observed + timedelta(minutes=minutes),
+                    )
+                )
+            self.assertEqual(state["revision"], stable_revision)
+            self.assertEqual(store.verify_journal()[2], stable_events)
+
+    def test_incompatible_initial_binding_fails_closed_without_account_adoption(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state_path = Path(folder) / "dummy_broker_account.json"
+            selection = self.selection(state_path)
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("999", []),
+            )
+            account_before = json.loads(json.dumps(state))
+            with self.assertRaises(ProviderFailure) as raised:
+                self.reconcile(state, store, selection, self.observed)
+            self.assertEqual(
+                raised.exception.failure_class,
+                "BROKER_INITIAL_STATE_INCOMPATIBLE",
+            )
+            persisted = IEXResearchStore(Path(folder)).reconcile()
+            self.assertEqual(persisted["cash"], account_before["cash"])
+            self.assertEqual(persisted["qdte_shares"], account_before["qdte_shares"])
+            self.assertIsNone(
+                state["broker_reconciliation"]["last_applied_identity_fingerprint"]
+            )
+            records = [
+                json.loads(line)
+                for line in store.journal.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertFalse(any(
+                item["event_type"] in {
+                    BROKER_PROVIDER_BASELINE_EVENT,
+                    EXTERNAL_BROKER_RECONCILIATION_EVENT,
+                }
+                for item in records
+            ))
+
+    def test_persisted_broker_risk_block_expires_pending_without_market_request(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state["broker_reconciliation"] = {
+                "risk_block_reason": EXTERNAL_BROKER_RISK_BLOCK,
+            }
+            state["pending"] = {
+                "TSLL": {
+                    "signal_id": "s" * 64,
+                    "decision_observed_at_utc": "2026-09-02T14:00:10+00:00",
+                    "first_eligible_execution_minute_utc": "2026-09-02T14:01:00+00:00",
+                }
+            }
+            with patch(
+                "qpx_bot.pr50_iex_forward_research_paper.request_bars"
+            ) as market_request:
+                self.assertFalse(
+                    process_pending_execution_clock(
+                        state,
+                        store,
+                        self.observed + timedelta(minutes=1, seconds=10),
+                    )
+                )
+            market_request.assert_not_called()
+            self.assertEqual(state["pending"], {})
+            self.assertEqual(len(state["completed_execution_ids"]), 2)
+            records = [
+                json.loads(line)
+                for line in store.journal.read_text(encoding="utf-8").splitlines()
+            ]
+            missed = [
+                item for item in records
+                if item["event_type"] == "IEX_RESEARCH_ENTRY_EXECUTION_MISSED"
+            ]
+            self.assertEqual(len(missed), 1)
+            self.assertIn(
+                EXTERNAL_BROKER_RISK_BLOCK,
+                missed[0]["details"]["reason"],
+            )
+
+    def test_changed_snapshot_requires_stable_confirmation(self):
+        class AlternatingProvider:
+            provider_identity = "DUMMY"
+
+            def __init__(self, snapshots: list[BrokerAccountSnapshot]):
+                self.snapshots = iter(snapshots)
+
+            def observe(self, _observed_at: datetime) -> BrokerAccountSnapshot:
+                return next(self.snapshots)
+
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state_path = Path(folder) / "dummy_broker_account.json"
+            selection = self.selection(state_path)
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("100", []),
+            )
+            dummy = build_broker_account_provider(selection)
+            first = dummy.observe(self.observed)
+            write_dummy_broker_account_state(
+                state_path,
+                self.dummy_state("101", []),
+            )
+            second = dummy.observe(self.observed)
+            with self.assertRaises(ProviderFailure) as raised:
+                observe_and_reconcile_broker_account(
+                    state,
+                    store,
+                    self.observed,
+                    force=True,
+                    selection=selection,
+                    provider=AlternatingProvider([first, second]),
+                )
+            self.assertEqual(raised.exception.failure_class, "BROKER_SNAPSHOT_UNSTABLE")
+            self.assertNotIn("broker_reconciliation_event_pending", state)
+            self.assertIsNone(
+                state["broker_reconciliation"]["last_applied_identity_fingerprint"]
+            )
+            self.assertEqual(IEXResearchStore(Path(folder)).reconcile()["revision"], 1)
+
+    def test_runner_rejects_provider_native_payload_instead_of_consuming_it(self):
+        class NativePayloadProvider:
+            provider_identity = "DUMMY"
+
+            def observe(self, _observed_at: datetime):
+                return {"cash": "100", "positions": []}
+
+        with self.assertRaisesRegex(RuntimeError, "non-canonical snapshot"):
+            _observe_broker_provider(NativePayloadProvider(), self.observed)
+
+    def test_poll_cadence_and_cycle_order_reconcile_before_risky_work(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            state_path = Path(folder) / "dummy_broker_account.json"
+            selection = self.selection(state_path)
+            broker = {
+                "schema_version": 1,
+                "policy_identity": "BROKER_ANCHORED_SIMULATION_V1",
+                "configuration_fingerprint": _broker_configuration_fingerprint(selection),
+                "mode": BROKER_RECONCILIATION_MODE,
+                "market_data_provider": "ALPACA_IEX",
+                "broker_account_provider": "DUMMY",
+                "order_execution_provider": "SIMULATED",
+                "poll_seconds": BROKER_RECONCILIATION_POLL_SECONDS,
+                "broker_orders_enabled": False,
+                "simulated_strategy_fills_only": True,
+                "last_observed_at_utc": self.observed.isoformat(),
+                "last_snapshot": None,
+                "last_applied_identity_fingerprint": None,
+                "last_reconciliation_id": None,
+                "reconciliation_count": 0,
+                "external_account_cash_delta_total": 0.0,
+                "external_positions": {},
+                "risk_block_reason": None,
+            }
+            state["broker_reconciliation"] = broker
+            state["last_corporate_action_observation_at_utc"] = self.observed.isoformat()
+            store.save(state)
+            self.assertFalse(
+                broker_reconciliation_due(
+                    state,
+                    self.observed + timedelta(seconds=BROKER_RECONCILIATION_POLL_SECONDS - 1),
+                )
+            )
+            self.assertTrue(
+                broker_reconciliation_due(
+                    state,
+                    self.observed + timedelta(seconds=BROKER_RECONCILIATION_POLL_SECONDS),
+                )
+            )
+
+            order: list[str] = []
+
+            def reconcile_first(*_args, **_kwargs):
+                order.append("broker_reconciliation")
+                return False
+
+            def pending_second(*_args, **_kwargs):
+                order.append("pending_execution")
+                return False
+
+            with patch(
+                "qpx_bot.pr50_iex_forward_research_paper.broker_reconciliation_enabled",
+                return_value=True,
+            ), patch(
+                "qpx_bot.pr50_iex_forward_research_paper.observe_and_reconcile_broker_account",
+                side_effect=reconcile_first,
+            ), patch(
+                "qpx_bot.pr50_iex_forward_research_paper.process_pending_execution_clock",
+                side_effect=pending_second,
+            ), patch(
+                "qpx_bot.pr50_iex_forward_research_paper.decision_processing_due",
+                return_value=False,
+            ):
+                _cycle(store, self.observed + timedelta(minutes=1))
+            self.assertEqual(order, ["broker_reconciliation", "pending_execution"])
+
+    def test_startup_or_provider_recovery_forces_reconciliation_without_reinitialize(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            premarket = datetime(2026, 9, 2, 12, 0, tzinfo=timezone.utc)
+            state["last_corporate_action_observation_at_utc"] = premarket.isoformat()
+            store.save(state)
+            with patch(
+                "qpx_bot.pr50_iex_forward_research_paper.broker_reconciliation_enabled",
+                return_value=True,
+            ), patch(
+                "qpx_bot.pr50_iex_forward_research_paper.observe_and_reconcile_broker_account",
+                return_value=False,
+            ) as reconcile, patch(
+                "qpx_bot.pr50_iex_forward_research_paper.initialize"
+            ) as initialize_account:
+                recovered = _cycle(
+                    store,
+                    premarket,
+                    force_broker_reconciliation=True,
+                )
+            self.assertEqual(recovered["initialization"], state["initialization"])
+            initialize_account.assert_not_called()
+            self.assertTrue(reconcile.call_args.kwargs["force"])
+
+    def test_reconciliation_transaction_recovers_pending_audit_once_after_restart(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store, state = self.initialized(folder)
+            details = {
+                "event_id": "r" * 64,
+                "revision_before": 1,
+                "revision_after": 2,
+            }
+            state["revision"] = 2
+            state["broker_reconciliation_event_pending"] = details
+            premarket = datetime(2026, 9, 2, 12, 0, tzinfo=timezone.utc)
+            state["last_corporate_action_observation_at_utc"] = premarket.isoformat()
+            store.save(state)
+            restarted = IEXResearchStore(Path(folder))
+            with patch.dict(os.environ, {}, clear=True):
+                recovered = _cycle(restarted, premarket)
+            self.assertNotIn("broker_reconciliation_event_pending", recovered)
+            records = [
+                json.loads(line)
+                for line in restarted.journal.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(
+                sum(
+                    item["event_type"] == EXTERNAL_BROKER_RECONCILIATION_EVENT
+                    for item in records
+                ),
+                1,
+            )
+            self.assertEqual(restarted.verify_journal()[2], len(records))
+
+
 class DecisionCycleTelemetryTests(unittest.TestCase):
     def test_candidate_cycle_telemetry_reconciles_exact_top100_outcomes(self):
         symbols = tuple(f"S{index:03d}" for index in range(100))
@@ -163,7 +912,13 @@ class DecisionCycleTelemetryTests(unittest.TestCase):
 
         def evaluation(*, inputs, config):
             del config
-            return SimpleNamespace(should_enter=inputs.symbol == "S004")
+            entered = inputs.symbol == "S004"
+            return SimpleNamespace(
+                should_enter=entered,
+                checks={"data_ready": True, "price_above_sma": entered},
+                failed_checks=() if entered else ("price_above_sma",),
+                triggers=(),
+            )
 
         with patch.object(sip, "_entry_inputs", side_effect=inputs), patch.object(
             sip, "evaluate_candidate_v1_causal", side_effect=evaluation
@@ -197,6 +952,8 @@ class DecisionCycleTelemetryTests(unittest.TestCase):
         self.assertEqual(details["other_eligibility_skip_count"], 2)
         self.assertEqual(details["candidate_v1_evaluated_count"], 96)
         self.assertEqual(details["candidate_v1_no_action_count"], 95)
+        self.assertEqual(details["candidate_v1_first_failed_gate_counts"], {"price_above_sma": 95})
+        self.assertTrue(details["candidate_v1_rejection_invariant"]["reconciles"])
         self.assertEqual(details["signal_count"], 1)
         self.assertEqual(details["signaled_symbols"], ["S004"])
         self.assertEqual(details["vix_status"], "AVAILABLE")
@@ -272,6 +1029,8 @@ class DecisionCycleTelemetryTests(unittest.TestCase):
                 "evaluated": list(symbols),
                 "no_action_count": 100,
                 "signaled": [],
+                "first_failed_gate_counts": {"data_ready": 100},
+                "near_misses": [],
             },
         )
         with tempfile.TemporaryDirectory() as folder:

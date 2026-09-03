@@ -8,6 +8,8 @@ StartLimitBurst=3
 [Service]
 Type=simple
 WorkingDirectory=/home/ron/QPX_ALPHA
+Environment=QPX_BROKER_ACCOUNT_PROVIDER_CONFIG=/home/ron/QPX_ALPHA/deploy/qpx-pr50-iex-forward-research-paper-clean-v2-dummy-provider.json
+Environment=QPX_SHADOW_MATRIX_ENABLED=0
 ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_RUN_PR50_IEX_FORWARD_RESEARCH_PAPER.py --daemon --runtime-dir /home/ron/QPX_ALPHA/runtime/qpx_pr50_iex_forward_research_paper_clean_v2
 Restart=on-failure
 RestartSec=60

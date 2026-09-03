@@ -163,7 +163,7 @@ def legacy(
     cfg,
 ):
     evaluation = (
-        qpx._evaluate_entry_relaxed_frequency(
+        qpx.evaluate_entry(
             candles=source,
             indicators=indicator_set,
             index=index,
@@ -171,28 +171,7 @@ def legacy(
             config=cfg,
         )
     )
-    if not (20.0 < vix < 25.0):
-        return evaluation
-
-    checks = dict(evaluation.checks)
-    checks[
-        "candidate_vix_20_25_exclusion"
-    ] = False
-    failed = tuple(
-        dict.fromkeys(
-            (
-                *evaluation.failed_checks,
-                "candidate_vix_20_25_exclusion",
-            )
-        )
-    )
-    return qpx.EntryEvaluation(
-        index=evaluation.index,
-        should_enter=False,
-        checks=checks,
-        triggers=evaluation.triggers,
-        failed_checks=failed,
-    )
+    return evaluation
 
 
 class CandidateV1CausalTests(unittest.TestCase):
@@ -285,19 +264,14 @@ class CandidateV1CausalTests(unittest.TestCase):
             35,
         )
 
-    def test_vix_exclusion_is_open_interval(self):
+    def test_historical_vix_range_is_not_an_extra_gate(self):
         cfg = config()
         source = candles()
         indicators = calculate_indicators(
             source,
             cfg,
         )
-        for vix, excluded in (
-            (20.0, False),
-            (20.0001, True),
-            (24.9999, True),
-            (25.0, False),
-        ):
+        for vix in (20.0001, 24.9999):
             evaluation = (
                 evaluate_candidate_v1_causal(
                     inputs=strict_inputs(
@@ -310,13 +284,29 @@ class CandidateV1CausalTests(unittest.TestCase):
                     config=cfg,
                 )
             )
-            self.assertEqual(
-                (
-                    "candidate_vix_20_25_exclusion"
-                    in evaluation.failed_checks
-                ),
-                excluded,
-            )
+            self.assertNotIn("candidate_vix_20_25_exclusion", evaluation.checks)
+
+    def test_persistent_momentum_is_not_an_entry_trigger(self):
+        cfg = config()
+        source = candles()
+        indicators = calculate_indicators(source, cfg)
+        inputs = strict_inputs(
+            source=source, indicator_set=indicators, index=250, vix=18.0, cfg=cfg
+        )
+        inputs = replace(
+            inputs,
+            previous_fast=inputs.current_fast + 1.0,
+            previous_slow=inputs.current_slow,
+            current_fast=inputs.current_slow + 1.0,
+            current_slow=inputs.current_slow,
+            previous_rsi=inputs.current_rsi,
+            current_rsi=max(52.0, inputs.current_rsi),
+            previous_rmi=inputs.current_rmi,
+            current_rmi=max(52.0, inputs.current_rmi),
+        )
+        evaluation = evaluate_candidate_v1_causal(inputs=inputs, config=cfg)
+        self.assertNotIn("MOMENTUM_PERSISTENCE", evaluation.triggers)
+        self.assertNotIn("candidate_vix_20_25_exclusion", evaluation.checks)
 
 
 if __name__ == "__main__":

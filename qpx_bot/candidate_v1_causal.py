@@ -48,9 +48,6 @@ def evaluate_candidate_v1_causal(
     *,
     inputs: CandidateV1CausalInputs,
     config: BotConfig,
-    momentum_persistence_level: float = 52.0,
-    vix_exclusion_low: float = 20.0,
-    vix_exclusion_high: float = 25.0,
 ) -> CandidateV1CausalEvaluation:
     """Evaluate Candidate V1 from current/prior scalar observations only."""
     config.validate()
@@ -67,14 +64,6 @@ def evaluate_candidate_v1_causal(
         inputs.previous_rmi <= config.rsi_strength_level
         and inputs.current_rmi > config.rsi_strength_level
     )
-    persistent_momentum = (
-        inputs.current_fast > inputs.current_slow
-        and (
-            inputs.current_rsi >= momentum_persistence_level
-            or inputs.current_rmi >= momentum_persistence_level
-        )
-    )
-
     triggers = [
         name
         for name, triggered in (
@@ -84,12 +73,6 @@ def evaluate_candidate_v1_causal(
         )
         if triggered
     ]
-
-    if (
-        persistent_momentum
-        and "MOMENTUM_PERSISTENCE" not in triggers
-    ):
-        triggers.append("MOMENTUM_PERSISTENCE")
 
     checks: dict[str, bool] = {
         "data_ready": True,
@@ -121,9 +104,6 @@ def evaluate_candidate_v1_causal(
         ),
         "momentum_trigger": bool(triggers),
     }
-
-    if vix_exclusion_low < inputs.vix < vix_exclusion_high:
-        checks["candidate_vix_20_25_exclusion"] = False
 
     failed = tuple(
         name

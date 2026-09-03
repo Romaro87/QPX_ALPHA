@@ -27,6 +27,7 @@ class Position:
     entry_target_atr_multiple: float | None = None
     entry_trailing_activation_atr: float | None = None
     exit_slippage_rate: float | None = None
+    entry_semantic_snapshot: dict | None = None
 
     @property
     def cost_basis(self) -> float:

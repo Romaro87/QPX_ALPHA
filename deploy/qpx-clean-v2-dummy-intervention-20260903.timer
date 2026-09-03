@@ -1,0 +1,12 @@
+[Unit]
+Description=QPX Clean-V2 DUMMY intervention at 2026-09-03 11:00 America/New_York
+
+[Timer]
+OnCalendar=2026-09-03 11:00:00 America/New_York
+AccuracySec=1s
+RandomizedDelaySec=0
+Persistent=false
+Unit=qpx-clean-v2-dummy-intervention-20260903.service
+
+[Install]
+WantedBy=timers.target

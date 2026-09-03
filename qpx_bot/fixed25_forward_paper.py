@@ -40,6 +40,7 @@ from qpx_bot.accelerators.profit_recycling import (
     ProfitSourceLedger,
     load_profit_recycling_config,
 )
+from qpx_bot.shadow_matrix.forward import build_cycle_payload, dispatch_cycle, flush_pending_event
 import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as qualified
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -478,14 +479,21 @@ def _position(raw: Mapping[str, Any]) -> Position:
                     entry_date=datetime.fromisoformat(str(raw["entry_date"])).date(),
                     entry_price=float(raw["entry_price"]), entry_atr=float(raw["entry_atr"]),
                     stop_price=float(raw["stop_price"]), target_price=float(raw["target_price"]),
-                    highest_price=float(raw["highest_price"]))
+                    highest_price=float(raw["highest_price"]),
+                    entry_semantic_snapshot=(
+                        dict(raw["entry_semantic_snapshot"])
+                        if isinstance(raw.get("entry_semantic_snapshot"), Mapping)
+                        else None
+                    ))
 
 
 def _position_dict(value: Position) -> dict[str, Any]:
     return {"symbol": value.symbol, "shares": value.shares, "entry_date": value.entry_date.isoformat(),
             "entry_price": value.entry_price, "entry_atr": value.entry_atr,
             "stop_price": value.stop_price, "target_price": value.target_price,
-            "highest_price": value.highest_price}
+            "highest_price": value.highest_price,
+            **({"entry_semantic_snapshot": value.entry_semantic_snapshot}
+               if value.entry_semantic_snapshot is not None else {})}
 
 
 def _minute_for_bar(rows: list[dict[str, Any]], bar_start: datetime) -> dict[str, Any]:
@@ -540,6 +548,7 @@ def _evaluate_candidate_v1_cycle(
     bar_time: datetime,
     vix: float | None,
     config: Any,
+    global_entry_block_reason: str | None = None,
 ) -> tuple[list[tuple[str, str, float, float]], dict[str, Any]]:
     """Evaluate one universe boundary and retain only compact eligibility evidence."""
     usable: list[str] = []
@@ -549,6 +558,8 @@ def _evaluate_candidate_v1_cycle(
     evaluated: list[str] = []
     no_action_count = 0
     qualifying: list[tuple[str, str, float, float]] = []
+    first_failed_gate_counts: dict[str, int] = {}
+    near_misses: list[dict[str, Any]] = []
 
     for symbol in symbols:
         index = indices.get(symbol, {}).get(bar_time)
@@ -558,6 +569,9 @@ def _evaluate_candidate_v1_cycle(
         usable.append(symbol)
         if vix is None:
             other.append({"symbol": symbol, "reason_code": VIX_UNAVAILABLE})
+            continue
+        if global_entry_block_reason is not None:
+            other.append({"symbol": symbol, "reason_code": global_entry_block_reason})
             continue
         if symbol in positions:
             other.append({"symbol": symbol, "reason_code": OPEN_POSITION})
@@ -580,6 +594,49 @@ def _evaluate_candidate_v1_cycle(
             ))
         else:
             no_action_count += 1
+            failed_checks = tuple(getattr(result, "failed_checks", ()))
+            checks = dict(getattr(result, "checks", {}))
+            if not failed_checks or not checks:
+                # The production evaluator always supplies these fields.  A
+                # missing diagnostic surface must never affect the decision.
+                continue
+            first_failed = failed_checks[0]
+            first_failed_gate_counts[first_failed] = (
+                first_failed_gate_counts.get(first_failed, 0) + 1
+            )
+            passed_before_failure = 0
+            for gate in checks:
+                if not checks[gate]:
+                    break
+                passed_before_failure += 1
+            values = {
+                "price_above_sma": (getattr(inputs, "current_close", None), getattr(inputs, "current_sma", None)),
+                "sma_slope_positive": (getattr(inputs, "current_sma", None), getattr(inputs, "slope_sma", None)),
+                "average_volume": (getattr(inputs, "baseline_volume", None), getattr(config, "minimum_average_daily_volume", None)),
+                "breakout_volume": (
+                    getattr(inputs, "current_volume", None),
+                    (getattr(inputs, "baseline_volume", 0) or 0) * getattr(config, "breakout_volume_multiplier", 0),
+                ),
+                "price_breakout": (getattr(inputs, "current_close", None), getattr(inputs, "prior_high", None)),
+                "vix_filter": (getattr(inputs, "vix", None), getattr(config, "maximum_vix_for_entries", None)),
+                "rsi_not_overbought": (getattr(inputs, "current_rsi", None), getattr(config, "rsi_overbought", None)),
+            }
+            value_threshold = values.get(first_failed)
+            near_misses.append({
+                "symbol": symbol,
+                "decision_interval": {
+                    "start_market": bar_time.isoformat(),
+                    "end_market": (bar_time + timedelta(minutes=15)).isoformat(),
+                },
+                "last_gate_passed": (
+                    list(checks)[passed_before_failure - 1]
+                    if passed_before_failure else None
+                ),
+                "first_gate_failed": first_failed,
+                "gates_passed": passed_before_failure,
+                **({"value": value_threshold[0], "threshold": value_threshold[1]}
+                   if value_threshold is not None and value_threshold[0] is not None else {}),
+            })
 
     census = {
         "usable": usable,
@@ -589,6 +646,11 @@ def _evaluate_candidate_v1_cycle(
         "evaluated": evaluated,
         "no_action_count": no_action_count,
         "signaled": [symbol for _, symbol, _, _ in qualifying],
+        "first_failed_gate_counts": first_failed_gate_counts,
+        "near_misses": sorted(
+            near_misses,
+            key=lambda item: (-int(item["gates_passed"]), str(item["symbol"])),
+        )[:10],
     }
     return qualifying, census
 
@@ -614,6 +676,10 @@ def _decision_cycle_telemetry(
     evaluated = list(census["evaluated"])
     signaled = list(census["signaled"])
     no_action_count = int(census["no_action_count"])
+    first_failed_gate_counts = {
+        str(key): int(value)
+        for key, value in census.get("first_failed_gate_counts", {}).items()
+    }
     skipped = (
         [{"symbol": symbol, "reason_code": MISSING_SPARSE_BAR} for symbol in missing]
         + [{"symbol": symbol, "reason_code": INSUFFICIENT_INDICATOR_HISTORY}
@@ -633,6 +699,8 @@ def _decision_cycle_telemetry(
         raise RuntimeError("Decision-cycle signal was not evaluated by Candidate V1.")
     if len(evaluated) != no_action_count + len(signaled):
         raise RuntimeError("Candidate V1 outcomes do not reconcile with evaluations.")
+    if sum(first_failed_gate_counts.values()) != no_action_count:
+        raise RuntimeError("Candidate V1 first-failure counts do not reconcile.")
     if vix is None:
         input_status = VIX_UNAVAILABLE
     elif insufficient:
@@ -663,6 +731,18 @@ def _decision_cycle_telemetry(
         "candidate_v1_evaluated_count": len(evaluated),
         "symbols_passed_to_candidate_v1": evaluated,
         "candidate_v1_no_action_count": no_action_count,
+        "candidate_v1_first_failed_gate_counts": first_failed_gate_counts,
+        "candidate_v1_passed_all_entry_gates_count": len(signaled),
+        "candidate_v1_rejection_invariant": {
+            "evaluated": len(evaluated),
+            "first_failed_total": sum(first_failed_gate_counts.values()),
+            "passed_all_entry_gates": len(signaled),
+            "reconciles": (
+                len(evaluated)
+                == sum(first_failed_gate_counts.values()) + len(signaled)
+            ),
+        },
+        "candidate_v1_near_miss_sample": list(census.get("near_misses", []))[:10],
         "signal_count": len(signaled),
         "signaled_symbols": signaled,
         "vix_status": "AVAILABLE" if vix is not None else "UNAVAILABLE_FAIL_CLOSED",
@@ -727,6 +807,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
     """Process each newly completed 15-minute timestamp exactly once."""
     if state["contract"].get("feed") == "iex":
         _flush_pending_decision_cycle_telemetry(state, store)
+        flush_pending_event(state, store)
     symbols = tuple(state["contract"]["symbols"])
     raw: dict[str, list[dict[str, Any]]] = {}
     start = observed_at - timedelta(days=60)
@@ -749,6 +830,11 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
         raise RuntimeError("More than one session of decisions is missing; fail closed for operator review.")
     config = qualified.candidate_config()
     profit_runtime = _profit_runtime(state)
+    broker_risk_block = (
+        state.get("broker_reconciliation", {}).get("risk_block_reason")
+        if state["contract"].get("feed") == "iex"
+        else None
+    )
     candle_sets = {symbol: [Candle(date=row["start"].date(), open=row["open"], high=row["high"],
                     low=row["low"], close=row["close"], volume=row["volume"]) for row in rows]
                    for symbol, rows in histories.items()}
@@ -769,7 +855,11 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
         apply_qdte_corporate_actions(state, store, bar_time)
 
         # Qualified Thursday-only 12.5% QDTE / 87.5% swing allocation.
-        if bar_time.weekday() == 3 and bar_time in indices.get("QDTE", {}):
+        if (
+            broker_risk_block is None
+            and bar_time.weekday() == 3
+            and bar_time in indices.get("QDTE", {})
+        ):
             iso = bar_time.isocalendar()
             week_key = f"{iso.year}-W{iso.week:02d}"
             if week_key != state.get("last_rebalance_week"):
@@ -936,6 +1026,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                 bar_time=bar_time,
                 vix=vix,
                 config=config,
+                global_entry_block_reason=broker_risk_block,
             )
         else:
             qualifying = []
@@ -959,7 +1050,8 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
         for _, symbol, atr, close in sorted(qualifying)[:slots]:
             signal_id = fingerprint({"symbol": symbol, "bar": bar_time.isoformat(), "atr": atr,
                                      "contract": state["contract_fingerprint"]})
-            pending_signal = {"signal_id": signal_id, "signal_bar": bar_time.isoformat(),
+            pending_signal = {"signal_id": signal_id, "decision_id": completed_id,
+                              "signal_bar": bar_time.isoformat(),
                               "atr": atr, "prior_close": close}
             event_details = {"symbol": symbol, "signal_id": signal_id, "bar": bar_time.isoformat()}
             if state["contract"].get("feed") == "iex":
@@ -989,17 +1081,41 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
         if state["contract"].get("feed") == "iex":
             if decision_census is None:
                 raise RuntimeError("IEX decision-cycle telemetry census is missing.")
-            state["decision_cycle_telemetry_pending"] = _decision_cycle_telemetry(
-                symbols=symbols,
-                bar_time=bar_time,
-                decision_id=completed_id,
-                state_revision=state["revision"],
-                feed="iex",
-                vix=vix,
-                census=decision_census,
-            )
+            try:
+                state["decision_cycle_telemetry_pending"] = _decision_cycle_telemetry(
+                    symbols=symbols,
+                    bar_time=bar_time,
+                    decision_id=completed_id,
+                    state_revision=state["revision"],
+                    feed="iex",
+                    vix=vix,
+                    census=decision_census,
+                )
+            except Exception as exc:
+                # Diagnostics are strictly additive; never change or block a
+                # strategy decision because telemetry cannot be serialized.
+                store.event("IEX_RESEARCH_DECISION_TELEMETRY_FAILED", {
+                    "bar": bar_time.isoformat(),
+                    "decision_id": completed_id,
+                    "reason": f"{type(exc).__name__}: {exc}",
+                })
+            if os.environ.get("QPX_SHADOW_MATRIX_ENABLED", "0").lower() in {"1", "true", "yes"}:
+                try:
+                    shadow_payload = build_cycle_payload(
+                        symbols=symbols, histories=histories, indices=indices,
+                        indicators=indicators, bar_time=bar_time,
+                        observed_at=observed_at, vix=vix,
+                        contract={**state["contract"], "contract_fingerprint": state["contract_fingerprint"]},
+                    )
+                    dispatch_cycle(state, store, payload=shadow_payload, observed_at=observed_at)
+                except Exception as exc:
+                    store.event("SHADOW_MATRIX_CYCLE_FAILED_QUARANTINED", {
+                        "bar": bar_time.isoformat(), "reason": f"{type(exc).__name__}: {exc}",
+                    })
         store.save(state)
         _flush_pending_decision_cycle_telemetry(state, store)
+        if state.get("shadow_matrix_event_pending") is not None:
+            flush_pending_event(state, store)
 
 
 def select_causal_execution_bar(rows: list[dict[str, Any]], observed_at: datetime) -> dict[str, Any]:

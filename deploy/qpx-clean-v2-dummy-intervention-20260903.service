@@ -1,0 +1,16 @@
+[Unit]
+Description=QPX Clean-V2 external DUMMY brokerage intervention (one-shot research control)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/home/ron/QPX_ALPHA/deploy/qpx-pr50-iex-forward-research-paper-clean-v2-dummy-provider.json
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ron/QPX_ALPHA
+ExecStartPre=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_CONTROL_DUMMY_BROKER_ACCOUNT.py --provider-config /home/ron/QPX_ALPHA/deploy/qpx-pr50-iex-forward-research-paper-clean-v2-dummy-provider.json --preflight-clean-v2-intervention --clean-v2-runtime /home/ron/QPX_ALPHA/runtime/qpx_pr50_iex_forward_research_paper_clean_v2
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_CONTROL_DUMMY_BROKER_ACCOUNT.py --provider-config /home/ron/QPX_ALPHA/deploy/qpx-pr50-iex-forward-research-paper-clean-v2-dummy-provider.json --set-cash 1400.00 --clear-positions
+UMask=0077
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=qpx-clean-v2-dummy-intervention-20260903

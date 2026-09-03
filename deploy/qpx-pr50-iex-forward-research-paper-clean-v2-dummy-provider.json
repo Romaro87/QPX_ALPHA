@@ -1,0 +1,10 @@
+{
+  "broker_account_configuration": {
+    "checksum_path": "/home/ron/QPX_ALPHA/operator_state/clean_v2_dummy_broker/account.sha256",
+    "state_path": "/home/ron/QPX_ALPHA/operator_state/clean_v2_dummy_broker/account.json"
+  },
+  "broker_account_provider": "DUMMY",
+  "market_data_provider": "ALPACA_IEX",
+  "order_execution_provider": "SIMULATED",
+  "schema_version": 1
+}

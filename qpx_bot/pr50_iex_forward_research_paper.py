@@ -1,7 +1,8 @@
 """IEX-only causal forward research adapter for the PR_FRACTION_50 paper model.
 
-This process has no broker/order client and does not claim SIP parity,
-qualification, promotion, or production authority.
+This process has no broker-order client.  An optional canonical read-only
+broker-account observer is configuration-gated.  The runner does not claim SIP
+parity, qualification, promotion, or production authority.
 """
 from __future__ import annotations
 
@@ -33,6 +34,13 @@ from qpx_bot.accelerators.profit_recycling import (
     ProfitRecyclingRuntime,
     load_profit_recycling_config,
 )
+from qpx_bot.broker_account_provider import (
+    BrokerAccountProvider,
+    BrokerAccountSnapshot,
+    ProviderSelection,
+    build_broker_account_provider,
+    load_provider_selection,
+)
 from qpx_bot.market_calendar import is_market_session
 from qpx_bot.paper_state import read_checksummed_state, write_checksummed_state
 
@@ -45,6 +53,34 @@ CORPORATE_ACTION_POLL_SECONDS = 900
 STATUS_PRINT_SECONDS = 600
 MAX_PROVIDER_PAGES = 100
 CBOE_VIX_URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv"
+BROKER_PROVIDER_CONFIG_ENV = "QPX_BROKER_ACCOUNT_PROVIDER_CONFIG"
+BROKER_RECONCILIATION_MODE = "CANONICAL_BROKER_ACCOUNT_OBSERVATION"
+BROKER_RECONCILIATION_POLICY = "BROKER_ANCHORED_SIMULATION_V1"
+BROKER_RECONCILIATION_POLL_SECONDS = 300
+EXTERNAL_BROKER_RECONCILIATION_EVENT = "EXTERNAL_BROKER_RECONCILIATION"
+BROKER_PROVIDER_BASELINE_EVENT = "BROKER_ACCOUNT_PROVIDER_BASELINE_BOUND"
+EXTERNAL_BROKER_RISK_BLOCK = "EXTERNAL_BROKER_POSITION_UNMANAGED_FAIL_CLOSED"
+OLD_SEMANTIC_CONTRACT_FINGERPRINT = (
+    "d594cd578070ab61393411e2cec97803d7c9e62f8061ac3c38f018b26f8fdf5b"
+)
+NEW_SEMANTIC_CONTRACT_FINGERPRINT = (
+    "5fcab69089cbfd069727b754f1ca1be9338500234348fbbc56bf3e5633603c5d"
+)
+SEMANTIC_VERSION_OLD = "PR50_IEX_PRE_PARITY_V1"
+SEMANTIC_VERSION_NEW = "PR50_IEX_HISTORICAL_CANDIDATE_V1_SPLIT_V2"
+ENTRY_SEMANTICS_VERSION = "CANDIDATE_V1_HISTORICAL_NINE_GATE_V1"
+ENTRY_SEMANTICS_FINGERPRINT = sip.fingerprint({
+    "implementation": "qpx_bot.strategy.evaluate_entry",
+    "qualification_commit": "7213db1e17fedce9e923889b116775cca121f766",
+    "gates": (
+        "data_ready", "price_above_sma", "sma_slope_positive",
+        "average_volume", "breakout_volume", "price_breakout",
+        "vix_filter", "rsi_not_overbought", "momentum_trigger",
+    ),
+})
+PROVIDER_INPUT_SEMANTICS_VERSION = "ALPACA_IEX_15M_COMPLETED_SPLIT_V1"
+BAR_ADJUSTMENT_MODE = "split"
+SEMANTIC_TRANSITION_EVENT = "CONFIGURATION_VERSION_CHANGED"
 
 
 @contextmanager
@@ -294,6 +330,11 @@ def load_contract() -> dict[str, Any]:
         "sip_parity_claimed": False,
         "qualified": False,
         "promoted": False,
+        "semantic_version": SEMANTIC_VERSION_NEW,
+        "entry_semantics_version": ENTRY_SEMANTICS_VERSION,
+        "entry_semantics_fingerprint": ENTRY_SEMANTICS_FINGERPRINT,
+        "bar_adjustment": BAR_ADJUSTMENT_MODE,
+        "provider_input_semantics_version": PROVIDER_INPUT_SEMANTICS_VERSION,
     })
     return contract
 
@@ -305,7 +346,9 @@ def request_bars(
         "symbols": ",".join(symbols), "timeframe": timeframe,
         "start": start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "end": end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "feed": FEED, "adjustment": "raw", "limit": "10000", "sort": "asc",
+        # The frozen qualified dataset is explicitly split-adjusted.  Keep
+        # the forward input on the same Alpaca adjustment basis.
+        "feed": FEED, "adjustment": "split", "limit": "10000", "sort": "asc",
     }
     collected: dict[str, list[dict[str, Any]]] = {symbol: [] for symbol in symbols}
     seen_tokens: set[str] = set()
@@ -428,6 +471,584 @@ def request_qdte_corporate_actions(start: date, end: date) -> list[dict[str, Any
             )
         seen_tokens.add(normalized_token)
         params["page_token"] = normalized_token
+
+
+def broker_reconciliation_enabled() -> bool:
+    return bool(os.environ.get(BROKER_PROVIDER_CONFIG_ENV, "").strip())
+
+
+def configured_broker_account_provider(
+) -> tuple[ProviderSelection, BrokerAccountProvider]:
+    raw_path = os.environ.get(BROKER_PROVIDER_CONFIG_ENV, "").strip()
+    if not raw_path:
+        raise RuntimeError("Broker-account provider configuration is not enabled.")
+    selection = load_provider_selection(raw_path)
+    if selection.market_data_provider != "ALPACA_IEX":
+        raise RuntimeError("Clean-V2 requires the ALPACA_IEX market-data provider.")
+    if selection.order_execution_provider != "SIMULATED":
+        raise RuntimeError("Clean-V2 permits only the SIMULATED execution provider.")
+    return selection, build_broker_account_provider(selection)
+
+
+def _broker_configuration_fingerprint(selection: ProviderSelection) -> str:
+    return sip.fingerprint({
+        "policy": BROKER_RECONCILIATION_POLICY,
+        "mode": BROKER_RECONCILIATION_MODE,
+        "provider_selection_fingerprint": selection.fingerprint,
+        "poll_seconds": BROKER_RECONCILIATION_POLL_SECONDS,
+        "broker_orders_enabled": False,
+        "simulated_strategy_fills_only": True,
+    })
+
+
+def _broker_state(
+    state: dict[str, Any], selection: ProviderSelection
+) -> dict[str, Any]:
+    expected = _broker_configuration_fingerprint(selection)
+    existing = state.get("broker_reconciliation")
+    if existing is None:
+        existing = {
+            "schema_version": 1,
+            "policy_identity": BROKER_RECONCILIATION_POLICY,
+            "configuration_fingerprint": expected,
+            "mode": BROKER_RECONCILIATION_MODE,
+            "market_data_provider": selection.market_data_provider,
+            "broker_account_provider": selection.broker_account_provider,
+            "order_execution_provider": selection.order_execution_provider,
+            "poll_seconds": BROKER_RECONCILIATION_POLL_SECONDS,
+            "broker_orders_enabled": False,
+            "simulated_strategy_fills_only": True,
+            "last_observed_at_utc": None,
+            "last_snapshot": None,
+            "last_applied_identity_fingerprint": None,
+            "last_reconciliation_id": None,
+            "initial_binding_id": None,
+            "reconciliation_count": 0,
+            "external_account_cash_delta_total": 0.0,
+            "external_positions": {},
+            "risk_block_reason": None,
+        }
+        state["broker_reconciliation"] = existing
+    if (
+        existing.get("configuration_fingerprint") != expected
+        or existing.get("mode") != BROKER_RECONCILIATION_MODE
+        or existing.get("market_data_provider") != selection.market_data_provider
+        or existing.get("broker_account_provider") != selection.broker_account_provider
+        or existing.get("order_execution_provider") != "SIMULATED"
+        or existing.get("broker_orders_enabled") is not False
+    ):
+        raise RuntimeError("Persisted broker-reconciliation identity is incompatible.")
+    return existing
+
+
+def broker_reconciliation_due(
+    state: Mapping[str, Any], observed_at: datetime, *, force: bool = False
+) -> bool:
+    if force:
+        return True
+    broker = state.get("broker_reconciliation")
+    if not isinstance(broker, Mapping) or not broker.get("last_observed_at_utc"):
+        return True
+    return (
+        observed_at.astimezone(timezone.utc)
+        - datetime.fromisoformat(str(broker["last_observed_at_utc"]))
+    ).total_seconds() >= BROKER_RECONCILIATION_POLL_SECONDS
+
+
+def _flush_pending_broker_reconciliation(
+    state: dict[str, Any], store: "IEXResearchStore"
+) -> bool:
+    flushed = False
+    for key, event_type in (
+        ("broker_provider_baseline_event_pending", BROKER_PROVIDER_BASELINE_EVENT),
+        ("broker_reconciliation_event_pending", EXTERNAL_BROKER_RECONCILIATION_EVENT),
+    ):
+        details = state.get(key)
+        if details is None:
+            continue
+        store.event(event_type, details)
+        state.pop(key, None)
+        store.save(state)
+        flushed = True
+    return flushed
+
+
+def _flush_pending_semantic_transition(
+    state: dict[str, Any], store: "IEXResearchStore"
+) -> bool:
+    details = state.get("semantic_transition_event_pending")
+    if details is None:
+        return False
+    store.event(SEMANTIC_TRANSITION_EVENT, details)
+    state.pop("semantic_transition_event_pending", None)
+    store.save(state)
+    return True
+
+
+def _next_decision_boundary(state: Mapping[str, Any], observed_at: datetime) -> str:
+    last = state.get("last_decision_bar")
+    if last:
+        return (datetime.fromisoformat(str(last)) + timedelta(minutes=15)).isoformat()
+    expected = expected_completed_decision_start(observed_at)
+    return (expected or observed_at.astimezone(timezone.utc)).isoformat()
+
+
+def _transition_semantic_contract_if_required(
+    state: dict[str, Any],
+    store: "IEXResearchStore",
+    contract: Mapping[str, Any],
+    observed_at: datetime,
+) -> bool:
+    current = str(state.get("contract_fingerprint", ""))
+    expected = sip.fingerprint(contract)
+    if current == expected:
+        return False
+    if current != OLD_SEMANTIC_CONTRACT_FINGERPRINT:
+        raise RuntimeError("Persisted semantic contract is not the allowlisted OLD contract.")
+    if (
+        expected != NEW_SEMANTIC_CONTRACT_FINGERPRINT
+        or str(contract.get("semantic_version")) != SEMANTIC_VERSION_NEW
+        or contract.get("entry_semantics_version") != ENTRY_SEMANTICS_VERSION
+        or contract.get("entry_semantics_fingerprint") != ENTRY_SEMANTICS_FINGERPRINT
+        or contract.get("bar_adjustment") != BAR_ADJUSTMENT_MODE
+        or contract.get("provider_input_semantics_version") != PROVIDER_INPUT_SEMANTICS_VERSION
+    ):
+        raise RuntimeError("Executable semantic contract is not the allowlisted NEW contract.")
+    if store.reconcile() is None:
+        raise RuntimeError("Semantic transition requires an existing validated runtime state.")
+    if not state.get("initialization_fingerprint"):
+        raise RuntimeError("Semantic transition requires a preserved initialization identity.")
+    if state.get("positions") or state.get("pending"):
+        raise RuntimeError("Semantic transition requires no open positions or pending actions.")
+    if not broker_reconciliation_enabled():
+        raise RuntimeError("Semantic transition requires the DUMMY broker observation to be enabled.")
+    broker = state.get("broker_reconciliation") or {}
+    if broker.get("broker_account_provider") != "DUMMY":
+        raise RuntimeError("Semantic transition requires the configured DUMMY broker provider.")
+    if broker.get("risk_block_reason"):
+        raise RuntimeError("Semantic transition blocked by unresolved broker risk state.")
+    snapshot = broker.get("last_snapshot") or {}
+    if snapshot.get("provider_identity") != "DUMMY":
+        raise RuntimeError("Semantic transition requires a bound DUMMY observation.")
+    if not snapshot.get("account_identity_fingerprint"):
+        raise RuntimeError("Semantic transition broker/account identity is not bound.")
+    if snapshot.get("account_status") != "ACTIVE" or snapshot.get("account_blocked") or snapshot.get("trading_blocked"):
+        raise RuntimeError("Semantic transition requires a valid active DUMMY account.")
+    before = int(state["revision"])
+    details = {
+        "event_id": sip.fingerprint({
+            "kind": "semantic_contract_transition",
+            "old_contract_fingerprint": current,
+            "new_contract_fingerprint": expected,
+            "initialization_fingerprint": state.get("initialization_fingerprint"),
+        }),
+        "old_contract_fingerprint": current,
+        "new_contract_fingerprint": expected,
+        "old_semantic_version": SEMANTIC_VERSION_OLD,
+        "new_semantic_version": SEMANTIC_VERSION_NEW,
+        "effective_observation_timestamp_utc": observed_at.astimezone(timezone.utc).isoformat(),
+        "first_decision_boundary_governed_by_new_contract": _next_decision_boundary(state, observed_at),
+        "reason": "FORWARD_PARITY_CORRECTION",
+        "entry_semantics_version": ENTRY_SEMANTICS_VERSION,
+        "entry_semantics_fingerprint": ENTRY_SEMANTICS_FINGERPRINT,
+        "bar_adjustment_old": "raw",
+        "bar_adjustment_new": BAR_ADJUSTMENT_MODE,
+        "provider_input_semantics_version": PROVIDER_INPUT_SEMANTICS_VERSION,
+        "revision_before": before,
+        "revision_after": before + 1,
+        "positions_zero": True,
+        "pending_actions_zero": True,
+        "initialization_fingerprint": state.get("initialization_fingerprint"),
+    }
+    state["contract"] = json.loads(sip.canonical(contract))
+    state["contract_fingerprint"] = expected
+    state["semantic_contract_version"] = SEMANTIC_VERSION_NEW
+    state["semantic_transition_event_pending"] = details
+    state["revision"] = before + 1
+    store.save(state)
+    _flush_pending_semantic_transition(state, store)
+    return True
+
+
+def _broker_risk_block_reason(
+    snapshot: BrokerAccountSnapshot,
+    *,
+    managed_strategy_symbols: frozenset[str] = frozenset(),
+) -> str | None:
+    if snapshot.account_status != "ACTIVE":
+        return "BROKER_ACCOUNT_NOT_ACTIVE_FAIL_CLOSED"
+    if snapshot.account_blocked or snapshot.trading_blocked:
+        return "BROKER_ACCOUNT_BLOCKED_FAIL_CLOSED"
+    if snapshot.restriction_flags:
+        return "BROKER_ACCOUNT_RESTRICTED_FAIL_CLOSED"
+    external = [
+        position for position in snapshot.positions
+        if (
+            position.symbol != "QDTE"
+            and position.symbol not in managed_strategy_symbols
+        )
+        or position.side != "long"
+    ]
+    if external:
+        return EXTERNAL_BROKER_RISK_BLOCK
+    return None
+
+
+def _initial_broker_compatibility_mismatches(
+    state: Mapping[str, Any], snapshot: BrokerAccountSnapshot
+) -> list[str]:
+    mismatches: list[str] = []
+    if snapshot.account_status != "ACTIVE":
+        mismatches.append("ACCOUNT_NOT_ACTIVE")
+    if snapshot.currency != "USD":
+        mismatches.append("CURRENCY_MISMATCH")
+    if snapshot.account_blocked or snapshot.trading_blocked or snapshot.restriction_flags:
+        mismatches.append("ACCOUNT_RESTRICTED")
+    expected_cash = float(state["cash"]) + float(state.get("tax_reserve_cash", 0.0))
+    if abs(float(snapshot.cash) - expected_cash) > 1e-7:
+        mismatches.append("CASH_MISMATCH")
+
+    expected_positions: dict[str, tuple[float, float]] = {}
+    qdte_shares = float(state.get("qdte_shares", 0.0))
+    if qdte_shares > 0:
+        expected_positions["QDTE"] = (
+            qdte_shares,
+            float(state.get("qdte_cost", 0.0)),
+        )
+    for symbol, position in state.get("positions", {}).items():
+        shares = float(position["shares"])
+        expected_positions[str(symbol).upper()] = (
+            shares,
+            shares * float(position["entry_price"]),
+        )
+    observed_positions = {position.symbol: position for position in snapshot.positions}
+    if set(observed_positions) != set(expected_positions):
+        mismatches.append("POSITION_SYMBOLS_MISMATCH")
+    for symbol in sorted(set(observed_positions) & set(expected_positions)):
+        observed = observed_positions[symbol]
+        expected_quantity, expected_cost = expected_positions[symbol]
+        if observed.side != "long" or abs(float(observed.quantity) - expected_quantity) > 1e-9:
+            mismatches.append(f"POSITION_QUANTITY_MISMATCH:{symbol}")
+        if observed.cost_basis is not None and (
+            abs(float(observed.cost_basis) - expected_cost) > 1e-6
+        ):
+            mismatches.append(f"POSITION_COST_BASIS_MISMATCH:{symbol}")
+    return mismatches
+
+
+def _bind_initial_broker_snapshot(
+    state: dict[str, Any],
+    store: "IEXResearchStore",
+    snapshot: BrokerAccountSnapshot,
+    selection: ProviderSelection,
+) -> bool:
+    mismatches = _initial_broker_compatibility_mismatches(state, snapshot)
+    if mismatches:
+        raise ProviderFailure(
+            failure_class="BROKER_INITIAL_STATE_INCOMPATIBLE",
+            provider=snapshot.provider_identity.lower(),
+            operation="broker_account_initial_binding",
+            endpoint=f"broker-account-provider:{snapshot.provider_identity}",
+            recoverable=False,
+            exception_type="BrokerInitialCompatibilityError",
+            message="Initial broker snapshot differs from authoritative QPX account state.",
+            request_parameters={"mismatch_codes": mismatches},
+        )
+    broker = _broker_state(state, selection)
+    revision_before = int(state["revision"])
+    binding_id = sip.fingerprint({
+        "kind": "broker_account_provider_baseline",
+        "provider_selection_fingerprint": selection.fingerprint,
+        "account_identity_fingerprint": snapshot.account_identity_fingerprint,
+        "broker_identity_fingerprint": snapshot.identity_fingerprint,
+        "contract_fingerprint": state["contract_fingerprint"],
+    })
+    broker["last_observed_at_utc"] = snapshot.observed_at_utc.isoformat()
+    broker["last_snapshot"] = snapshot.as_dict()
+    broker["last_applied_identity_fingerprint"] = snapshot.identity_fingerprint
+    broker["initial_binding_id"] = binding_id
+    broker["external_positions"] = {}
+    broker["risk_block_reason"] = None
+    state["revision"] = revision_before + 1
+    state["broker_provider_baseline_event_pending"] = {
+        "event_id": binding_id,
+        "binding_id": binding_id,
+        "result": "COMPATIBLE_NO_ACCOUNT_RECONCILIATION",
+        "market_data_provider": selection.market_data_provider,
+        "broker_account_provider": selection.broker_account_provider,
+        "order_execution_provider": selection.order_execution_provider,
+        "account_identity_fingerprint": snapshot.account_identity_fingerprint,
+        "broker_identity_fingerprint": snapshot.identity_fingerprint,
+        "broker_observed_at_utc": snapshot.observed_at_utc.isoformat(),
+        "cash": float(snapshot.cash),
+        "positions": [position.as_dict() for position in snapshot.positions],
+        "revision_before": revision_before,
+        "revision_after": state["revision"],
+        "broker_orders_enabled": False,
+    }
+    store.save(state)
+    _flush_pending_broker_reconciliation(state, store)
+    return False
+
+
+def _reconcile_confirmed_broker_snapshot(
+    state: dict[str, Any],
+    store: "IEXResearchStore",
+    snapshot: BrokerAccountSnapshot,
+    selection: ProviderSelection,
+) -> bool:
+    broker = _broker_state(state, selection)
+    snapshot_dict = snapshot.as_dict()
+    previous_snapshot = broker.get("last_snapshot")
+    previous_identity = broker.get("last_applied_identity_fingerprint")
+    identity = snapshot.identity_fingerprint
+    account_identity = snapshot.account_identity_fingerprint
+    if previous_snapshot is not None and (
+        str(previous_snapshot.get("account_identity_fingerprint")) != account_identity
+    ):
+        raise RuntimeError("Broker account identity changed; refusing cross-account recovery.")
+    if previous_identity is None:
+        return _bind_initial_broker_snapshot(state, store, snapshot, selection)
+    broker["last_observed_at_utc"] = snapshot.observed_at_utc.isoformat()
+    broker["last_snapshot"] = snapshot_dict
+    if identity == previous_identity:
+        store.save(state)
+        return False
+
+    broker_cash = float(snapshot.cash)
+    tax_reserve = float(state.get("tax_reserve_cash", 0.0))
+    withheld = float(
+        state.get("profit_recycling", {}).get("ledger", {}).get(
+            "withheld_profit_balance", 0.0
+        )
+    )
+    if broker_cash < -1e-9 or broker_cash + 1e-9 < tax_reserve + withheld:
+        raise ProviderFailure(
+            failure_class="BROKER_ACCOUNT_CASH_INCOMPATIBLE",
+            provider=snapshot.provider_identity.lower(),
+            operation="broker_account_reconciliation",
+            endpoint=f"broker-account-provider:{snapshot.provider_identity}",
+            recoverable=False,
+            exception_type="BrokerAccountingConflict",
+            message="Broker cash cannot preserve the existing tax/withheld separation.",
+            request_parameters={},
+        )
+
+    revision_before = int(state["revision"])
+    cash_before = float(state["cash"])
+    qdte_shares_before = float(state.get("qdte_shares", 0.0))
+    managed_positions_before = {
+        symbol: dict(position) for symbol, position in state.get("positions", {}).items()
+    }
+    strategy_realized_before = float(state.get("realized_pnl", 0.0))
+    contributed_before = float(state.get("contributed_capital", 0.0))
+    profit_ledger_before = sip.fingerprint(state.get("profit_recycling", {}))
+    invalidated_pending: list[dict[str, str]] = []
+    for symbol, signal in sorted(state.get("pending", {}).items()):
+        execution_id = _entry_execution_id(state, symbol, signal)
+        if execution_id not in state["completed_execution_ids"]:
+            state["completed_execution_ids"].append(execution_id)
+        invalidated_pending.append({
+            "symbol": symbol,
+            "signal_id": str(signal["signal_id"]),
+            "execution_id": execution_id,
+            "reason": "EXTERNAL_BROKER_ACCOUNT_CHANGE_INVALIDATED_PENDING_ACTION",
+        })
+    state["pending"] = {}
+
+    qdte_position = next(
+        (
+            position for position in snapshot.positions
+            if position.symbol == "QDTE" and position.side == "long"
+        ),
+        None,
+    )
+    state["qdte_shares"] = float(qdte_position.quantity) if qdte_position else 0.0
+    state["qdte_cost"] = (
+        float(
+            qdte_position.cost_basis
+            if qdte_position.cost_basis is not None
+            else qdte_position.quantity * qdte_position.average_entry_price
+        )
+        if qdte_position
+        else 0.0
+    )
+    state["cash"] = max(0.0, broker_cash - tax_reserve)
+    observed_by_symbol = {position.symbol: position for position in snapshot.positions}
+    preserved_managed_positions: dict[str, dict[str, Any]] = {}
+    for symbol, managed in managed_positions_before.items():
+        observed = observed_by_symbol.get(str(symbol).upper())
+        expected_quantity = float(managed["shares"])
+        expected_cost = expected_quantity * float(managed["entry_price"])
+        if (
+            observed is not None
+            and observed.side == "long"
+            and abs(float(observed.quantity) - expected_quantity) <= 1e-9
+            and (
+                observed.cost_basis is None
+                or abs(float(observed.cost_basis) - expected_cost) <= 1e-6
+            )
+        ):
+            preserved_managed_positions[str(symbol).upper()] = managed
+    state["positions"] = preserved_managed_positions
+    external_positions = {
+        position.symbol: position.as_dict()
+        for position in snapshot.positions
+        if (
+            position is not qdte_position
+            and position.symbol not in preserved_managed_positions
+        )
+    }
+    broker["external_positions"] = external_positions
+    broker["risk_block_reason"] = _broker_risk_block_reason(
+        snapshot,
+        managed_strategy_symbols=frozenset(preserved_managed_positions),
+    )
+    previous_broker_cash = (
+        float(previous_snapshot["cash"]) if previous_snapshot is not None else None
+    )
+    broker_cash_delta = (
+        broker_cash - previous_broker_cash if previous_broker_cash is not None else 0.0
+    )
+    broker["external_account_cash_delta_total"] = float(
+        broker.get("external_account_cash_delta_total", 0.0)
+    ) + broker_cash_delta
+    broker["last_applied_identity_fingerprint"] = identity
+    broker["reconciliation_count"] = int(broker.get("reconciliation_count", 0)) + 1
+    state["revision"] = revision_before + 1
+    reconciliation_id = sip.fingerprint({
+        "kind": "external_broker_reconciliation",
+        "account_identity_fingerprint": account_identity,
+        "previous_identity_fingerprint": previous_identity,
+        "identity_fingerprint": identity,
+        "revision": state["revision"],
+        "contract_fingerprint": state["contract_fingerprint"],
+    })
+    broker["last_reconciliation_id"] = reconciliation_id
+    cash_classification = (
+        "INITIAL_BROKER_AUTHORITY_ADOPTION"
+        if previous_snapshot is None
+        else (
+            "NO_BROKER_CASH_CHANGE"
+            if abs(broker_cash_delta) <= 1e-9
+            else "EXTERNAL_ACCOUNT_CASH_CHANGE_UNCLASSIFIED_NOT_STRATEGY_PNL"
+        )
+    )
+    event = {
+        "event_id": reconciliation_id,
+        "reconciliation_id": reconciliation_id,
+        "source": f"{snapshot.provider_identity}_CANONICAL_BROKER_OBSERVATION_ONLY",
+        "operator_origin": "EXTERNAL_OR_OPERATOR_ORIGINATED_ACCOUNT_CHANGE",
+        "broker_orders_submitted": False,
+        "account_identity_fingerprint": account_identity,
+        "previous_broker_identity_fingerprint": previous_identity,
+        "broker_identity_fingerprint": identity,
+        "broker_observed_at_utc": snapshot.observed_at_utc.isoformat(),
+        "market_data_provider": selection.market_data_provider,
+        "broker_account_provider": selection.broker_account_provider,
+        "order_execution_provider": selection.order_execution_provider,
+        "broker_cash": broker_cash,
+        "broker_equity": float(snapshot.equity) if snapshot.equity is not None else None,
+        "broker_buying_power": (
+            float(snapshot.buying_power) if snapshot.buying_power is not None else None
+        ),
+        "broker_cash_delta_from_previous_snapshot": broker_cash_delta,
+        "cash_change_classification": cash_classification,
+        "working_cash_before": cash_before,
+        "working_cash_after": state["cash"],
+        "strategy_tax_reserve_preserved": tax_reserve,
+        "qdte_shares_before": qdte_shares_before,
+        "qdte_shares_after": state["qdte_shares"],
+        "managed_strategy_positions_before": managed_positions_before,
+        "managed_strategy_positions_after": preserved_managed_positions,
+        "authoritative_broker_positions_after": [
+            position.as_dict() for position in snapshot.positions
+        ],
+        "external_broker_positions_after": external_positions,
+        "invalidated_pending_actions": invalidated_pending,
+        "strategy_realized_pnl_before": strategy_realized_before,
+        "strategy_realized_pnl_after": float(state.get("realized_pnl", 0.0)),
+        "contributed_capital_before": contributed_before,
+        "contributed_capital_after": float(state.get("contributed_capital", 0.0)),
+        "profit_recycling_state_before": profit_ledger_before,
+        "profit_recycling_state_after": sip.fingerprint(state.get("profit_recycling", {})),
+        "risk_block_reason": broker["risk_block_reason"],
+        "revision_before": revision_before,
+        "revision_after": state["revision"],
+    }
+    state["broker_reconciliation_event_pending"] = event
+    store.save(state)
+    _flush_pending_broker_reconciliation(state, store)
+    return True
+
+
+def observe_and_reconcile_broker_account(
+    state: dict[str, Any],
+    store: "IEXResearchStore",
+    observed_at: datetime,
+    *,
+    force: bool = False,
+    selection: ProviderSelection | None = None,
+    provider: BrokerAccountProvider | None = None,
+) -> bool:
+    _flush_pending_broker_reconciliation(state, store)
+    if selection is None or provider is None:
+        if not broker_reconciliation_enabled():
+            return False
+        selection, provider = configured_broker_account_provider()
+    if provider.provider_identity != selection.broker_account_provider:
+        raise RuntimeError("Configured broker provider identity is inconsistent.")
+    broker = _broker_state(state, selection)
+    if not broker_reconciliation_due(state, observed_at, force=force):
+        return False
+    candidate = _observe_broker_provider(provider, observed_at)
+    previous_identity = broker.get("last_applied_identity_fingerprint")
+    if candidate.identity_fingerprint != previous_identity:
+        confirmation = _observe_broker_provider(provider, datetime.now(timezone.utc))
+        if confirmation.identity_fingerprint != candidate.identity_fingerprint:
+            raise ProviderFailure(
+                failure_class="BROKER_SNAPSHOT_UNSTABLE",
+                provider=provider.provider_identity.lower(),
+                operation="broker_account_reconciliation",
+                endpoint=f"broker-account-provider:{provider.provider_identity}",
+                recoverable=True,
+                exception_type="BrokerSnapshotRace",
+                message="Broker cash/position identity changed during confirmation.",
+                request_parameters={},
+            )
+        candidate = confirmation
+    return _reconcile_confirmed_broker_snapshot(
+        state,
+        store,
+        candidate,
+        selection,
+    )
+
+
+def _observe_broker_provider(
+    provider: BrokerAccountProvider, observed_at: datetime
+) -> BrokerAccountSnapshot:
+    try:
+        snapshot = provider.observe(observed_at)
+    except ProviderFailure:
+        raise
+    except Exception as exc:
+        raise ProviderFailure(
+            failure_class="BROKER_ACCOUNT_PROVIDER_FAILURE",
+            provider=provider.provider_identity.lower(),
+            operation="broker_account_observation",
+            endpoint=f"broker-account-provider:{provider.provider_identity}",
+            recoverable=True,
+            exception_type=type(exc).__name__,
+            message=str(exc),
+            request_parameters={},
+        ) from exc
+    if not isinstance(snapshot, BrokerAccountSnapshot):
+        raise RuntimeError("Broker provider returned a non-canonical snapshot.")
+    if snapshot.provider_identity != provider.provider_identity:
+        raise RuntimeError("Broker snapshot provider identity is inconsistent.")
+    _record_provider_contact()
+    return snapshot
 
 
 class IEXResearchStore(sip.Store):
@@ -604,6 +1225,8 @@ def _heartbeat_payload(
     failure: ProviderFailure | None = None,
     degraded_since_at_utc: str | None = None,
 ) -> dict[str, Any]:
+    broker = state.get("broker_reconciliation", {}) if state else {}
+    broker_snapshot = broker.get("last_snapshot") or {}
     return {
         "schema_version": HEARTBEAT_SCHEMA_VERSION,
         "runner_variant": VARIANT,
@@ -632,6 +1255,25 @@ def _heartbeat_payload(
         "degraded_since_at_utc": degraded_since_at_utc,
         "state_revision": state.get("revision") if state else None,
         "failure": failure.as_dict() if failure else None,
+        "broker_reconciliation": {
+            "enabled": broker_reconciliation_enabled(),
+            "mode": broker.get("mode"),
+            "market_data_provider": broker.get("market_data_provider"),
+            "broker_account_provider": broker.get("broker_account_provider"),
+            "order_execution_provider": broker.get("order_execution_provider"),
+            "broker_orders_enabled": False,
+            "last_observed_at_utc": broker.get("last_observed_at_utc"),
+            "last_reconciliation_id": broker.get("last_reconciliation_id"),
+            "reconciliation_count": broker.get("reconciliation_count", 0),
+            "account_identity_fingerprint": broker_snapshot.get(
+                "account_identity_fingerprint"
+            ),
+            "broker_cash": broker_snapshot.get("cash"),
+            "broker_equity": broker_snapshot.get("equity"),
+            "broker_buying_power": broker_snapshot.get("buying_power"),
+            "broker_position_count": len(broker_snapshot.get("positions", [])),
+            "risk_block_reason": broker.get("risk_block_reason"),
+        },
     }
 
 
@@ -694,6 +1336,21 @@ def process_pending_execution_clock(
     Returns true while a pending signal is waiting for or inside its execution
     minute, so the cycle avoids slow catch-up work until the opportunity closes.
     """
+    broker_block = state.get("broker_reconciliation", {}).get("risk_block_reason")
+    if broker_block:
+        had_pending = bool(state["pending"])
+        for symbol, signal in sorted(list(state["pending"].items())):
+            _expire_pending(
+                state,
+                store,
+                symbol,
+                signal,
+                observed_at,
+                f"BROKER_RECONCILIATION_RISK_BLOCK:{broker_block}",
+            )
+        if had_pending:
+            store.save(state)
+        return False
     for symbol, signal in sorted(list(state["pending"].items())):
         action = execution_clock_action(signal, observed_at)
         if action == "WAIT":
@@ -766,6 +1423,9 @@ def process_pending_execution_clock(
                             state["profit_recycling"]["event_sequence"] + 1)
         state["profit_recycling"]["current_event_sequence"] = next_sequence
         deployable = profit_runtime.ledger.available_swing_cash(state["cash"], next_sequence)
+        broker_snapshot = state.get("broker_reconciliation", {}).get("last_snapshot")
+        if broker_snapshot is not None and broker_snapshot.get("buying_power") is not None:
+            deployable = min(deployable, max(0.0, float(broker_snapshot["buying_power"])))
         config = sip.qualified.candidate_config()
         sizing = sip.calculate_position_size(
             account_equity=equity, available_cash=deployable, entry_price=open_price,
@@ -791,6 +1451,18 @@ def process_pending_execution_clock(
             highest_price=sizing.entry_fill,
         )
         state["positions"] = {name: sip._position_dict(value) for name, value in positions.items()}
+        entry_snapshot = {
+            "entry_decision_id": signal.get("decision_id", signal["signal_id"]),
+            "entry_signal_id": signal["signal_id"],
+            "semantic_contract_fingerprint": state["contract_fingerprint"],
+            "semantic_version": state.get("semantic_contract_version", state["contract"].get("semantic_version")),
+            "candidate_v1_semantic_version": state["contract"].get("entry_semantics_version"),
+            "candidate_v1_semantic_fingerprint": state["contract"].get("entry_semantics_fingerprint"),
+            "profit_recycling_configuration_fingerprint": state["contract"].get("profit_recycling_configuration_fingerprint"),
+            "bar_adjustment": state["contract"].get("bar_adjustment"),
+            "provider_input_semantics_version": state["contract"].get("provider_input_semantics_version"),
+        }
+        state["positions"][symbol]["entry_semantic_snapshot"] = entry_snapshot
         sip._persist_profit_runtime(state, profit_runtime)
         state["completed_execution_ids"].append(execution_id)
         state["pending"].pop(symbol, None)
@@ -833,6 +1505,7 @@ def initialize(
     state = {
         "schema_version": sip.SCHEMA, "mode": VARIANT,
         "research_only": True, "sip_parity_claimed": False,
+        "semantic_contract_version": contract.get("semantic_version"),
         "qualified": False, "promoted": False,
         "live_broker_enabled": False, "simulated_fills_only": True,
         "contract": persisted_contract, "contract_fingerprint": sip.fingerprint(contract),
@@ -905,7 +1578,12 @@ def _iex_request_scope() -> Iterator[None]:
         sip._vix_previous_close = original_vix
 
 
-def _cycle(store: IEXResearchStore, observed_at: datetime) -> dict[str, Any]:
+def _cycle(
+    store: IEXResearchStore,
+    observed_at: datetime,
+    *,
+    force_broker_reconciliation: bool = False,
+) -> dict[str, Any]:
     contract = load_contract()
     state = store.reconcile()
     if state is None:
@@ -919,10 +1597,27 @@ def _cycle(store: IEXResearchStore, observed_at: datetime) -> dict[str, Any]:
                     parameters={"symbol": "QDTE", "timeframe": "1Min"},
                 ) from exc
             raise
-    elif state.get("contract_fingerprint") != sip.fingerprint(contract):
+    elif state.get("contract_fingerprint") not in {
+        OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+        sip.fingerprint(contract),
+    }:
         raise RuntimeError("Persisted IEX research strategy identity differs from its contract.")
     if state.get("schema_version") != sip.SCHEMA or state.get("mode") != VARIANT:
         raise RuntimeError("Persisted state is not the IEX forward-research schema.")
+    _flush_pending_broker_reconciliation(state, store)
+    _flush_pending_semantic_transition(state, store)
+    if broker_reconciliation_enabled():
+        observe_and_reconcile_broker_account(
+            state,
+            store,
+            observed_at,
+            force=(
+                force_broker_reconciliation
+                or bool(state.get("pending"))
+                or decision_processing_due(state, observed_at)
+            ),
+        )
+    _transition_semantic_contract_if_required(state, store, contract, observed_at)
     if process_pending_execution_clock(state, store, observed_at):
         state["last_observed_at_utc"] = observed_at.astimezone(timezone.utc).isoformat()
         state["revision"] += 1
@@ -987,7 +1682,57 @@ def _cycle(store: IEXResearchStore, observed_at: datetime) -> dict[str, Any]:
 def cycle(runtime: Path, observed_at: datetime | None = None) -> dict[str, Any]:
     store = IEXResearchStore(runtime)
     with store.locked():
-        return _cycle(store, observed_at or datetime.now(timezone.utc))
+        return _cycle(
+            store,
+            observed_at or datetime.now(timezone.utc),
+            force_broker_reconciliation=broker_reconciliation_enabled(),
+        )
+
+
+def broker_reconciliation_status(runtime: Path) -> dict[str, Any]:
+    state = IEXResearchStore(runtime).reconcile()
+    if state is None:
+        return {
+            "status": "NO_CLEAN_V2_STATE",
+            "runtime": str(runtime.resolve()),
+            "broker_orders_enabled": False,
+        }
+    broker = state.get("broker_reconciliation") or {}
+    snapshot = broker.get("last_snapshot") or {}
+    return {
+        "status": (
+            "BROKER_RECONCILIATION_ACTIVE"
+            if broker
+            else "BROKER_RECONCILIATION_NOT_YET_ACTIVATED"
+        ),
+        "runner_variant": state.get("mode"),
+        "state_revision": state.get("revision"),
+        "live_broker_enabled": False,
+        "broker_orders_enabled": False,
+        "broker_reconciliation_mode": broker.get("mode"),
+        "configuration_fingerprint": broker.get("configuration_fingerprint"),
+        "market_data_provider": broker.get("market_data_provider"),
+        "broker_account_provider": broker.get("broker_account_provider"),
+        "order_execution_provider": broker.get("order_execution_provider"),
+        "last_observed_at_utc": broker.get("last_observed_at_utc"),
+        "last_reconciliation_id": broker.get("last_reconciliation_id"),
+        "reconciliation_count": broker.get("reconciliation_count", 0),
+        "account_identity_fingerprint": snapshot.get(
+            "account_identity_fingerprint"
+        ),
+        "broker_cash": snapshot.get("cash"),
+        "broker_equity": snapshot.get("equity"),
+        "broker_buying_power": snapshot.get("buying_power"),
+        "broker_positions": snapshot.get("positions", []),
+        "external_account_cash_delta_total": broker.get(
+            "external_account_cash_delta_total", 0.0
+        ),
+        "risk_block_reason": broker.get("risk_block_reason"),
+        "managed_strategy_positions": state.get("positions", {}),
+        "pending_actions": state.get("pending", {}),
+        "strategy_realized_pnl": state.get("realized_pnl"),
+        "contributed_capital": state.get("contributed_capital"),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -995,9 +1740,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--runtime-dir", type=Path, default=DEFAULT_RUNTIME)
     parser.add_argument("--daemon", action="store_true")
     parser.add_argument("--poll-seconds", type=int, default=30)
+    parser.add_argument("--broker-reconciliation-status", action="store_true")
     args = parser.parse_args(argv)
     if args.poll_seconds < 15:
         raise ValueError("Poll interval must be at least 15 seconds.")
+    if args.broker_reconciliation_status:
+        print(
+            json.dumps(broker_reconciliation_status(args.runtime_dir), indent=2, sort_keys=True),
+            flush=True,
+        )
+        return 0
     if not args.daemon:
         state = cycle(args.runtime_dir)
         print(json.dumps({
@@ -1036,12 +1788,24 @@ def main(argv: list[str] | None = None) -> int:
             else None
         )
         last_status_print = datetime.min.replace(tzinfo=timezone.utc)
+        broker_reconciliation_required = broker_reconciliation_enabled()
         while not stop_requested.is_set():
             observed_at = datetime.now(timezone.utc)
             state: dict[str, Any] | None = None
             try:
-                state = _cycle(store, observed_at)
+                if broker_reconciliation_enabled():
+                    state = _cycle(
+                        store,
+                        observed_at,
+                        force_broker_reconciliation=(
+                            broker_reconciliation_required or consecutive_failures > 0
+                        ),
+                    )
+                else:
+                    state = _cycle(store, observed_at)
+                broker_reconciliation_required = False
             except ProviderFailure as failure:
+                broker_reconciliation_required = True
                 new_degradation = previous_failure_class != failure.failure_class
                 if new_degradation:
                     degraded_since = observed_at.isoformat()
