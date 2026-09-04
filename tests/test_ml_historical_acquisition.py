@@ -433,7 +433,87 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
                 acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertEqual(state["live_session_yield_date"], NOW.astimezone().date().isoformat())
 
-    @patch("qpx_bot.ml_historical_acquisition._latest_clean_cycle_lag", return_value=181.0)
+    def test_live_download_defers_finalization_and_can_continue(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); client = FakeClient([{"bars": {}, "next_page_token": None}, {"bars": {}, "next_page_token": None}])
+            client.rate_limit = 200; client.rate_limit_remaining = 199
+            probe = lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True, "clean_v2_service_state": "active"}
+            acquisition = Acquisition(root, client, now=lambda: NOW, capacity_probe=probe)
+            state = self.partition_state(); acquisition._state_defaults(state)
+            for batch in (0, 1):
+                acquisition.acquire_partition(state, {"year": 2026, "batch": batch, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertEqual(client.request_count, 2)
+            self.assertEqual(len(state["pending_finalizations"]), 2)
+            self.assertFalse((root / "bars_15m/year=2026/batch=00000.csv.gz").exists())
+
+    def test_pending_finalization_survives_restart_and_is_not_redownloaded(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); client = FakeClient([{"bars": {}, "next_page_token": None}])
+            probe = lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True}
+            acquisition = Acquisition(root, client, now=lambda: NOW, capacity_probe=probe)
+            state = self.partition_state(); acquisition._state_defaults(state)
+            item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
+            state["partitions"] = [item]; state["partitions_total"] = 1
+            acquisition.acquire_partition(state, item); acquisition.save_state(state)
+            reloaded = Acquisition(root, FakeClient(), now=lambda: NOW, capacity_probe=probe).load_state()
+            self.assertEqual(reloaded["pending_finalizations"][0]["partition"], "year=2026/batch=00000")
+            self.assertEqual(client.request_count, 1)
+
+    def test_off_market_drains_pending_finalization_without_download(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); live_client = FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}])
+            live = Acquisition(root, live_client, now=lambda: NOW, capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True})
+            live.disk_gate = lambda: 900_000_000_000
+            state = self.partition_state(); live._state_defaults(state)
+            item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}; state["partitions"] = [item]
+            live.acquire_partition(state, item)
+            off_client = FakeClient(); off = Acquisition(root, off_client, now=lambda: NOW, capacity_probe=lambda _now: {"mode": "OFF_MARKET", "live_qpx_active": False})
+            off.disk_gate = lambda: 900_000_000_000; off._drain_pending_finalizations(state)
+            self.assertEqual(off_client.request_count, 0); self.assertEqual(state["partitions_complete"], 1)
+            self.assertFalse(state["pending_finalizations"])
+
+    def test_queue_full_yields_then_drains_off_market(self):
+        with tempfile.TemporaryDirectory() as folder:
+            decisions = iter(({"mode": "LIVE_COEXISTENCE", "live_qpx_active": True}, {"mode": "OFF_MARKET", "live_qpx_active": False}))
+            sleeps = []; acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW, sleep=sleeps.append, capacity_probe=lambda _now: next(decisions))
+            state = self.partition_state(); acquisition._state_defaults(state)
+            state["pending_finalizations"] = [{"partition": str(i)} for i in range(32)]
+            acquisition._drain_pending_finalizations = lambda value: value["pending_finalizations"].clear()
+            acquisition._pending_capacity_gate(state)
+            self.assertEqual(sleeps, [30]); self.assertFalse(state["pending_finalizations"])
+
+    def test_recent_historical_activity_makes_clean_lag_yield_then_resume(self):
+        with tempfile.TemporaryDirectory() as folder:
+            decisions = iter((
+                {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_DECISION_LATENCY", "live_qpx_active": True},
+                {"mode": "LIVE_COEXISTENCE", "reason": None, "live_qpx_active": True},
+            )); sleeps=[]
+            acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW, sleep=sleeps.append, capacity_probe=lambda _now: next(decisions))
+            state = self.partition_state(); acquisition._state_defaults(state); state["last_historical_activity_at_utc"] = NOW.isoformat()
+            acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
+            self.assertEqual(sleeps, [30]); self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
+
+    def test_old_historical_activity_does_not_latch_unrelated_clean_lag(self):
+        with tempfile.TemporaryDirectory() as folder:
+            assessment = {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_DECISION_LATENCY", "live_qpx_active": True, "clean_v2_degradation_observed_at_utc": NOW.isoformat()}
+            acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW, capacity_probe=lambda _now: assessment)
+            state = self.partition_state(); acquisition._state_defaults(state)
+            state["last_historical_activity_at_utc"] = "2026-09-03T18:00:00+00:00"
+            acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
+            self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
+            self.assertIsNone(state["live_session_yield_date"])
+            journal = (Path(folder) / "acquisition_state/coexistence_journal.jsonl").read_text()
+            self.assertIn("LIVE_DEGRADATION_NOT_ATTRIBUTABLE_TO_HISTORICAL", journal)
+
+    def test_transition_journal_records_reason_and_pending_count(self):
+        with tempfile.TemporaryDirectory() as folder:
+            acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW)
+            state = self.partition_state(); acquisition._state_defaults(state)
+            acquisition._set_mode(state, "WAITING_FOR_LIVE_CAPACITY", "CPU_LOAD_PRESSURE", {"load_1m": 9.0}, "ATTRIBUTABLE_RECENT_HISTORICAL_ACTIVITY")
+            record = json.loads((Path(folder) / "acquisition_state/coexistence_journal.jsonl").read_text().strip())
+            self.assertEqual(record["reason"], "CPU_LOAD_PRESSURE"); self.assertEqual(record["pending_finalization_count"], 0)
+
+    @patch("qpx_bot.ml_historical_acquisition._latest_clean_cycle_evidence", return_value={"lag_seconds": 181.0, "observed_at_utc": "2026-09-04T14:05:00+00:00"})
     @patch("qpx_bot.ml_historical_acquisition._proc_io_pressure", return_value=0.0)
     @patch("qpx_bot.ml_historical_acquisition._proc_available_memory", return_value=8_000_000_000)
     @patch("qpx_bot.ml_historical_acquisition._clean_provider_state", return_value="HEALTHY")

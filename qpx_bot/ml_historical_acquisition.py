@@ -63,6 +63,9 @@ LIVE_REQUESTS_PER_MINUTE = 6
 LIVE_CAPACITY_RECHECK_SECONDS = 30
 LIVE_DECISION_PROTECTION_SECONDS = 240
 LIVE_DECISION_LAG_LIMIT_SECONDS = 180
+LIVE_ATTRIBUTION_WINDOW_SECONDS = 90
+MAX_PENDING_FINALIZATIONS = 32
+COEXISTENCE_JOURNAL_MAX_BYTES = 1_000_000
 LIVE_MIN_AVAILABLE_MEMORY_BYTES = 2_000_000_000
 LIVE_MAX_IO_PRESSURE_AVG10 = 10.0
 LIVE_MAX_LOAD_PER_CPU = 0.5
@@ -262,7 +265,7 @@ def _clean_service_state() -> str:
         return "unknown"
 
 
-def _latest_clean_cycle_lag() -> float | None:
+def _latest_clean_cycle_evidence() -> dict[str, Any] | None:
     path = CLEAN_V2_RUNTIME / "iex_research_paper_audit.jsonl"
     try:
         lines = path.read_text(encoding="utf-8").splitlines()[-200:]
@@ -274,10 +277,17 @@ def _latest_clean_cycle_lag() -> float | None:
             if record.get("event_type") != "IEX_RESEARCH_DECISION_CYCLE_TELEMETRY":
                 continue
             end = record["details"]["decision_bar_interval"]["end_market"]
-            return (datetime.fromisoformat(record["observed_at_utc"]) - datetime.fromisoformat(end)).total_seconds()
+            observed = datetime.fromisoformat(record["observed_at_utc"])
+            return {"lag_seconds": (observed - datetime.fromisoformat(end)).total_seconds(),
+                    "observed_at_utc": observed.isoformat()}
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             continue
     return None
+
+
+def _latest_clean_cycle_lag() -> float | None:
+    evidence = _latest_clean_cycle_evidence()
+    return float(evidence["lag_seconds"]) if evidence else None
 
 
 def _clean_provider_state() -> str:
@@ -303,23 +313,25 @@ def coexistence_capacity(moment: datetime) -> dict[str, Any]:
     market = moment.astimezone(EASTERN)
     seconds_after_quarter = ((market.minute % 15) * 60) + market.second
     if seconds_after_quarter < LIVE_DECISION_PROTECTION_SECONDS:
-        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_DECISION_WINDOW", **common}
+        return {"mode": "PROTECTED_DECISION_WINDOW", "reason": "CLEAN_V2_DECISION_WINDOW", **common}
     provider_state = _clean_provider_state()
     if market.time().replace(tzinfo=None) >= wall_time(9, 45) and provider_state != "HEALTHY":
         return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_PROVIDER_NOT_HEALTHY", "clean_v2_provider_state": provider_state, **common}
     available = _proc_available_memory()
     load = os.getloadavg()[0]
     io_pressure = _proc_io_pressure()
+    evidence = {"available_memory_bytes": available, "load_1m": load, "io_pressure_avg10": io_pressure}
     if available < LIVE_MIN_AVAILABLE_MEMORY_BYTES:
-        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "MEMORY_PRESSURE", **common}
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "MEMORY_PRESSURE", **evidence, **common}
     if load > max(1.0, (os.cpu_count() or 1) * LIVE_MAX_LOAD_PER_CPU):
-        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CPU_LOAD_PRESSURE", **common}
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CPU_LOAD_PRESSURE", **evidence, **common}
     if io_pressure > LIVE_MAX_IO_PRESSURE_AVG10:
-        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "DISK_IO_PRESSURE", **common}
-    lag = _latest_clean_cycle_lag()
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "DISK_IO_PRESSURE", **evidence, **common}
+    cycle = _latest_clean_cycle_evidence()
+    lag = float(cycle["lag_seconds"]) if cycle else None
     if lag is not None and lag > LIVE_DECISION_LAG_LIMIT_SECONDS:
-        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_DECISION_LATENCY", "clean_v2_latest_decision_lag_seconds": lag, **common}
-    return {"mode": "LIVE_COEXISTENCE", "reason": None, "historical_request_ceiling_per_minute": LIVE_REQUESTS_PER_MINUTE, "clean_v2_latest_decision_lag_seconds": lag, "clean_v2_provider_state": provider_state, **common}
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_DECISION_LATENCY", "clean_v2_latest_decision_lag_seconds": lag, "clean_v2_degradation_observed_at_utc": cycle["observed_at_utc"], **evidence, **common}
+    return {"mode": "LIVE_COEXISTENCE", "reason": None, "historical_request_ceiling_per_minute": LIVE_REQUESTS_PER_MINUTE, "clean_v2_latest_decision_lag_seconds": lag, "clean_v2_provider_state": provider_state, **evidence, **common}
 
 
 @dataclass
@@ -593,9 +605,66 @@ class Acquisition:
         state.setdefault("historical_request_ceiling_per_minute", REQUESTS_PER_MINUTE)
         state.setdefault("historical_concurrency", 1)
         state.setdefault("live_session_yield_date", None)
+        state.setdefault("live_session_latch_reason", None)
+        state.setdefault("pending_finalizations", [])
+        state.setdefault("last_historical_activity_at_utc", None)
+        state.setdefault("attributable_live_degradation_count", 0)
+        state.setdefault("coexistence_journal_events", 0)
         state.setdefault("request_rate_measurement_started_at_utc", self.now().isoformat())
         state.setdefault("request_rate_measurement_baseline", state.get("api_request_count", 0))
         state["morning_deadline"] = "REPLACED_BY_GUARDED_LIVE_COEXISTENCE"
+        if state.get("live_session_yield_date") and not state.get("live_session_latch_reason"):
+            state["live_session_yield_date"] = None
+
+    def _journal_transition(self, state: dict[str, Any], previous: str | None,
+                            new: str, reason: str | None,
+                            assessment: Mapping[str, Any], attribution: str | None = None) -> None:
+        signature = [new, reason, attribution]
+        if state.get("last_coexistence_journal_signature") == signature:
+            return
+        path = self.root / "acquisition_state" / "coexistence_journal.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists() and path.stat().st_size >= COEXISTENCE_JOURNAL_MAX_BYTES:
+            rotated = path.with_suffix(path.suffix + ".1")
+            path.replace(rotated)
+        record = {
+            "timestamp_utc": self.now().isoformat(), "previous_mode": previous,
+            "new_mode": new, "reason": reason,
+            "last_historical_request_at_utc": state.get("last_historical_activity_at_utc"),
+            "historical_request_rate": state.get("historical_request_ceiling_per_minute"),
+            "current_partition": state.get("current_partition"),
+            "pending_finalization_count": len(state.get("pending_finalizations", [])),
+            "clean_v2_state": assessment.get("clean_v2_service_state"),
+            "latest_decision_lag_seconds": assessment.get("clean_v2_latest_decision_lag_seconds"),
+            "provider_limit": state.get("provider_rate_limit"),
+            "provider_remaining": state.get("provider_rate_limit_remaining"),
+            "available_memory_bytes": assessment.get("available_memory_bytes"),
+            "load_1m": assessment.get("load_1m"), "io_pressure_avg10": assessment.get("io_pressure_avg10"),
+            "attribution": attribution, "session_latch": state.get("live_session_latch_reason"),
+        }
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+            handle.flush(); os.fsync(handle.fileno())
+        state["last_coexistence_journal_signature"] = signature
+        state["coexistence_journal_events"] = int(state.get("coexistence_journal_events", 0)) + 1
+
+    def _historical_activity_recent(self, state: Mapping[str, Any], assessment: Mapping[str, Any]) -> bool:
+        value = state.get("last_historical_activity_at_utc")
+        if not value:
+            return False
+        try:
+            event = datetime.fromisoformat(str(assessment.get("clean_v2_degradation_observed_at_utc") or self.now().isoformat()))
+            age = (event - datetime.fromisoformat(str(value))).total_seconds()
+        except ValueError:
+            return False
+        return 0 <= age <= LIVE_ATTRIBUTION_WINDOW_SECONDS
+
+    def _set_mode(self, state: dict[str, Any], mode: str, reason: str | None,
+                  assessment: Mapping[str, Any], attribution: str | None = None) -> None:
+        previous = state.get("operating_mode")
+        state["operating_mode"] = mode
+        state["live_capacity_reason"] = reason
+        self._journal_transition(state, previous, mode, reason, assessment, attribution)
 
     def _set_request_rate(self, requests_per_minute: int) -> None:
         governor = getattr(self.client, "governor", None)
@@ -614,27 +683,39 @@ class Acquisition:
                 elif remaining <= max(50, int(limit) // 2):
                     assessment.update({"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "PROVIDER_CAPACITY_RESERVED_FOR_CLEAN_V2"})
                     state["live_session_yield_date"] = market_date
-            if assessment.get("reason") in {"CLEAN_V2_DECISION_LATENCY", "CLEAN_V2_PROVIDER_NOT_HEALTHY"}:
-                state["live_session_yield_date"] = market_date
-            if state.get("live_session_yield_date") == market_date and assessment.get("mode") != "OFF_MARKET":
+                    state["live_session_latch_reason"] = "ATTRIBUTABLE_PROVIDER_CAPACITY_EXHAUSTION"
+            degradation = assessment.get("reason") in {"CLEAN_V2_DECISION_LATENCY", "CLEAN_V2_PROVIDER_NOT_HEALTHY"}
+            attribution = None
+            if degradation:
+                if self._historical_activity_recent(state, assessment):
+                    attribution = "ATTRIBUTABLE_RECENT_HISTORICAL_ACTIVITY"
+                    state["attributable_live_degradation_count"] = int(state.get("attributable_live_degradation_count", 0)) + 1
+                    if state["attributable_live_degradation_count"] >= 2:
+                        state["live_session_yield_date"] = market_date
+                        state["live_session_latch_reason"] = "REPRODUCIBLE_ATTRIBUTABLE_LIVE_DEGRADATION"
+                else:
+                    attribution = "LIVE_DEGRADATION_NOT_ATTRIBUTABLE_TO_HISTORICAL"
+                    assessment.update({"mode": "LIVE_COEXISTENCE", "reason": "LIVE_DEGRADATION_NOT_ATTRIBUTABLE_TO_HISTORICAL"})
+            if state.get("live_session_yield_date") == market_date and state.get("live_session_latch_reason") and assessment.get("mode") != "OFF_MARKET":
                 assessment.update({"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "LIVE_SESSION_SAFETY_LATCH"})
             mode = str(assessment.get("mode", "WAITING_FOR_LIVE_CAPACITY"))
             state["live_qpx_detected_active"] = bool(assessment.get("live_qpx_active"))
             state["clean_v2_service_state"] = assessment.get("clean_v2_service_state")
-            state["operating_mode"] = mode
-            state["live_capacity_reason"] = assessment.get("reason")
+            self._set_mode(state, mode, assessment.get("reason"), assessment, attribution)
             state["current_partition"] = f"year={item.get('year')}/batch={int(item.get('batch', 0)):05d}"
             if mode == "OFF_MARKET":
                 self._set_request_rate(REQUESTS_PER_MINUTE)
                 state["historical_request_ceiling_per_minute"] = REQUESTS_PER_MINUTE
                 state["live_session_yield_date"] = None
+                state["live_session_latch_reason"] = None
+                state["attributable_live_degradation_count"] = 0
                 state["status"] = "RUNNING"; state["next_retry_at_utc"] = None
                 self.save_state(state)
                 return
             if mode == "LIVE_COEXISTENCE":
                 self._set_request_rate(LIVE_REQUESTS_PER_MINUTE)
                 state["historical_request_ceiling_per_minute"] = LIVE_REQUESTS_PER_MINUTE
-                state["live_capacity_reason"] = "FINALIZATION_DEFERRED_DURING_LIVE" if finalization else None
+                state["live_capacity_reason"] = "FINALIZATION_DEFERRED_DURING_LIVE" if finalization else assessment.get("reason")
                 state["status"] = "RUNNING"; state["next_retry_at_utc"] = None
                 self.save_state(state)
                 if not finalization:
@@ -819,6 +900,84 @@ class Acquisition:
                 return 0, None
         return page, saved.get("next_page_token")
 
+    def _finalize_downloaded_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
+        year, batch = int(item["year"]), int(item["batch"])
+        start, end = self._partition_bounds(year, state["requested_range"])
+        descriptor = batch_descriptor(year=year, start=start, end=end, symbols=item["symbols"], asset_ids=item["asset_ids"])
+        excluded = {entry["symbol"] for entry in state.setdefault("unqueryable_symbols", [])}
+        symbols = [symbol for symbol in item["symbols"] if symbol not in excluded]
+        request_core = {"symbols": ",".join(symbols), "timeframe": TIMEFRAME, "start": start.isoformat() + "T00:00:00Z", "end": (end + timedelta(days=1)).isoformat() + "T00:00:00Z", "limit": str(PAGE_LIMIT), "feed": FEED, "adjustment": ADJUSTMENT, "sort": "asc"}
+        request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request_core})
+        part_id = f"year={year}/batch={batch:05d}"
+        page_root = self.root / "acquisition_state" / "pages" / f"year={year}" / f"batch={batch:05d}"
+        page, token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
+        if page < 1 or token is not None:
+            raise RuntimeError(f"Pending partition is not download-complete: {part_id}.")
+        combined: dict[tuple[str, str], dict[str, str]] = {}
+        for page_path in sorted(page_root.glob("page-*.csv.gz")):
+            for row in read_gzip_csv(page_path):
+                key = (row["provider_asset_id"], row["market_timestamp"])
+                if key in combined: raise RuntimeError(f"Duplicate provider identity/timestamp in {part_id}.")
+                combined[key] = row
+        ordered = [combined[key] for key in sorted(combined)]
+        destination = self.root / "bars_15m" / f"year={year}" / f"batch={batch:05d}.csv.gz"
+        manifest = destination.with_suffix(destination.suffix + ".manifest.json")
+        self.disk_gate(); atomic_bytes(destination, encode_gzip_csv(ordered, BAR_COLUMNS))
+        sessions = sorted({row["session_date"] for row in ordered})
+        partition_manifest = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION, "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "partition": part_id, "year": year, "batch": batch, "batch_fingerprint": descriptor["batch_fingerprint"], "ordered_provider_asset_ids": [member["provider_asset_id"] for member in descriptor["members"]], "ordered_symbol_mapping": descriptor["members"], "requested_start": start.isoformat(), "requested_end": end.isoformat(), "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT, "timeframe": TIMEFRAME, "request_fingerprint": request_fp, "requested_security_count": len(descriptor["members"]), "security_count": len({r["provider_asset_id"] for r in ordered}), "row_count": len(ordered), "actual_first_observation": min((r["market_timestamp"] for r in ordered), default=None), "actual_last_observation": max((r["market_timestamp"] for r in ordered), default=None), "first_observed_bar": min((r["market_timestamp"] for r in ordered), default=None), "last_observed_bar": max((r["market_timestamp"] for r in ordered), default=None), "first_session": sessions[0] if sessions else None, "last_session": sessions[-1] if sessions else None, "sha256": sha256_path(destination), "page_count": page, "synthetic_bars": False, "forward_fill": False, "timestamp_substitution": False, "completed_at_utc": self.now().isoformat()}
+        partition_manifest["manifest_fingerprint"] = fingerprint(partition_manifest)
+        atomic_json(manifest, partition_manifest)
+        for path in page_root.glob("*"): path.unlink()
+        page_root.rmdir()
+        if part_id not in state["completed"]:
+            state["completed"].append(part_id)
+            state["rows_15m"] += len(ordered)
+        state["partitions_complete"] = len(state["completed"])
+        state["bytes_stored"] = sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file())
+        for row in ordered:
+            observed = state["observed_ranges"].setdefault(row["provider_asset_id"], [row["market_timestamp"], row["market_timestamp"]])
+            observed[0] = min(observed[0], row["market_timestamp"]); observed[1] = max(observed[1], row["market_timestamp"])
+
+    def _enqueue_pending_finalization(self, state: dict[str, Any], item: Mapping[str, Any],
+                                      descriptor: Mapping[str, Any], request_fp: str, page: int) -> None:
+        part_id = f"year={int(item['year'])}/batch={int(item['batch']):05d}"
+        pending = state.setdefault("pending_finalizations", [])
+        if not any(entry["partition"] == part_id for entry in pending):
+            pending.append({"partition": part_id, "year": int(item["year"]), "batch": int(item["batch"]),
+                            "batch_fingerprint": descriptor["batch_fingerprint"],
+                            "request_fingerprint": request_fp, "page_count": page,
+                            "download_completed_at_utc": self.now().isoformat()})
+        state["status"] = "DOWNLOAD_COMPLETE_FINALIZATION_PENDING"
+        self._set_mode(state, "DOWNLOAD_COMPLETE_FINALIZATION_PENDING", "HEAVY_FINALIZATION_DEFERRED_DURING_LIVE", {}, None)
+        self.save_state(state)
+
+    def _drain_pending_finalizations(self, state: dict[str, Any]) -> None:
+        pending = state.setdefault("pending_finalizations", [])
+        while pending:
+            assessment = dict(self.capacity_probe(self.now()))
+            if assessment.get("mode") != "OFF_MARKET":
+                return
+            entry = pending[0]
+            item = next((value for value in state["partitions"] if int(value["year"]) == int(entry["year"]) and int(value["batch"]) == int(entry["batch"])), None)
+            if item is None:
+                raise RuntimeError(f"Pending finalization has no partition definition: {entry['partition']}.")
+            self._set_mode(state, "OFF_MARKET", "DRAINING_PENDING_FINALIZATIONS", assessment)
+            self._finalize_downloaded_partition(state, item)
+            pending.pop(0)
+            self.save_state(state)
+
+    def _pending_capacity_gate(self, state: dict[str, Any]) -> None:
+        while len(state.setdefault("pending_finalizations", [])) >= MAX_PENDING_FINALIZATIONS:
+            assessment = dict(self.capacity_probe(self.now()))
+            if assessment.get("mode") == "OFF_MARKET":
+                self._drain_pending_finalizations(state)
+                return
+            self._set_mode(state, "WAITING_FOR_FINALIZATION_CAPACITY", "PENDING_FINALIZATION_QUEUE_FULL", assessment)
+            state["status"] = "WAITING_FOR_FINALIZATION_CAPACITY"
+            state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
+            self.save_state(state)
+            self.sleep(LIVE_CAPACITY_RECHECK_SECONDS)
+
     def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
         year, batch = int(item["year"]), int(item["batch"])
         start, end = self._partition_bounds(year, state["requested_range"])
@@ -843,10 +1002,12 @@ class Acquisition:
             if token: params["page_token"] = token
             try:
                 self._capacity_gate(state, item)
+                state["last_historical_activity_at_utc"] = self.now().isoformat()
                 payload = self.client.request(BARS_URL, params)
             except ProviderError as exc:
                 if exc.status == 429 and state.get("operating_mode") in {"LIVE_COEXISTENCE", "WAITING_FOR_LIVE_CAPACITY"}:
                     state["live_session_yield_date"] = self.now().astimezone(EASTERN).date().isoformat()
+                    state["live_session_latch_reason"] = "PROVIDER_429_DURING_HISTORICAL_OVERLAP"
                     state["live_capacity_reason"] = "PROVIDER_429_LIVE_SESSION_LATCH"
                 if token and exc.status in {400, 404, 410, 422}:
                     self._quarantine_partial(page_root, "OPAQUE_PAGE_TOKEN_REJECTED_REBUILD", {"status": exc.status, **descriptor})
@@ -887,31 +1048,16 @@ class Acquisition:
             atomic_json(checkpoint, checkpoint_payload)
             self.sync_provider_counts(state)
             state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
+            state["last_historical_activity_at_utc"] = self.now().isoformat()
             if not token: pagination_complete = True
         verified_page, verified_token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
         if verified_page != page or verified_token is not None:
             raise RuntimeError(f"Final page-fragment validation failed for {part_id}.")
-        self._capacity_gate(state, item, finalization=True)
-        combined: dict[tuple[str, str], dict[str, str]] = {}
-        for page_path in sorted(page_root.glob("page-*.csv.gz")):
-            for row in read_gzip_csv(page_path):
-                key = (row["provider_asset_id"], row["market_timestamp"])
-                if key in combined: raise RuntimeError(f"Duplicate provider identity/timestamp in {part_id}.")
-                combined[key] = row
-        ordered = [combined[key] for key in sorted(combined)]
-        encoded = encode_gzip_csv(ordered, BAR_COLUMNS)
-        self.disk_gate(); atomic_bytes(destination, encoded)
-        sessions = sorted({row["session_date"] for row in ordered})
-        partition_manifest = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION, "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "partition": part_id, "year": year, "batch": batch, "batch_fingerprint": descriptor["batch_fingerprint"], "ordered_provider_asset_ids": [member["provider_asset_id"] for member in descriptor["members"]], "ordered_symbol_mapping": descriptor["members"], "requested_start": start.isoformat(), "requested_end": end.isoformat(), "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT, "timeframe": TIMEFRAME, "request_fingerprint": request_fp, "requested_security_count": len(descriptor["members"]), "security_count": len({r["provider_asset_id"] for r in ordered}), "row_count": len(ordered), "actual_first_observation": min((r["market_timestamp"] for r in ordered), default=None), "actual_last_observation": max((r["market_timestamp"] for r in ordered), default=None), "first_observed_bar": min((r["market_timestamp"] for r in ordered), default=None), "last_observed_bar": max((r["market_timestamp"] for r in ordered), default=None), "first_session": sessions[0] if sessions else None, "last_session": sessions[-1] if sessions else None, "sha256": sha256_path(destination), "page_count": page, "synthetic_bars": False, "forward_fill": False, "timestamp_substitution": False, "completed_at_utc": self.now().isoformat()}
-        partition_manifest["manifest_fingerprint"] = fingerprint(partition_manifest)
-        atomic_json(manifest, partition_manifest)
-        for path in page_root.glob("*"): path.unlink()
-        page_root.rmdir()
-        state["completed"].append(part_id); state["partitions_complete"] = len(state["completed"])
-        state["rows_15m"] += len(ordered); state["bytes_stored"] = sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file())
-        for row in ordered:
-            observed = state["observed_ranges"].setdefault(row["provider_asset_id"], [row["market_timestamp"], row["market_timestamp"]])
-            observed[0] = min(observed[0], row["market_timestamp"]); observed[1] = max(observed[1], row["market_timestamp"])
+        assessment = dict(self.capacity_probe(self.now()))
+        if assessment.get("mode") != "OFF_MARKET":
+            self._enqueue_pending_finalization(state, item, descriptor, request_fp, page)
+            return
+        self._finalize_downloaded_partition(state, item)
 
     def acquire_corporate_actions(self, state: dict[str, Any]) -> None:
         """Acquire all supported action types once after bar partitions complete."""
@@ -975,10 +1121,13 @@ class Acquisition:
         self._state_defaults(state)
         self.request_count_base = int(state.get("api_request_count", 0)) - self.client.request_count
         self.retry_count_base = int(state.get("retry_count", 0)) - self.client.retry_count
+        self._drain_pending_finalizations(state)
         completed_now = 0
         for item in state["partitions"]:
             part_id = f"year={item['year']}/batch={int(item['batch']):05d}"
             if part_id in state["completed"]: continue
+            if any(entry.get("partition") == part_id for entry in state.get("pending_finalizations", [])): continue
+            self._pending_capacity_gate(state)
             if self.stop_requested:
                 state["status"] = "STOPPED_FOR_MARKET_WINDOW"; state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"; break
             state["status"] = "RUNNING"; state["current_partition"] = part_id; self.save_state(state)
@@ -1010,6 +1159,15 @@ class Acquisition:
             completed_now += 1; state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
             if max_partitions is not None and completed_now >= max_partitions: break
         else:
+            while state.get("pending_finalizations"):
+                self._drain_pending_finalizations(state)
+                if not state.get("pending_finalizations"):
+                    break
+                assessment = dict(self.capacity_probe(self.now()))
+                self._set_mode(state, "WAITING_FOR_FINALIZATION_CAPACITY", "ALL_DOWNLOADS_COMPLETE_AWAITING_OFF_MARKET_FINALIZATION", assessment)
+                state["status"] = "WAITING_FOR_FINALIZATION_CAPACITY"
+                state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
+                self.save_state(state); self.sleep(LIVE_CAPACITY_RECHECK_SECONDS)
             state["stage"] = "CORPORATE_ACTIONS"; state["status"] = "RUNNING"; state["current_partition"] = "corporate_actions"; self.save_state(state)
             self.acquire_corporate_actions(state); self.finalize(state)
         if max_partitions is not None and completed_now >= max_partitions:
@@ -1033,7 +1191,7 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     active_bytes = max(0, state.get("bytes_stored", 0) - state.get("active_measurement_bytes_baseline", 0))
     active_rate = active_rows / active_seconds
     remaining = state["partitions_total"] - state["partitions_complete"]
-    payload = {k: state.get(k) for k in ("status", "operating_mode", "historical_request_ceiling_per_minute", "historical_concurrency", "live_qpx_detected_active", "clean_v2_service_state", "live_capacity_reason", "live_capacity_recheck_seconds", "live_session_yield_date", "provider_average_request_latency_seconds", "provider_rate_limit", "provider_rate_limit_remaining", "provider_rate_limit_reset", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
+    payload = {k: state.get(k) for k in ("status", "operating_mode", "historical_request_ceiling_per_minute", "historical_concurrency", "live_qpx_detected_active", "clean_v2_service_state", "live_capacity_reason", "live_capacity_recheck_seconds", "live_session_yield_date", "live_session_latch_reason", "last_historical_activity_at_utc", "coexistence_journal_events", "provider_average_request_latency_seconds", "provider_rate_limit", "provider_rate_limit_remaining", "provider_rate_limit_reset", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
     systemd_state = "UNKNOWN"
     try:
         import subprocess
@@ -1048,6 +1206,8 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     rate_seconds = max(1.0, (datetime.now(timezone.utc) - rate_started).total_seconds())
     measured_rpm = max(0, state.get("api_request_count", 0) - state.get("request_rate_measurement_baseline", 0)) * 60.0 / rate_seconds
     payload.update({"partitions_pending": remaining, "actual_acquired_range": {"first_session": min(acquired_sessions) if acquired_sessions else None, "last_session": max(acquired_sessions) if acquired_sessions else None}, "free_disk_bytes": shutil.disk_usage(root).free, "historical_measured_requests_per_minute": round(measured_rpm, 2), "active_rows_per_second": round(active_rate, 2), "active_megabytes_per_second": round((active_bytes / 1_000_000) / active_seconds, 3), "wall_clock_rows_per_second": round(wall_rate, 2), "wall_clock_megabytes_per_second": round((state.get("bytes_stored", 0) / 1_000_000) / elapsed, 3), "outage_duration_seconds": outage_duration, "estimated_remaining_seconds": round(remaining / (state["partitions_complete"] / elapsed), 0) if state["partitions_complete"] else None, "latest_manifest_integrity": integrity, "stored_partition_manifests": len(manifests), "systemd_state": systemd_state, "root": str(root)})
+    payload["pending_finalization_count"] = len(state.get("pending_finalizations", []))
+    payload["attribution_window_seconds"] = LIVE_ATTRIBUTION_WINDOW_SECONDS
     return payload
 
 
