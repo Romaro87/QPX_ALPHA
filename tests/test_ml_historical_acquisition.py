@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import gzip
+import errno
 import json
+import socket
 import tempfile
 import unittest
+import urllib.error
 from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -15,7 +18,7 @@ from qpx_bot.ml_historical_acquisition import (
     Acquisition, ProviderError, RateGovernor, aggregate_bars, atomic_bytes,
     atomic_json, batch_descriptor, build_security_master, calculate_range,
     canonical_provider_asset_id, encode_gzip_csv, fingerprint, initial_estimate,
-    normalize_corporate_action, page_evidence, read_gzip_csv, sha256_path,
+    classify_transport_error, normalize_corporate_action, page_evidence, read_gzip_csv, sha256_path,
     status, validate_bar,
 )
 
@@ -42,6 +45,36 @@ class FakeClient:
         if url == BARS_URL:
             return self.pages.pop(0) if self.pages else {"bars": {}, "next_page_token": None}
         return {"corporate_actions": {}, "next_page_token": None}
+
+
+class ScriptedAcquisition(Acquisition):
+    def __init__(self, root, state, outcomes, *, now=lambda: NOW, sleep=lambda _seconds: None):
+        super().__init__(root, FakeClient(), now=now, sleep=sleep, monotonic=lambda: 0.0)
+        self.test_state = state; self.outcomes = list(outcomes); self.snapshots = []; self.calls = 0
+
+    def load_state(self):
+        return self.test_state
+
+    def save_state(self, state):
+        self.snapshots.append(json.loads(json.dumps(state)))
+
+    def acquire_partition(self, state, item):
+        self.calls += 1
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        part_id = f"year={item['year']}/batch={int(item['batch']):05d}"
+        state["completed"].append(part_id); state["partitions_complete"] += 1
+
+
+def run_state():
+    return {
+        "status": "PARTIAL", "requested_range": {}, "completed": [],
+        "partitions": [{"year": 2017, "batch": 458}], "partitions_complete": 0,
+        "partitions_total": 1, "rows_15m": 0, "bytes_stored": 0,
+        "api_request_count": 0, "retry_count": 0, "failure_count": 0,
+        "unqueryable_symbols": [], "started_at_utc": NOW.isoformat(),
+    }
 
 
 class InvalidThenValidClient(FakeClient):
@@ -275,6 +308,66 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
     def test_systemic_provider_failure_is_explicit(self):
         error = ProviderError("auth", status=401, systemic=True)
         self.assertTrue(error.systemic); self.assertEqual(error.status, 401)
+
+    def test_dns_outage_waits_then_resumes_without_permanent_failure(self):
+        with tempfile.TemporaryDirectory() as folder:
+            sleeps = []
+            transient = ProviderError("temporary lookup", transient=True, failure_class="DNS_RESOLUTION_FAILURE")
+            acquisition = ScriptedAcquisition(Path(folder), run_state(), [transient, transient, None], sleep=sleeps.append)
+            result = acquisition.run(max_partitions=1)
+            self.assertEqual(acquisition.calls, 3)
+            self.assertEqual(sleeps, [60, 120])
+            self.assertEqual(result["partitions_complete"], 1)
+            self.assertEqual(result["failure_count"], 0)
+            self.assertTrue(any(item["status"] == "WAITING_FOR_NETWORK" for item in acquisition.snapshots))
+
+    def test_network_unreachable_is_transient_and_unknown_transport_is_hard(self):
+        transient, kind = classify_transport_error(OSError(errno.ENETUNREACH, "unreachable"))
+        self.assertTrue(transient); self.assertEqual(kind, "NETWORK_UNREACHABLE")
+        transient, kind = classify_transport_error(OSError(None, "unknown"))
+        self.assertFalse(transient); self.assertEqual(kind, "UNCLASSIFIED_TRANSPORT_FAILURE")
+
+    def test_dns_resolution_classification(self):
+        transient, kind = classify_transport_error(urllib.error.URLError(socket.gaierror(-3, "temporary failure")))
+        self.assertTrue(transient); self.assertEqual(kind, "DNS_RESOLUTION_FAILURE")
+
+    def test_transient_http_statuses_resume_and_auth_statuses_fail_closed(self):
+        for status_code in (429, 500, 502, 503, 504):
+            with self.subTest(status=status_code), tempfile.TemporaryDirectory() as folder:
+                error = ProviderError("gateway", status=status_code, transient=True, failure_class=f"HTTP_{status_code}")
+                acquisition = ScriptedAcquisition(Path(folder), run_state(), [error, None])
+                self.assertEqual(acquisition.run(max_partitions=1)["partitions_complete"], 1)
+        for status_code in (401, 403):
+            with self.subTest(status=status_code), tempfile.TemporaryDirectory() as folder:
+                error = ProviderError("denied", status=status_code, systemic=True, failure_class=f"HTTP_{status_code}")
+                acquisition = ScriptedAcquisition(Path(folder), run_state(), [error])
+                with self.assertRaises(ProviderError): acquisition.run(max_partitions=1)
+                self.assertEqual(acquisition.test_state["status"], "HARD_FAILED")
+
+    def test_morning_cutoff_during_outage_exits_cleanly(self):
+        cutoff = datetime(2026, 9, 4, 12, 45, tzinfo=timezone.utc)
+        error = ProviderError("dns", transient=True, failure_class="DNS_RESOLUTION_FAILURE")
+        with tempfile.TemporaryDirectory() as folder:
+            acquisition = ScriptedAcquisition(Path(folder), run_state(), [error], now=lambda: cutoff)
+            result = acquisition.run()
+            self.assertEqual(result["status"], "STOPPED_FOR_MARKET_WINDOW")
+            self.assertEqual(acquisition.calls, 0)
+
+    def test_status_tracks_active_and_wall_clock_rates_separately(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); state = run_state()
+            state.update({"rows_15m": 1000, "bytes_stored": 1_000_000, "active_acquisition_seconds": 10,
+                          "active_measurement_rows_baseline": 0, "active_measurement_bytes_baseline": 0})
+            acquisition = Acquisition(root, FakeClient()); acquisition.save_state(state)
+            report = status(root)
+            self.assertEqual(report["active_rows_per_second"], 100.0)
+            self.assertIn("wall_clock_rows_per_second", report)
+
+    def test_systemd_unit_recovers_unexpected_failure(self):
+        unit = (Path(__file__).parents[1] / "deploy/qpx-ml-historical-acquisition.service").read_text()
+        self.assertIn("Restart=on-failure", unit)
+        self.assertIn("RestartSec=60", unit)
+        self.assertIn("RestartPreventExitStatus=78", unit)
 
     def test_disk_capacity_gate(self):
         with tempfile.TemporaryDirectory() as folder:

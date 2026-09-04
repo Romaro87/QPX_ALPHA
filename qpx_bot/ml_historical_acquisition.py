@@ -7,6 +7,7 @@ derivations from the canonical 15-minute partitions.
 from __future__ import annotations
 
 import csv
+import errno
 import gzip
 import hashlib
 import io
@@ -16,6 +17,8 @@ import random
 import re
 import shutil
 import signal
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -56,6 +59,7 @@ BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
 MAX_ATTEMPTS = 5
+OUTAGE_BACKOFF_SECONDS = (60, 120, 300, 600, 900)
 MIN_FREE_BYTES = 200_000_000_000
 MORNING_DEADLINE = wall_time(8, 45)
 EASTERN = ZoneInfo("America/New_York")
@@ -170,10 +174,35 @@ def initial_estimate(security_count: int, requested: Mapping[str, str], free_byt
 
 
 class ProviderError(RuntimeError):
-    def __init__(self, message: str, *, status: int | None = None, systemic: bool = False):
+    def __init__(self, message: str, *, status: int | None = None, systemic: bool = False,
+                 transient: bool = False, failure_class: str = "PROVIDER_ERROR"):
         super().__init__(message)
         self.status = status
         self.systemic = systemic
+        self.transient = transient
+        self.failure_class = failure_class
+
+
+def classify_transport_error(exc: BaseException) -> tuple[bool, str]:
+    """Classify positively identifiable transport failures; unknowns fail closed."""
+    reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    if isinstance(reason, socket.gaierror):
+        return True, "DNS_RESOLUTION_FAILURE"
+    if isinstance(reason, (socket.timeout, TimeoutError)):
+        return True, "CONNECTION_TIMEOUT"
+    if isinstance(reason, ConnectionResetError):
+        return True, "CONNECTION_RESET"
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        return False, "TLS_CERTIFICATE_FAILURE"
+    if isinstance(reason, ssl.SSLError):
+        return True, "TLS_CONNECTIVITY_FAILURE"
+    transient_errnos = {getattr(errno, name) for name in (
+        "EAGAIN", "ECONNABORTED", "ECONNREFUSED", "ECONNRESET", "EHOSTDOWN",
+        "EHOSTUNREACH", "ENETDOWN", "ENETRESET", "ENETUNREACH", "ETIMEDOUT",
+    ) if hasattr(errno, name)}
+    if isinstance(reason, OSError) and reason.errno in transient_errnos:
+        return True, "NETWORK_UNREACHABLE"
+    return False, "UNCLASSIFIED_TRANSPORT_FAILURE"
 
 
 class RateGovernor:
@@ -195,6 +224,7 @@ class AlpacaHistoricalClient:
     attempts: int = MAX_ATTEMPTS
     request_count: int = 0
     retry_count: int = 0
+    last_success_at_utc: str | None = None
 
     def request(self, url: str, params: Mapping[str, str]) -> dict[str, Any] | list[Any]:
         key, secret = credentials()
@@ -211,20 +241,33 @@ class AlpacaHistoricalClient:
                     payload = json.loads(response.read())
                 if not isinstance(payload, (dict, list)):
                     raise ProviderError("Provider returned a non-container response.", systemic=True)
+                self.last_success_at_utc = datetime.now(timezone.utc).isoformat()
                 return payload
             except urllib.error.HTTPError as exc:
                 body = exc.read().decode("utf-8", "replace")[:500]
-                last = ProviderError(f"Alpaca HTTP {exc.code}: {body}", status=exc.code, systemic=exc.code in {401, 403})
+                transient = exc.code in {429, 500, 502, 503, 504}
+                last = ProviderError(f"Alpaca HTTP {exc.code}: {body}", status=exc.code,
+                                     systemic=exc.code in {401, 403}, transient=transient,
+                                     failure_class=f"HTTP_{exc.code}")
                 if exc.code not in {429, 500, 502, 503, 504}:
                     raise last
                 retry_after = exc.headers.get("Retry-After")
                 delay = float(retry_after) if retry_after and retry_after.isdigit() else min(30.0, 2 ** attempt + random.random())
-            except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
-                last = exc
+            except json.JSONDecodeError as exc:
+                raise ProviderError(f"Malformed provider JSON: {exc}", systemic=True,
+                                    failure_class="MALFORMED_PROVIDER_RESPONSE") from exc
+            except (OSError, urllib.error.URLError) as exc:
+                transient, failure_class = classify_transport_error(exc)
+                if not transient:
+                    raise ProviderError(str(exc), systemic=True, failure_class=failure_class) from exc
+                last = ProviderError(str(exc), transient=True, failure_class=failure_class)
                 delay = min(30.0, 2 ** attempt + random.random())
             if attempt < self.attempts:
                 self.retry_count += 1
                 time.sleep(delay)
+        if isinstance(last, ProviderError) and last.transient:
+            raise ProviderError(f"Provider request exhausted bounded retries: {last}", transient=True,
+                                status=last.status, failure_class=last.failure_class) from last
         raise ProviderError(f"Provider request exhausted bounded retries: {last}", systemic=True)
 
     def assets(self, status: str) -> list[dict[str, Any]]:
@@ -378,10 +421,15 @@ def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, acquire
 
 
 class Acquisition:
-    def __init__(self, root: Path = DEFAULT_ROOT, client: AlpacaHistoricalClient | None = None, now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
+    def __init__(self, root: Path = DEFAULT_ROOT, client: AlpacaHistoricalClient | None = None,
+                 now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+                 sleep: Callable[[float], None] = time.sleep,
+                 monotonic: Callable[[], float] = time.monotonic):
         self.root = root.resolve()
         self.client = client or AlpacaHistoricalClient(RateGovernor())
         self.now = now
+        self.sleep = sleep
+        self.monotonic = monotonic
         self.stop_requested = False
         self.request_count_base = 0
         self.retry_count_base = 0
@@ -400,6 +448,65 @@ class Acquisition:
     def sync_provider_counts(self, state: dict[str, Any]) -> None:
         state["api_request_count"] = self.request_count_base + self.client.request_count
         state["retry_count"] = self.retry_count_base + self.client.retry_count
+        last_success = getattr(self.client, "last_success_at_utc", None)
+        if last_success:
+            state["last_successful_request_at_utc"] = last_success
+
+    def _state_defaults(self, state: dict[str, Any]) -> None:
+        state.setdefault("transient_outage_count", 0)
+        state.setdefault("transient_outage_seconds", 0.0)
+        state.setdefault("provider_retry_count", state.get("retry_count", 0))
+        state.setdefault("bad_symbol_failure_count", len(state.get("unqueryable_symbols", [])))
+        state.setdefault("hard_failure_count", 0)
+        state.setdefault("active_acquisition_seconds", 0.0)
+        state.setdefault("active_measurement_rows_baseline", state.get("rows_15m", 0))
+        state.setdefault("active_measurement_bytes_baseline", state.get("bytes_stored", 0))
+        state.setdefault("outage_backoff_level", 0)
+
+    def _seconds_until_deadline(self) -> float:
+        local = self.now().astimezone(EASTERN)
+        boundary_date = local.date() + timedelta(days=1) if local.time().replace(tzinfo=None) >= wall_time(16, 30) else local.date()
+        boundary = datetime.combine(boundary_date, MORNING_DEADLINE, tzinfo=EASTERN)
+        return max(0.0, (boundary - local).total_seconds())
+
+    def _wait_for_network(self, state: dict[str, Any], item: Mapping[str, Any], exc: ProviderError) -> bool:
+        self._state_defaults(state)
+        now = self.now()
+        if not state.get("outage_started_at_utc"):
+            state["outage_started_at_utc"] = now.isoformat()
+            state["transient_outage_count"] += 1
+            state["outage_backoff_level"] = 0
+        level = min(int(state["outage_backoff_level"]), len(OUTAGE_BACKOFF_SECONDS) - 1)
+        remaining = self._seconds_until_deadline()
+        if self.stop_requested or remaining <= 0:
+            state["status"] = "STOPPED_FOR_MARKET_WINDOW"
+            state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"
+            self.save_state(state)
+            return False
+        delay = min(OUTAGE_BACKOFF_SECONDS[level], remaining)
+        state.update({
+            "status": "WAITING_FOR_NETWORK", "stop_reason": None,
+            "transient_failure_type": exc.failure_class, "transient_failure_message": str(exc)[:1000],
+            "network_retry_attempt_count": int(state.get("network_retry_attempt_count", 0)) + 1,
+            "outage_backoff_level": min(level + 1, len(OUTAGE_BACKOFF_SECONDS) - 1),
+            "next_retry_at_utc": (now + timedelta(seconds=delay)).isoformat(),
+            "current_partition": f"year={item['year']}/batch={int(item['batch']):05d}",
+        })
+        self.sync_provider_counts(state)
+        state["provider_retry_count"] = state["retry_count"]
+        self.save_state(state)
+        self.sleep(delay)
+        state["transient_outage_seconds"] += delay
+        if self.stop_requested or self._deadline_reached():
+            state["status"] = "STOPPED_FOR_MARKET_WINDOW"
+            state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"
+            state["next_retry_at_utc"] = None
+            self.save_state(state)
+            return False
+        state["status"] = "RUNNING"
+        state["next_retry_at_utc"] = None
+        self.save_state(state)
+        return True
 
     def disk_gate(self) -> int:
         free = shutil.disk_usage(self.root.parent if self.root.parent.exists() else ROOT).free
@@ -442,6 +549,12 @@ class Acquisition:
             "partitions_complete": 0, "rows_15m": 0, "bytes_stored": sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file()),
             "api_request_count": self.client.request_count, "retry_count": self.client.retry_count,
             "failure_count": 0, "current_partition": None, "completed": [],
+            "transient_outage_count": 0, "transient_outage_seconds": 0.0,
+            "provider_retry_count": self.client.retry_count, "bad_symbol_failure_count": 0,
+            "hard_failure_count": 0, "active_acquisition_seconds": 0.0,
+            "active_measurement_rows_baseline": 0, "active_measurement_bytes_baseline": 0,
+            "outage_backoff_level": 0, "outage_started_at_utc": None,
+            "last_successful_request_at_utc": getattr(self.client, "last_success_at_utc", None),
             "observed_ranges": {},
             "unqueryable_symbols": [],
             "partitions": partitions, "checkpoint_at_utc": acquired.isoformat(),
@@ -560,6 +673,7 @@ class Acquisition:
                 if exc.status != 400 or bad_symbol not in symbols or page:
                     raise
                 state["unqueryable_symbols"].append({"symbol": bad_symbol, "provider_asset_id": identity[bad_symbol], "reason": "PROVIDER_REJECTED_SYMBOL", "observed_at_utc": self.now().isoformat()})
+                state["bad_symbol_failure_count"] = int(state.get("bad_symbol_failure_count", 0)) + 1
                 symbols.remove(bad_symbol)
                 request_core["symbols"] = ",".join(symbols)
                 request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request_core})
@@ -672,6 +786,7 @@ class Acquisition:
 
     def run(self, max_partitions: int | None = None) -> dict[str, Any]:
         state = self.load_state() or self.initialize()
+        self._state_defaults(state)
         self.request_count_base = int(state.get("api_request_count", 0)) - self.client.request_count
         self.retry_count_base = int(state.get("retry_count", 0)) - self.client.retry_count
         completed_now = 0
@@ -679,12 +794,33 @@ class Acquisition:
             part_id = f"year={item['year']}/batch={int(item['batch']):05d}"
             if part_id in state["completed"]: continue
             if self.stop_requested or self._deadline_reached():
-                state["status"] = "STOPPED"; state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"; break
+                state["status"] = "STOPPED_FOR_MARKET_WINDOW"; state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"; break
             state["status"] = "RUNNING"; state["current_partition"] = part_id; self.save_state(state)
-            try:
-                self.acquire_partition(state, item)
-            except Exception as exc:
-                self.record_failure(state, item, exc); state["status"] = "PARTIAL"; state["stop_reason"] = "SYSTEMIC_PROVIDER_FAILURE" if isinstance(exc, ProviderError) and exc.systemic else "PARTITION_FAILURE"; self.save_state(state); raise
+            while True:
+                active_started = self.monotonic()
+                try:
+                    self.acquire_partition(state, item)
+                    state["active_acquisition_seconds"] += max(0.0, self.monotonic() - active_started)
+                    if state.get("outage_started_at_utc"):
+                        state["last_outage_ended_at_utc"] = self.now().isoformat()
+                    state["outage_started_at_utc"] = None; state["outage_backoff_level"] = 0
+                    break
+                except ProviderError as exc:
+                    state["active_acquisition_seconds"] += max(0.0, self.monotonic() - active_started)
+                    if exc.transient:
+                        if not self._wait_for_network(state, item, exc):
+                            break
+                        continue
+                    self.record_failure(state, item, exc); state["hard_failure_count"] += 1
+                    state["status"] = "HARD_FAILED"; state["stop_reason"] = exc.failure_class
+                    self.save_state(state); raise
+                except Exception as exc:
+                    state["active_acquisition_seconds"] += max(0.0, self.monotonic() - active_started)
+                    self.record_failure(state, item, exc); state["hard_failure_count"] += 1
+                    state["status"] = "HARD_FAILED"; state["stop_reason"] = "DATA_INTEGRITY_OR_INVARIANT_FAILURE"
+                    self.save_state(state); raise
+            if state["status"] == "STOPPED_FOR_MARKET_WINDOW":
+                break
             completed_now += 1; state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
             if max_partitions is not None and completed_now >= max_partitions: break
         else:
@@ -705,9 +841,13 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     partition_metadata = [json.loads(path.read_text()) for path in manifests]
     acquired_sessions = [value for item in partition_metadata for value in (item.get("first_session"), item.get("last_session")) if value]
     elapsed = max(0.001, (datetime.now(timezone.utc) - datetime.fromisoformat(state["started_at_utc"])).total_seconds())
-    rate = state.get("rows_15m", 0) / elapsed
+    wall_rate = state.get("rows_15m", 0) / elapsed
+    active_seconds = max(0.001, float(state.get("active_acquisition_seconds", elapsed)))
+    active_rows = max(0, state.get("rows_15m", 0) - state.get("active_measurement_rows_baseline", 0))
+    active_bytes = max(0, state.get("bytes_stored", 0) - state.get("active_measurement_bytes_baseline", 0))
+    active_rate = active_rows / active_seconds
     remaining = state["partitions_total"] - state["partitions_complete"]
-    payload = {k: state.get(k) for k in ("status", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
+    payload = {k: state.get(k) for k in ("status", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
     systemd_state = "UNKNOWN"
     try:
         import subprocess
@@ -715,7 +855,10 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
         systemd_state = result.stdout.strip().upper() or "STOPPED"
     except Exception:
         pass
-    payload.update({"partitions_pending": remaining, "actual_acquired_range": {"first_session": min(acquired_sessions) if acquired_sessions else None, "last_session": max(acquired_sessions) if acquired_sessions else None}, "free_disk_bytes": shutil.disk_usage(root).free, "rows_per_second": round(rate, 2), "estimated_remaining_seconds": round(remaining / (state["partitions_complete"] / elapsed), 0) if state["partitions_complete"] else None, "latest_manifest_integrity": integrity, "stored_partition_manifests": len(manifests), "systemd_state": systemd_state, "root": str(root)})
+    outage_duration = None
+    if state.get("outage_started_at_utc"):
+        outage_duration = max(0.0, (datetime.now(timezone.utc) - datetime.fromisoformat(state["outage_started_at_utc"])).total_seconds())
+    payload.update({"partitions_pending": remaining, "actual_acquired_range": {"first_session": min(acquired_sessions) if acquired_sessions else None, "last_session": max(acquired_sessions) if acquired_sessions else None}, "free_disk_bytes": shutil.disk_usage(root).free, "active_rows_per_second": round(active_rate, 2), "active_megabytes_per_second": round((active_bytes / 1_000_000) / active_seconds, 3), "wall_clock_rows_per_second": round(wall_rate, 2), "wall_clock_megabytes_per_second": round((state.get("bytes_stored", 0) / 1_000_000) / elapsed, 3), "outage_duration_seconds": outage_duration, "estimated_remaining_seconds": round(remaining / (state["partitions_complete"] / elapsed), 0) if state["partitions_complete"] else None, "latest_manifest_integrity": integrity, "stored_partition_manifests": len(manifests), "systemd_state": systemd_state, "root": str(root)})
     return payload
 
 
@@ -725,4 +868,17 @@ def main(argv: list[str] | None = None) -> int:
     acquisition = Acquisition(args.root)
     def stop(_signum: int, _frame: Any) -> None: acquisition.stop_requested = True
     signal.signal(signal.SIGTERM, stop); signal.signal(signal.SIGINT, stop)
-    result = acquisition.run(args.max_partitions); print(json.dumps({"status": result["status"], "partitions_complete": result["partitions_complete"], "rows_15m": result["rows_15m"]}, sort_keys=True), flush=True); return 0
+    if acquisition._deadline_reached():
+        print(json.dumps({"status": "STOPPED_FOR_MARKET_WINDOW"}, sort_keys=True), flush=True)
+        return 0
+    try:
+        result = acquisition.run(args.max_partitions)
+    except ProviderError as exc:
+        import traceback
+        traceback.print_exc()
+        return 1 if exc.transient else 78
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        return 78
+    print(json.dumps({"status": result["status"], "partitions_complete": result["partitions_complete"], "rows_15m": result["rows_15m"]}, sort_keys=True), flush=True); return 0
