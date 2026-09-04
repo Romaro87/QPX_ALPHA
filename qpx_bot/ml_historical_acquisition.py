@@ -19,6 +19,7 @@ import shutil
 import signal
 import socket
 import ssl
+import subprocess
 import time
 import urllib.error
 import urllib.parse
@@ -58,6 +59,15 @@ PROVIDER_INPUT_SEMANTIC_VERSION = "ALPACA_SIP_RAW_15M_HISTORICAL_V1"
 BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
+LIVE_REQUESTS_PER_MINUTE = 6
+LIVE_CAPACITY_RECHECK_SECONDS = 30
+LIVE_DECISION_PROTECTION_SECONDS = 240
+LIVE_DECISION_LAG_LIMIT_SECONDS = 180
+LIVE_MIN_AVAILABLE_MEMORY_BYTES = 2_000_000_000
+LIVE_MAX_IO_PRESSURE_AVG10 = 10.0
+LIVE_MAX_LOAD_PER_CPU = 0.5
+CLEAN_V2_UNIT = "qpx-pr50-iex-forward-research-paper-clean-v2.service"
+CLEAN_V2_RUNTIME = ROOT / "runtime" / "qpx_pr50_iex_forward_research_paper_clean_v2"
 MAX_ATTEMPTS = 5
 OUTAGE_BACKOFF_SECONDS = (60, 120, 300, 600, 900)
 MIN_FREE_BYTES = 200_000_000_000
@@ -217,6 +227,100 @@ class RateGovernor:
             now = self.clock()
         self.next_at = max(now, self.next_at) + self.interval
 
+    def set_requests_per_minute(self, requests_per_minute: int) -> None:
+        if requests_per_minute < 1:
+            raise ValueError("Request rate must be positive.")
+        self.interval = 60.0 / requests_per_minute
+
+
+def _proc_available_memory() -> int:
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) * 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return 0
+
+
+def _proc_io_pressure() -> float:
+    try:
+        first = Path("/proc/pressure/io").read_text().splitlines()[0]
+        return float(next(part.split("=", 1)[1] for part in first.split() if part.startswith("avg10=")))
+    except (OSError, ValueError, IndexError, StopIteration):
+        return float("inf")
+
+
+def _clean_service_state() -> str:
+    try:
+        result = subprocess.run(
+            ("systemctl", "--user", "show", CLEAN_V2_UNIT, "--property=ActiveState", "--value"),
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        return result.stdout.strip() if result.returncode == 0 else "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+
+
+def _latest_clean_cycle_lag() -> float | None:
+    path = CLEAN_V2_RUNTIME / "iex_research_paper_audit.jsonl"
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()[-200:]
+    except OSError:
+        return None
+    for line in reversed(lines):
+        try:
+            record = json.loads(line)
+            if record.get("event_type") != "IEX_RESEARCH_DECISION_CYCLE_TELEMETRY":
+                continue
+            end = record["details"]["decision_bar_interval"]["end_market"]
+            return (datetime.fromisoformat(record["observed_at_utc"]) - datetime.fromisoformat(end)).total_seconds()
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            continue
+    return None
+
+
+def _clean_provider_state() -> str:
+    path = CLEAN_V2_RUNTIME / "iex_research_paper_heartbeat.json"
+    checksum = path.with_suffix(".sha256")
+    try:
+        payload = json.loads(read_checksummed_state(path, checksum, label="Clean-V2 heartbeat"))
+        return str(payload.get("provider_state", "UNKNOWN"))
+    except Exception:
+        return "UNKNOWN"
+
+
+def coexistence_capacity(moment: datetime) -> dict[str, Any]:
+    """Read-only, fail-safe capacity decision; it never controls Clean-V2."""
+    from qpx_bot.clean_v2_market_supervisor import schedule_decision
+    decision = schedule_decision(moment)
+    if not decision.desired_active:
+        return {"mode": "OFF_MARKET", "live_qpx_active": False, "reason": None}
+    service_state = _clean_service_state()
+    common = {"live_qpx_active": service_state in {"active", "activating"}, "clean_v2_service_state": service_state}
+    if service_state not in {"active", "activating"}:
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_NOT_ACTIVE_OR_UNKNOWN", **common}
+    market = moment.astimezone(EASTERN)
+    seconds_after_quarter = ((market.minute % 15) * 60) + market.second
+    if seconds_after_quarter < LIVE_DECISION_PROTECTION_SECONDS:
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_DECISION_WINDOW", **common}
+    provider_state = _clean_provider_state()
+    if market.time().replace(tzinfo=None) >= wall_time(9, 45) and provider_state != "HEALTHY":
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_PROVIDER_NOT_HEALTHY", "clean_v2_provider_state": provider_state, **common}
+    available = _proc_available_memory()
+    load = os.getloadavg()[0]
+    io_pressure = _proc_io_pressure()
+    if available < LIVE_MIN_AVAILABLE_MEMORY_BYTES:
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "MEMORY_PRESSURE", **common}
+    if load > max(1.0, (os.cpu_count() or 1) * LIVE_MAX_LOAD_PER_CPU):
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CPU_LOAD_PRESSURE", **common}
+    if io_pressure > LIVE_MAX_IO_PRESSURE_AVG10:
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "DISK_IO_PRESSURE", **common}
+    lag = _latest_clean_cycle_lag()
+    if lag is not None and lag > LIVE_DECISION_LAG_LIMIT_SECONDS:
+        return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_DECISION_LATENCY", "clean_v2_latest_decision_lag_seconds": lag, **common}
+    return {"mode": "LIVE_COEXISTENCE", "reason": None, "historical_request_ceiling_per_minute": LIVE_REQUESTS_PER_MINUTE, "clean_v2_latest_decision_lag_seconds": lag, "clean_v2_provider_state": provider_state, **common}
+
 
 @dataclass
 class AlpacaHistoricalClient:
@@ -225,6 +329,11 @@ class AlpacaHistoricalClient:
     request_count: int = 0
     retry_count: int = 0
     last_success_at_utc: str | None = None
+    successful_request_count: int = 0
+    request_latency_seconds_total: float = 0.0
+    rate_limit: int | None = None
+    rate_limit_remaining: int | None = None
+    rate_limit_reset: str | None = None
 
     def request(self, url: str, params: Mapping[str, str]) -> dict[str, Any] | list[Any]:
         key, secret = credentials()
@@ -236,12 +345,22 @@ class AlpacaHistoricalClient:
         for attempt in range(1, self.attempts + 1):
             self.governor.wait()
             self.request_count += 1
+            request_started = time.monotonic()
             try:
                 with urllib.request.urlopen(request, timeout=60) as response:
                     payload = json.loads(response.read())
+                    headers = response.headers
                 if not isinstance(payload, (dict, list)):
                     raise ProviderError("Provider returned a non-container response.", systemic=True)
                 self.last_success_at_utc = datetime.now(timezone.utc).isoformat()
+                self.successful_request_count += 1
+                self.request_latency_seconds_total += max(0.0, time.monotonic() - request_started)
+                try:
+                    self.rate_limit = int(headers.get("X-RateLimit-Limit")) if headers.get("X-RateLimit-Limit") else None
+                    self.rate_limit_remaining = int(headers.get("X-RateLimit-Remaining")) if headers.get("X-RateLimit-Remaining") else None
+                except (TypeError, ValueError):
+                    self.rate_limit = self.rate_limit_remaining = None
+                self.rate_limit_reset = headers.get("X-RateLimit-Reset")
                 return payload
             except urllib.error.HTTPError as exc:
                 body = exc.read().decode("utf-8", "replace")[:500]
@@ -424,12 +543,14 @@ class Acquisition:
     def __init__(self, root: Path = DEFAULT_ROOT, client: AlpacaHistoricalClient | None = None,
                  now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
                  sleep: Callable[[float], None] = time.sleep,
-                 monotonic: Callable[[], float] = time.monotonic):
+                 monotonic: Callable[[], float] = time.monotonic,
+                 capacity_probe: Callable[[datetime], Mapping[str, Any]] = coexistence_capacity):
         self.root = root.resolve()
         self.client = client or AlpacaHistoricalClient(RateGovernor())
         self.now = now
         self.sleep = sleep
         self.monotonic = monotonic
+        self.capacity_probe = capacity_probe
         self.stop_requested = False
         self.request_count_base = 0
         self.retry_count_base = 0
@@ -451,6 +572,12 @@ class Acquisition:
         last_success = getattr(self.client, "last_success_at_utc", None)
         if last_success:
             state["last_successful_request_at_utc"] = last_success
+        successful = int(getattr(self.client, "successful_request_count", 0))
+        latency_total = float(getattr(self.client, "request_latency_seconds_total", 0.0))
+        state["provider_average_request_latency_seconds"] = latency_total / successful if successful else None
+        state["provider_rate_limit"] = getattr(self.client, "rate_limit", None)
+        state["provider_rate_limit_remaining"] = getattr(self.client, "rate_limit_remaining", None)
+        state["provider_rate_limit_reset"] = getattr(self.client, "rate_limit_reset", None)
 
     def _state_defaults(self, state: dict[str, Any]) -> None:
         state.setdefault("transient_outage_count", 0)
@@ -462,6 +589,60 @@ class Acquisition:
         state.setdefault("active_measurement_rows_baseline", state.get("rows_15m", 0))
         state.setdefault("active_measurement_bytes_baseline", state.get("bytes_stored", 0))
         state.setdefault("outage_backoff_level", 0)
+        state.setdefault("operating_mode", "OFF_MARKET")
+        state.setdefault("historical_request_ceiling_per_minute", REQUESTS_PER_MINUTE)
+        state.setdefault("historical_concurrency", 1)
+        state.setdefault("live_session_yield_date", None)
+        state.setdefault("request_rate_measurement_started_at_utc", self.now().isoformat())
+        state.setdefault("request_rate_measurement_baseline", state.get("api_request_count", 0))
+
+    def _set_request_rate(self, requests_per_minute: int) -> None:
+        governor = getattr(self.client, "governor", None)
+        if governor is not None and hasattr(governor, "set_requests_per_minute"):
+            governor.set_requests_per_minute(requests_per_minute)
+
+    def _capacity_gate(self, state: dict[str, Any], item: Mapping[str, Any], *, finalization: bool = False) -> None:
+        while True:
+            assessment = dict(self.capacity_probe(self.now()))
+            market_date = self.now().astimezone(EASTERN).date().isoformat()
+            if assessment.get("mode") == "LIVE_COEXISTENCE" and int(getattr(self.client, "request_count", 0)) > 0:
+                remaining = getattr(self.client, "rate_limit_remaining", None)
+                limit = getattr(self.client, "rate_limit", None)
+                if remaining is None or limit is None:
+                    assessment.update({"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "PROVIDER_RATE_BUDGET_UNKNOWN"})
+                elif remaining <= max(50, int(limit) // 2):
+                    assessment.update({"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "PROVIDER_CAPACITY_RESERVED_FOR_CLEAN_V2"})
+                    state["live_session_yield_date"] = market_date
+            if assessment.get("reason") in {"CLEAN_V2_DECISION_LATENCY", "CLEAN_V2_PROVIDER_NOT_HEALTHY"}:
+                state["live_session_yield_date"] = market_date
+            if state.get("live_session_yield_date") == market_date and assessment.get("mode") != "OFF_MARKET":
+                assessment.update({"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "LIVE_SESSION_SAFETY_LATCH"})
+            mode = str(assessment.get("mode", "WAITING_FOR_LIVE_CAPACITY"))
+            state["live_qpx_detected_active"] = bool(assessment.get("live_qpx_active"))
+            state["clean_v2_service_state"] = assessment.get("clean_v2_service_state")
+            state["operating_mode"] = mode
+            state["live_capacity_reason"] = assessment.get("reason")
+            state["current_partition"] = f"year={item.get('year')}/batch={int(item.get('batch', 0)):05d}"
+            if mode == "OFF_MARKET":
+                self._set_request_rate(REQUESTS_PER_MINUTE)
+                state["historical_request_ceiling_per_minute"] = REQUESTS_PER_MINUTE
+                state["live_session_yield_date"] = None
+                state["status"] = "RUNNING"; state["next_retry_at_utc"] = None
+                self.save_state(state)
+                return
+            if mode == "LIVE_COEXISTENCE":
+                self._set_request_rate(LIVE_REQUESTS_PER_MINUTE)
+                state["historical_request_ceiling_per_minute"] = LIVE_REQUESTS_PER_MINUTE
+                state["live_capacity_reason"] = "FINALIZATION_DEFERRED_DURING_LIVE" if finalization else None
+                state["status"] = "RUNNING"; state["next_retry_at_utc"] = None
+                self.save_state(state)
+                if not finalization:
+                    return
+            state["status"] = "WAITING_FOR_LIVE_CAPACITY"
+            state["live_capacity_recheck_seconds"] = LIVE_CAPACITY_RECHECK_SECONDS
+            state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
+            self.save_state(state)
+            self.sleep(LIVE_CAPACITY_RECHECK_SECONDS)
 
     def _seconds_until_deadline(self) -> float:
         local = self.now().astimezone(EASTERN)
@@ -477,13 +658,12 @@ class Acquisition:
             state["transient_outage_count"] += 1
             state["outage_backoff_level"] = 0
         level = min(int(state["outage_backoff_level"]), len(OUTAGE_BACKOFF_SECONDS) - 1)
-        remaining = self._seconds_until_deadline()
-        if self.stop_requested or remaining <= 0:
+        if self.stop_requested:
             state["status"] = "STOPPED_FOR_MARKET_WINDOW"
-            state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"
+            state["stop_reason"] = "SIGNAL"
             self.save_state(state)
             return False
-        delay = min(OUTAGE_BACKOFF_SECONDS[level], remaining)
+        delay = OUTAGE_BACKOFF_SECONDS[level]
         state.update({
             "status": "WAITING_FOR_NETWORK", "stop_reason": None,
             "transient_failure_type": exc.failure_class, "transient_failure_message": str(exc)[:1000],
@@ -497,9 +677,9 @@ class Acquisition:
         self.save_state(state)
         self.sleep(delay)
         state["transient_outage_seconds"] += delay
-        if self.stop_requested or self._deadline_reached():
+        if self.stop_requested:
             state["status"] = "STOPPED_FOR_MARKET_WINDOW"
-            state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"
+            state["stop_reason"] = "SIGNAL"
             state["next_retry_at_utc"] = None
             self.save_state(state)
             return False
@@ -569,8 +749,7 @@ class Acquisition:
         return state
 
     def _deadline_reached(self) -> bool:
-        local = self.now().astimezone(EASTERN)
-        return local.time().replace(tzinfo=None) >= MORNING_DEADLINE and local.time().replace(tzinfo=None) < wall_time(16, 30)
+        return False
 
     def _partition_bounds(self, year: int, requested: Mapping[str, str]) -> tuple[date, date]:
         return max(date(year, 1, 1), date.fromisoformat(requested["actual_first_requested_session"])), min(date(year, 12, 31), date.fromisoformat(requested["actual_last_completed_session"]))
@@ -662,8 +841,12 @@ class Acquisition:
             params = dict(request_core)
             if token: params["page_token"] = token
             try:
+                self._capacity_gate(state, item)
                 payload = self.client.request(BARS_URL, params)
             except ProviderError as exc:
+                if exc.status == 429 and state.get("operating_mode") in {"LIVE_COEXISTENCE", "WAITING_FOR_LIVE_CAPACITY"}:
+                    state["live_session_yield_date"] = self.now().astimezone(EASTERN).date().isoformat()
+                    state["live_capacity_reason"] = "PROVIDER_429_LIVE_SESSION_LATCH"
                 if token and exc.status in {400, 404, 410, 422}:
                     self._quarantine_partial(page_root, "OPAQUE_PAGE_TOKEN_REJECTED_REBUILD", {"status": exc.status, **descriptor})
                     page, token = 0, None
@@ -707,6 +890,7 @@ class Acquisition:
         verified_page, verified_token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
         if verified_page != page or verified_token is not None:
             raise RuntimeError(f"Final page-fragment validation failed for {part_id}.")
+        self._capacity_gate(state, item, finalization=True)
         combined: dict[tuple[str, str], dict[str, str]] = {}
         for page_path in sorted(page_root.glob("page-*.csv.gz")):
             for row in read_gzip_csv(page_path):
@@ -739,6 +923,7 @@ class Acquisition:
         while True:
             request = dict(params)
             if token: request["page_token"] = token
+            self._capacity_gate(state, {"year": "corporate_actions", "batch": 0})
             payload = self.client.request(CORPORATE_ACTION_URL, request)
             if not isinstance(payload, dict) or not isinstance(payload.get("corporate_actions", {}), dict):
                 raise ProviderError("Malformed corporate-actions response.", systemic=True)
@@ -793,7 +978,7 @@ class Acquisition:
         for item in state["partitions"]:
             part_id = f"year={item['year']}/batch={int(item['batch']):05d}"
             if part_id in state["completed"]: continue
-            if self.stop_requested or self._deadline_reached():
+            if self.stop_requested:
                 state["status"] = "STOPPED_FOR_MARKET_WINDOW"; state["stop_reason"] = "SIGNAL" if self.stop_requested else "MORNING_RESOURCE_BOUNDARY"; break
             state["status"] = "RUNNING"; state["current_partition"] = part_id; self.save_state(state)
             while True:
@@ -847,7 +1032,7 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     active_bytes = max(0, state.get("bytes_stored", 0) - state.get("active_measurement_bytes_baseline", 0))
     active_rate = active_rows / active_seconds
     remaining = state["partitions_total"] - state["partitions_complete"]
-    payload = {k: state.get(k) for k in ("status", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
+    payload = {k: state.get(k) for k in ("status", "operating_mode", "historical_request_ceiling_per_minute", "historical_concurrency", "live_qpx_detected_active", "clean_v2_service_state", "live_capacity_reason", "live_capacity_recheck_seconds", "live_session_yield_date", "provider_average_request_latency_seconds", "provider_rate_limit", "provider_rate_limit_remaining", "provider_rate_limit_reset", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
     systemd_state = "UNKNOWN"
     try:
         import subprocess
@@ -858,7 +1043,10 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     outage_duration = None
     if state.get("outage_started_at_utc"):
         outage_duration = max(0.0, (datetime.now(timezone.utc) - datetime.fromisoformat(state["outage_started_at_utc"])).total_seconds())
-    payload.update({"partitions_pending": remaining, "actual_acquired_range": {"first_session": min(acquired_sessions) if acquired_sessions else None, "last_session": max(acquired_sessions) if acquired_sessions else None}, "free_disk_bytes": shutil.disk_usage(root).free, "active_rows_per_second": round(active_rate, 2), "active_megabytes_per_second": round((active_bytes / 1_000_000) / active_seconds, 3), "wall_clock_rows_per_second": round(wall_rate, 2), "wall_clock_megabytes_per_second": round((state.get("bytes_stored", 0) / 1_000_000) / elapsed, 3), "outage_duration_seconds": outage_duration, "estimated_remaining_seconds": round(remaining / (state["partitions_complete"] / elapsed), 0) if state["partitions_complete"] else None, "latest_manifest_integrity": integrity, "stored_partition_manifests": len(manifests), "systemd_state": systemd_state, "root": str(root)})
+    rate_started = datetime.fromisoformat(state.get("request_rate_measurement_started_at_utc", state["started_at_utc"]))
+    rate_seconds = max(1.0, (datetime.now(timezone.utc) - rate_started).total_seconds())
+    measured_rpm = max(0, state.get("api_request_count", 0) - state.get("request_rate_measurement_baseline", 0)) * 60.0 / rate_seconds
+    payload.update({"partitions_pending": remaining, "actual_acquired_range": {"first_session": min(acquired_sessions) if acquired_sessions else None, "last_session": max(acquired_sessions) if acquired_sessions else None}, "free_disk_bytes": shutil.disk_usage(root).free, "historical_measured_requests_per_minute": round(measured_rpm, 2), "active_rows_per_second": round(active_rate, 2), "active_megabytes_per_second": round((active_bytes / 1_000_000) / active_seconds, 3), "wall_clock_rows_per_second": round(wall_rate, 2), "wall_clock_megabytes_per_second": round((state.get("bytes_stored", 0) / 1_000_000) / elapsed, 3), "outage_duration_seconds": outage_duration, "estimated_remaining_seconds": round(remaining / (state["partitions_complete"] / elapsed), 0) if state["partitions_complete"] else None, "latest_manifest_integrity": integrity, "stored_partition_manifests": len(manifests), "systemd_state": systemd_state, "root": str(root)})
     return payload
 
 

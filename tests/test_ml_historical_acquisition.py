@@ -13,13 +13,13 @@ from unittest.mock import patch
 
 from qpx_bot.ml_historical_acquisition import (
     ACQUISITION_PROVENANCE_VERSION, ADJUSTMENT, BAR_COLUMNS, BARS_URL,
-    CHECKPOINT_SCHEMA_VERSION, DEFAULT_ROOT, FEED, PAGE_LIMIT,
+    CHECKPOINT_SCHEMA_VERSION, DEFAULT_ROOT, FEED, LIVE_REQUESTS_PER_MINUTE, PAGE_LIMIT,
     PROVIDER_INPUT_SEMANTIC_VERSION, QUALIFIED_FROZEN_ROOT, TIMEFRAME,
     Acquisition, ProviderError, RateGovernor, aggregate_bars, atomic_bytes,
     atomic_json, batch_descriptor, build_security_master, calculate_range,
     canonical_provider_asset_id, encode_gzip_csv, fingerprint, initial_estimate,
     classify_transport_error, normalize_corporate_action, page_evidence, read_gzip_csv, sha256_path,
-    status, validate_bar,
+    coexistence_capacity, status, validate_bar,
 )
 
 
@@ -344,14 +344,14 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
                 with self.assertRaises(ProviderError): acquisition.run(max_partitions=1)
                 self.assertEqual(acquisition.test_state["status"], "HARD_FAILED")
 
-    def test_morning_cutoff_during_outage_exits_cleanly(self):
+    def test_network_outage_at_old_cutoff_resumes_under_coexistence(self):
         cutoff = datetime(2026, 9, 4, 12, 45, tzinfo=timezone.utc)
         error = ProviderError("dns", transient=True, failure_class="DNS_RESOLUTION_FAILURE")
         with tempfile.TemporaryDirectory() as folder:
-            acquisition = ScriptedAcquisition(Path(folder), run_state(), [error], now=lambda: cutoff)
-            result = acquisition.run()
-            self.assertEqual(result["status"], "STOPPED_FOR_MARKET_WINDOW")
-            self.assertEqual(acquisition.calls, 0)
+            acquisition = ScriptedAcquisition(Path(folder), run_state(), [error, None], now=lambda: cutoff)
+            result = acquisition.run(max_partitions=1)
+            self.assertEqual(result["partitions_complete"], 1)
+            self.assertEqual(acquisition.calls, 2)
 
     def test_status_tracks_active_and_wall_clock_rates_separately(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -390,9 +390,72 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
         rows = [{"provider_asset_id": "a", "session_date": "2026-09-03", "market_timestamp": "2026-09-03T09:30:00-04:00", "open": "10", "high": "12", "low": "9", "close": "11", "volume": "4"}]
         self.assertEqual(aggregate_bars(rows, "hourly")[0]["bucket"], "2026-09-03T09:00:00-04:00")
 
-    def test_morning_boundary(self):
+    def test_morning_boundary_is_replaced_by_coexistence_controller(self):
         acquisition = Acquisition(Path(tempfile.gettempdir()) / "qpx-test", FakeClient(), now=lambda: datetime(2026, 9, 4, 13, 0, tzinfo=timezone.utc))
-        self.assertTrue(acquisition._deadline_reached())
+        self.assertFalse(acquisition._deadline_reached())
+
+    def test_off_market_uses_normal_rate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            acquisition = Acquisition(Path(folder), FakeClient(), capacity_probe=lambda _now: {"mode": "OFF_MARKET", "live_qpx_active": False})
+            state = self.partition_state(); acquisition._state_defaults(state)
+            acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
+            self.assertEqual(state["historical_request_ceiling_per_minute"], 120)
+
+    def test_live_mode_uses_low_rate_and_detects_clean_v2(self):
+        with tempfile.TemporaryDirectory() as folder:
+            assessment = {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True, "clean_v2_service_state": "active"}
+            acquisition = Acquisition(Path(folder), FakeClient(), capacity_probe=lambda _now: assessment)
+            state = self.partition_state(); acquisition._state_defaults(state)
+            acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
+            self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
+            self.assertEqual(state["historical_request_ceiling_per_minute"], LIVE_REQUESTS_PER_MINUTE)
+
+    def test_live_pressure_waits_without_spin_then_resumes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            decisions = iter((
+                {"mode": "WAITING_FOR_LIVE_CAPACITY", "live_qpx_active": True, "reason": "CPU_LOAD_PRESSURE"},
+                {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True, "reason": None},
+            )); sleeps = []
+            acquisition = Acquisition(Path(folder), FakeClient(), capacity_probe=lambda _now: next(decisions), sleep=sleeps.append)
+            state = self.partition_state(); acquisition._state_defaults(state)
+            acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
+            self.assertEqual(sleeps, [30]); self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
+
+    def test_live_429_latches_session_yield(self):
+        class Limited(FakeClient):
+            def request(self, url, params):
+                raise ProviderError("limited", status=429, transient=True, failure_class="HTTP_429")
+        with tempfile.TemporaryDirectory() as folder:
+            acquisition = Acquisition(Path(folder), Limited(), now=lambda: NOW, capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True})
+            acquisition.disk_gate = lambda: 900_000_000_000
+            state = self.partition_state(); acquisition._state_defaults(state)
+            with self.assertRaises(ProviderError):
+                acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertEqual(state["live_session_yield_date"], NOW.astimezone().date().isoformat())
+
+    @patch("qpx_bot.ml_historical_acquisition._latest_clean_cycle_lag", return_value=181.0)
+    @patch("qpx_bot.ml_historical_acquisition._proc_io_pressure", return_value=0.0)
+    @patch("qpx_bot.ml_historical_acquisition._proc_available_memory", return_value=8_000_000_000)
+    @patch("qpx_bot.ml_historical_acquisition._clean_provider_state", return_value="HEALTHY")
+    @patch("qpx_bot.ml_historical_acquisition._clean_service_state", return_value="active")
+    def test_high_clean_v2_latency_yields(self, *_patches):
+        moment = datetime(2026, 9, 4, 14, 5, tzinfo=timezone.utc)
+        with patch("qpx_bot.ml_historical_acquisition.os.getloadavg", return_value=(1.0, 1.0, 1.0)):
+            result = coexistence_capacity(moment)
+        self.assertEqual(result["mode"], "WAITING_FOR_LIVE_CAPACITY")
+        self.assertEqual(result["reason"], "CLEAN_V2_DECISION_LATENCY")
+
+    @patch("qpx_bot.ml_historical_acquisition._clean_service_state", return_value="inactive")
+    def test_expected_clean_v2_inactive_fails_safe(self, _service):
+        moment = datetime(2026, 9, 4, 14, 5, tzinfo=timezone.utc)
+        result = coexistence_capacity(moment)
+        self.assertEqual(result["mode"], "WAITING_FOR_LIVE_CAPACITY")
+
+    def test_read_only_status_reports_operating_mode(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); state = run_state(); state["operating_mode"] = "LIVE_COEXISTENCE"
+            Acquisition(root, FakeClient()).save_state(state)
+            self.assertEqual(status(root)["operating_mode"], "LIVE_COEXISTENCE")
 
     def test_read_only_status_does_not_create_root(self):
         with tempfile.TemporaryDirectory() as folder:
