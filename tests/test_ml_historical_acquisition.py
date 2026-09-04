@@ -15,7 +15,7 @@ from qpx_bot.ml_historical_acquisition import (
     ACQUISITION_PROVENANCE_VERSION, ADJUSTMENT, BAR_COLUMNS, BARS_URL,
     CHECKPOINT_SCHEMA_VERSION, DEFAULT_ROOT, FEED, LIVE_REQUESTS_PER_MINUTE, PAGE_LIMIT,
     PROVIDER_INPUT_SEMANTIC_VERSION, QUALIFIED_FROZEN_ROOT, TIMEFRAME,
-    Acquisition, ProviderError, RateGovernor, aggregate_bars, atomic_bytes,
+    Acquisition, AlpacaHistoricalClient, CooperativeStop, ProviderError, RateGovernor, aggregate_bars, atomic_bytes,
     atomic_json, batch_descriptor, build_security_master, calculate_range,
     canonical_provider_asset_id, encode_gzip_csv, fingerprint, initial_estimate,
     classify_transport_error, normalize_corporate_action, page_evidence, read_gzip_csv, sha256_path,
@@ -316,7 +316,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             acquisition = ScriptedAcquisition(Path(folder), run_state(), [transient, transient, None], sleep=sleeps.append)
             result = acquisition.run(max_partitions=1)
             self.assertEqual(acquisition.calls, 3)
-            self.assertEqual(sleeps, [60, 120])
+            self.assertEqual(sum(sleeps), 180); self.assertTrue(all(value == 1.0 for value in sleeps))
             self.assertEqual(result["partitions_complete"], 1)
             self.assertEqual(result["failure_count"], 0)
             self.assertTrue(any(item["status"] == "WAITING_FOR_NETWORK" for item in acquisition.snapshots))
@@ -419,7 +419,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             acquisition = Acquisition(Path(folder), FakeClient(), capacity_probe=lambda _now: next(decisions), sleep=sleeps.append)
             state = self.partition_state(); acquisition._state_defaults(state)
             acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
-            self.assertEqual(sleeps, [30]); self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
+            self.assertEqual(sum(sleeps), 30); self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
 
     def test_live_429_latches_session_yield(self):
         class Limited(FakeClient):
@@ -480,7 +480,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             state["pending_finalizations"] = [{"partition": str(i)} for i in range(32)]
             acquisition._drain_pending_finalizations = lambda value: value["pending_finalizations"].clear()
             acquisition._pending_capacity_gate(state)
-            self.assertEqual(sleeps, [30]); self.assertFalse(state["pending_finalizations"])
+            self.assertEqual(sum(sleeps), 30); self.assertFalse(state["pending_finalizations"])
 
     def test_recent_historical_activity_makes_clean_lag_yield_then_resume(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -491,7 +491,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW, sleep=sleeps.append, capacity_probe=lambda _now: next(decisions))
             state = self.partition_state(); acquisition._state_defaults(state); state["last_historical_activity_at_utc"] = NOW.isoformat()
             acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
-            self.assertEqual(sleeps, [30]); self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
+            self.assertEqual(sum(sleeps), 30); self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
 
     def test_old_historical_activity_does_not_latch_unrelated_clean_lag(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -512,6 +512,79 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             acquisition._set_mode(state, "WAITING_FOR_LIVE_CAPACITY", "CPU_LOAD_PRESSURE", {"load_1m": 9.0}, "ATTRIBUTABLE_RECENT_HISTORICAL_ACTIVITY")
             record = json.loads((Path(folder) / "acquisition_state/coexistence_journal.jsonl").read_text().strip())
             self.assertEqual(record["reason"], "CPU_LOAD_PRESSURE"); self.assertEqual(record["pending_finalization_count"], 0)
+
+    def test_stop_interrupts_capacity_and_protected_window_without_spin(self):
+        for mode in ("WAITING_FOR_LIVE_CAPACITY", "PROTECTED_DECISION_WINDOW"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as folder:
+                holder = {}; sleeps = []
+                def sleeper(seconds):
+                    sleeps.append(seconds); holder["acquisition"].stop_requested = True
+                acquisition = Acquisition(Path(folder), FakeClient(), sleep=sleeper,
+                                          capacity_probe=lambda _now: {"mode": mode, "reason": "TEST_WAIT"})
+                holder["acquisition"] = acquisition; state = self.partition_state(); acquisition._state_defaults(state)
+                with self.assertRaises(CooperativeStop):
+                    acquisition._capacity_gate(state, {"year": 2026, "batch": 0})
+                self.assertEqual(sleeps, [1.0])
+
+    def test_stop_interrupts_network_wait(self):
+        with tempfile.TemporaryDirectory() as folder:
+            holder = {}; sleeps=[]
+            def sleeper(seconds):
+                sleeps.append(seconds); holder["acquisition"].stop_requested = True
+            acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW, sleep=sleeper)
+            holder["acquisition"] = acquisition; state = self.partition_state(); acquisition._state_defaults(state)
+            with self.assertRaises(CooperativeStop):
+                acquisition._wait_for_network(state, {"year": 2026, "batch": 0}, ProviderError("dns", transient=True, failure_class="DNS_RESOLUTION_FAILURE"))
+            self.assertEqual(sleeps, [1.0]); self.assertEqual(state["status"], "WAITING_FOR_NETWORK")
+
+    def test_stop_interrupts_provider_retry_backoff(self):
+        with tempfile.TemporaryDirectory() as folder:
+            holder = {}; sleeps=[]
+            def sleeper(seconds):
+                sleeps.append(seconds); holder["acquisition"].stop_requested = True
+            client = AlpacaHistoricalClient(RateGovernor(clock=lambda: 0.0))
+            acquisition = Acquisition(Path(folder), client, sleep=sleeper); holder["acquisition"] = acquisition
+            error = urllib.error.URLError(socket.gaierror(-3, "temporary failure"))
+            with patch("qpx_bot.ml_historical_acquisition.credentials", return_value=("test-key", "test-secret")), patch("qpx_bot.ml_historical_acquisition.urllib.request.urlopen", side_effect=error):
+                with self.assertRaises(CooperativeStop): client.request(BARS_URL, {"symbols": "AAA"})
+            self.assertEqual(sleeps, [1.0])
+
+    def test_stop_interrupts_finalization_capacity_wait(self):
+        with tempfile.TemporaryDirectory() as folder:
+            holder = {}; sleeps=[]
+            def sleeper(seconds):
+                sleeps.append(seconds); holder["acquisition"].stop_requested = True
+            acquisition = Acquisition(Path(folder), FakeClient(), sleep=sleeper,
+                                      capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE"})
+            holder["acquisition"] = acquisition; state = self.partition_state(); acquisition._state_defaults(state)
+            state["pending_finalizations"] = [{"partition": str(i)} for i in range(32)]
+            with self.assertRaises(CooperativeStop): acquisition._pending_capacity_gate(state)
+            self.assertEqual(sleeps, [1.0]); self.assertEqual(state["status"], "WAITING_FOR_FINALIZATION_CAPACITY")
+
+    def test_cooperative_stop_preserves_unfinished_fragment_and_state(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); page_root = write_v2_resume(root)
+            state = run_state(); state.update({
+                "requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"},
+                "partitions": [{"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}],
+            })
+            holder = {}
+            def sleeper(_seconds): holder["acquisition"].stop_requested = True
+            acquisition = Acquisition(root, FakeClient(), now=lambda: NOW, sleep=sleeper,
+                                      capacity_probe=lambda _now: {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "TEST_WAIT"})
+            holder["acquisition"] = acquisition; acquisition.save_state(state)
+            result = acquisition.run(max_partitions=1)
+            self.assertEqual(result["status"], "STOPPED_FOR_MARKET_WINDOW")
+            self.assertTrue((page_root / "checkpoint.json").exists()); self.assertTrue(next(page_root.glob("page-*.csv.gz")).exists())
+            self.assertFalse(result["completed"])
+
+    def test_cooperative_shutdown_bound_and_systemd_failsafe(self):
+        with tempfile.TemporaryDirectory() as folder:
+            acquisition = Acquisition(Path(folder), FakeClient(), sleep=lambda _seconds: None)
+            acquisition.stop_requested = True
+            with self.assertRaises(CooperativeStop): acquisition._cooperative_wait(900)
+        unit = (Path(__file__).parents[1] / "deploy/qpx-ml-historical-acquisition.service").read_text()
+        self.assertIn("TimeoutStopSec=90", unit)
 
     @patch("qpx_bot.ml_historical_acquisition._latest_clean_cycle_evidence", return_value={"lag_seconds": 181.0, "observed_at_utc": "2026-09-04T14:05:00+00:00"})
     @patch("qpx_bot.ml_historical_acquisition._proc_io_pressure", return_value=0.0)

@@ -72,6 +72,8 @@ LIVE_MAX_LOAD_PER_CPU = 0.5
 CLEAN_V2_UNIT = "qpx-pr50-iex-forward-research-paper-clean-v2.service"
 CLEAN_V2_RUNTIME = ROOT / "runtime" / "qpx_pr50_iex_forward_research_paper_clean_v2"
 MAX_ATTEMPTS = 5
+COOPERATIVE_WAIT_QUANTUM_SECONDS = 1.0
+PROVIDER_REQUEST_TIMEOUT_SECONDS = 30
 OUTAGE_BACKOFF_SECONDS = (60, 120, 300, 600, 900)
 MIN_FREE_BYTES = 200_000_000_000
 MORNING_DEADLINE = wall_time(8, 45)
@@ -194,6 +196,10 @@ class ProviderError(RuntimeError):
         self.systemic = systemic
         self.transient = transient
         self.failure_class = failure_class
+
+
+class CooperativeStop(RuntimeError):
+    """Internal control flow for a requested, safely checkpointed shutdown."""
 
 
 def classify_transport_error(exc: BaseException) -> tuple[bool, str]:
@@ -346,6 +352,7 @@ class AlpacaHistoricalClient:
     rate_limit: int | None = None
     rate_limit_remaining: int | None = None
     rate_limit_reset: str | None = None
+    wait: Callable[[float], None] = time.sleep
 
     def request(self, url: str, params: Mapping[str, str]) -> dict[str, Any] | list[Any]:
         key, secret = credentials()
@@ -359,7 +366,7 @@ class AlpacaHistoricalClient:
             self.request_count += 1
             request_started = time.monotonic()
             try:
-                with urllib.request.urlopen(request, timeout=60) as response:
+                with urllib.request.urlopen(request, timeout=PROVIDER_REQUEST_TIMEOUT_SECONDS) as response:
                     payload = json.loads(response.read())
                     headers = response.headers
                 if not isinstance(payload, (dict, list)):
@@ -395,7 +402,7 @@ class AlpacaHistoricalClient:
                 delay = min(30.0, 2 ** attempt + random.random())
             if attempt < self.attempts:
                 self.retry_count += 1
-                time.sleep(delay)
+                self.wait(delay)
         if isinstance(last, ProviderError) and last.transient:
             raise ProviderError(f"Provider request exhausted bounded retries: {last}", transient=True,
                                 status=last.status, failure_class=last.failure_class) from last
@@ -568,6 +575,22 @@ class Acquisition:
         self.retry_count_base = 0
         self.state_path = self.root / "acquisition_state" / "state.json"
         self.state_checksum = self.state_path.with_suffix(".sha256")
+        governor = getattr(self.client, "governor", None)
+        if governor is not None and hasattr(governor, "sleep"):
+            governor.sleep = self._cooperative_wait
+        if hasattr(self.client, "wait"):
+            self.client.wait = self._cooperative_wait
+
+    def _cooperative_wait(self, seconds: float) -> None:
+        remaining = max(0.0, float(seconds))
+        while remaining > 0:
+            if self.stop_requested:
+                raise CooperativeStop("Historical acquisition stop requested.")
+            interval = min(COOPERATIVE_WAIT_QUANTUM_SECONDS, remaining)
+            self.sleep(interval)
+            remaining -= interval
+        if self.stop_requested:
+            raise CooperativeStop("Historical acquisition stop requested.")
 
     def load_state(self) -> dict[str, Any] | None:
         if not self.state_path.exists() and not self.state_checksum.exists():
@@ -724,7 +747,7 @@ class Acquisition:
             state["live_capacity_recheck_seconds"] = LIVE_CAPACITY_RECHECK_SECONDS
             state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
             self.save_state(state)
-            self.sleep(LIVE_CAPACITY_RECHECK_SECONDS)
+            self._cooperative_wait(LIVE_CAPACITY_RECHECK_SECONDS)
 
     def _seconds_until_deadline(self) -> float:
         local = self.now().astimezone(EASTERN)
@@ -757,7 +780,7 @@ class Acquisition:
         self.sync_provider_counts(state)
         state["provider_retry_count"] = state["retry_count"]
         self.save_state(state)
-        self.sleep(delay)
+        self._cooperative_wait(delay)
         state["transient_outage_seconds"] += delay
         if self.stop_requested:
             state["status"] = "STOPPED_FOR_MARKET_WINDOW"
@@ -976,7 +999,7 @@ class Acquisition:
             state["status"] = "WAITING_FOR_FINALIZATION_CAPACITY"
             state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
             self.save_state(state)
-            self.sleep(LIVE_CAPACITY_RECHECK_SECONDS)
+            self._cooperative_wait(LIVE_CAPACITY_RECHECK_SECONDS)
 
     def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
         year, batch = int(item["year"]), int(item["batch"])
@@ -1116,7 +1139,7 @@ class Acquisition:
         state["failure_count"] += 1
         self.sync_provider_counts(state)
 
-    def run(self, max_partitions: int | None = None) -> dict[str, Any]:
+    def _run(self, max_partitions: int | None = None) -> dict[str, Any]:
         state = self.load_state() or self.initialize()
         self._state_defaults(state)
         self.request_count_base = int(state.get("api_request_count", 0)) - self.client.request_count
@@ -1140,6 +1163,8 @@ class Acquisition:
                         state["last_outage_ended_at_utc"] = self.now().isoformat()
                     state["outage_started_at_utc"] = None; state["outage_backoff_level"] = 0
                     break
+                except CooperativeStop:
+                    raise
                 except ProviderError as exc:
                     state["active_acquisition_seconds"] += max(0.0, self.monotonic() - active_started)
                     if exc.transient:
@@ -1167,13 +1192,29 @@ class Acquisition:
                 self._set_mode(state, "WAITING_FOR_FINALIZATION_CAPACITY", "ALL_DOWNLOADS_COMPLETE_AWAITING_OFF_MARKET_FINALIZATION", assessment)
                 state["status"] = "WAITING_FOR_FINALIZATION_CAPACITY"
                 state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
-                self.save_state(state); self.sleep(LIVE_CAPACITY_RECHECK_SECONDS)
+                self.save_state(state); self._cooperative_wait(LIVE_CAPACITY_RECHECK_SECONDS)
             state["stage"] = "CORPORATE_ACTIONS"; state["status"] = "RUNNING"; state["current_partition"] = "corporate_actions"; self.save_state(state)
             self.acquire_corporate_actions(state); self.finalize(state)
         if max_partitions is not None and completed_now >= max_partitions:
             state["status"] = "PARTIAL"; state["stop_reason"] = "BOUNDED_RUN_COMPLETE"
         self.sync_provider_counts(state); state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
         return state
+
+    def run(self, max_partitions: int | None = None) -> dict[str, Any]:
+        try:
+            return self._run(max_partitions=max_partitions)
+        except CooperativeStop:
+            state = self.load_state()
+            if state is None:
+                raise
+            self._state_defaults(state)
+            state["status"] = "STOPPED_FOR_MARKET_WINDOW"
+            state["stop_reason"] = "SIGNAL"
+            state["next_retry_at_utc"] = None
+            state["checkpoint_at_utc"] = self.now().isoformat()
+            self.sync_provider_counts(state)
+            self.save_state(state)
+            return state
 
 
 def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
