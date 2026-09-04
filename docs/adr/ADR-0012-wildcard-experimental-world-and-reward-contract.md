@@ -24,6 +24,9 @@ The ten-year whole-market 15-minute reservoir remains incomplete. This ADR does
 not make it `TRAINING_ELIGIBLE`, start apprenticeship, authorize executable ML,
 or change any running system.
 
+ADR-0012's numerical reward formula is the initial default reward-policy
+configuration, not hard-coded Wildcard doctrine.
+
 ---
 
 ## Relationship to ADR-0011
@@ -73,10 +76,15 @@ physics. They are not recommendations about how Wildcard should trade.
 
 ### Reward and consequence rules
 
-Wildcard receives economic consequences through causally reconciled equity,
-with a bounded early-compounding incentive and a lexicographic terminal solvency
-classification. Behavioral proxies are recorded as evidence but are not directly
-rewarded or penalized.
+The world measures neutral economic consequence channels independently of the
+reward policy. A versioned reward policy selects which channels affect learning
+and with what parameters. Reward policy is separate from model architecture and
+from accounting/execution physics.
+
+The default V1 reward policy uses causally reconciled log-equity growth, a
+bounded early-compounding bonus, and a lexicographic terminal solvency
+classification. Behavioral channels are recorded as evidence but their optional
+penalties are disabled in the default profile.
 
 ### V1 implementation boundaries
 
@@ -323,7 +331,127 @@ rewarding compute speed or distorting time around closures.
 
 ---
 
-## 10. Dense Economic Reward
+## 10. Reward Engine Boundary and Configuration
+
+The future reward engine has three explicit layers:
+
+1. **Economic consequence channels** are factual causal measurements. They
+   include delta log equity, elapsed causal market time, cash exposure, account
+   utilization, inactivity duration, turnover, concentration, drawdown,
+   volatility, costs, liquidity usage, survival state, bankruptcy, and other
+   neutral measurable consequences.
+2. **Reward policy** selects enabled consequence terms, functions, coefficients,
+   thresholds, grace periods, time constants, and caps. It cannot alter the
+   underlying measurements.
+3. **Model architecture** consumes the world, account state, causally eligible
+   memory, and—if the later model review approves it—a versioned reward or
+   preference representation. Changing policy parameters must not require a
+   model-architecture or source-code rewrite.
+
+All reward and penalty terms, coefficients, thresholds, grace periods,
+enable/disable states, time constants, caps, and comparable preference parameters
+are externally configurable, versioned, validated, immutable within a controlled
+experiment, and fingerprinted.
+
+At minimum, the reward-policy schema must represent:
+
+| Term | Required configurable fields |
+| --- | --- |
+| Growth | enabled, weight |
+| Speed bonus | enabled, weight, function/family identifier, half-life or time constant |
+| Inactivity | enabled, causal-market-time grace period, activation threshold, rate/weight, optional cap |
+| Cash exposure | enabled, exposure threshold, causal-market-time grace period, rate/weight, optional cap |
+| Turnover | enabled, weight, optional threshold/cap where its versioned function uses one |
+| Concentration | enabled, threshold, weight, optional cap |
+| Drawdown | enabled, weight, optional threshold/cap where its versioned function uses one |
+| Volatility | enabled, weight, optional threshold/cap where its versioned function uses one |
+| Costs | enabled, weight, optional threshold/cap where its versioned function uses one |
+| Future term | enabled plus every parameter required by its versioned function |
+
+Disabled terms remain measurable consequence channels. Their configuration must
+still serialize canonically, using explicit schema-defined inactive values rather
+than implicit source defaults.
+
+The configuration validator must fail closed on unknown fields or function
+identifiers, missing or malformed values, non-finite numbers, values outside
+schema-defined domains, incompatible combinations, non-causal time definitions,
+or a fingerprint mismatch. It must not silently ignore or coerce a term.
+
+Ordinary approved tuning—for example changing the speed half-life, enabling an
+inactivity penalty, or changing its weight—must require only a new validated
+reward-policy configuration. It must not require changes to Python source,
+accounting, execution physics, episode machinery, the causal wall, or model
+architecture merely to expose the parameter.
+
+### Cash exposure and inactivity are independent
+
+Cash exposure and inactivity are distinct factual channels and independently
+configurable policy terms. Cash is not inherently bad; it may be an economically
+useful state. An inactivity policy may target persistent economic inertia without
+punishing causally useful cash holdings merely because they are cash.
+
+Each cash or inactivity policy must independently declare its enable state,
+causal-market-time grace period, activation threshold, penalty rate or weight,
+and maximum/cap when applicable. Wall-clock time is forbidden.
+
+### Experiment immutability and provenance
+
+Reward configuration may change only between experiments or explicitly governed
+training phases. Every active reward policy must have:
+
+- a schema version;
+- a complete deterministic canonical configuration;
+- a SHA-256 content fingerprint;
+- creation and approval provenance; and
+- an effective experiment identity.
+
+Every episode, report, checkpoint, model-training artifact, and causally governed
+learning artifact records the exact reward-policy fingerprint. Changing any
+reward parameter creates a new reward-policy identity and effective experiment
+identity. Results from distinct reward policies cannot be silently pooled or
+reported as one controlled experiment.
+
+### Reward/preference-conditioned model review
+
+Future model selection must evaluate reward/preference conditioning to reduce
+the need for fresh-from-genesis training when approved reward preferences change.
+
+The preferred candidate boundary, if technically valid for the selected model,
+is:
+
+```text
+market state
++ account state
++ causally eligible memory
++ approved reward/preference configuration vector
+        -> Wildcard -> action
+```
+
+This is a model-selection requirement, not a claim that arbitrary objective
+changes require zero learning. A materially changed objective may require
+continued adaptation or retraining. The later review must determine when
+causally legal learned state can be reused, how preference configurations are
+represented, and when lineage must branch or reset. Ordinary tuning must not
+require an architecture rebuild or source rewrite merely to expose the policy.
+
+### Non-configurable safety boundary
+
+Reward policy cannot weaken or redefine:
+
+- no future information;
+- ADR-0011's causal brick wall and raw-archive isolation;
+- complete decision-boundary ordering;
+- no fabricated fills;
+- reconciled accounting;
+- no real-money authority;
+- Wildcard's strategy sterility; or
+- bankruptcy's accounting definition.
+
+These are causal, accounting, and authority invariants, not reward knobs.
+
+---
+
+## 11. Default V1 Dense Economic Reward Profile
 
 For consecutive causally reconciled positive equities, dense economic growth is:
 
@@ -344,6 +472,35 @@ The dense reward is unambiguously:
 r_t = w(tau_t) * DeltaLogEquity_t
 ```
 
+Equivalently, the configurable default family contains a growth term and a speed
+bonus term:
+
+```text
+r_t = growth_weight * DeltaLogEquity_t
+    + speed_bonus_weight * exp(-ln(2) * tau_t / H) * DeltaLogEquity_t
+```
+
+The initial default V1 profile is:
+
+- growth reward: enabled, weight `1.0`;
+- speed bonus: enabled, weight `1.0`;
+- speed function: the versioned exponential half-life family above;
+- speed half-life `H`: `24,570` scheduled regular-session trading minutes;
+- cash penalty: disabled;
+- inactivity penalty: disabled;
+- turnover penalty: disabled;
+- concentration penalty: disabled;
+- drawdown penalty: disabled;
+- volatility penalty: disabled; and
+- separate cost penalty: disabled, while actual costs continue to affect
+  reconciled equity through world accounting.
+
+An enabled term with weight zero and a disabled term are semantically distinct
+and remain distinct in canonical configuration. Parameters for disabled optional
+terms are explicit inactive values under the schema; enabling one requires a new
+complete governed profile defining its function, threshold/grace semantics, and
+weight or rate.
+
 At episode start the weight is approximately 2.0, after one half-life it is 1.5,
 after two half-lives it is 1.25, and over long periods it approaches 1.0 rather
 than zero. Thus all economic growth continues to matter while earlier equal
@@ -361,7 +518,7 @@ risk earns nothing unless it produces causally reconciled economic growth.
 
 ---
 
-## 11. Terminal Evaluation
+## 12. Terminal Evaluation
 
 Solvency is strictly lexicographic. Every `FAILED_BANKRUPTCY` episode ranks below
 every solvent `HISTORICAL_COMPLETE` episode for terminal-success classification,
@@ -391,9 +548,15 @@ inject a human risk-preference weighting into Wildcard.
 reported separately and cannot be relabeled to improve or worsen bankruptcy
 statistics.
 
+The default terminal policy is the lexicographic ordering above. Any future
+tunable terminal learning or solvent-comparison parameter must be external,
+versioned, validated, immutable within the experiment, and included in the
+reward-policy fingerprint. No terminal reward setting may redefine whether the
+account is economically insolvent or relabel an accounting outcome.
+
 ---
 
-## 12. Reward-Pathology Gate
+## 13. Reward-Pathology Gate
 
 Before any ML training, deterministic scripted non-learning agents and fixtures
 must test the world and reward for incentives or exploits involving:
@@ -411,12 +574,21 @@ must test the world and reward for incentives or exploits involving:
 - inconsistent elapsed-time definitions; and
 - hardware/replay-speed differences.
 
-A real exploit must be corrected in world physics or reward semantics through a
-new reviewed world version. It must not be hidden by adding strategy doctrine.
+A real exploit must be corrected through a new reviewed world identity when
+physics is wrong or a new reviewed reward-policy identity when policy semantics
+are wrong. It must not be hidden by adding strategy doctrine.
+
+Every proposed non-default reward profile must pass this gate using scripted
+`DEVELOPMENT_ONLY` agents before real apprenticeship. The reusable test framework
+must accept the external reward configuration without source changes and cover,
+at minimum, inactivity exploitation, forced pointless trading, cash aversion,
+churn, concentration incentives, gambling for resurrection, pre-bankruptcy
+reward accumulation, mark-price and termination exploits, and causal-time
+denominator exploits.
 
 ---
 
-## 13. Failure-Loop Observability
+## 14. Failure-Loop Observability
 
 Sealed raw archives and sterile reports must let authorized humans, Research ML,
 and Qualification ML compare episodes for repeated bankruptcy patterns,
@@ -431,11 +603,12 @@ eligible; observability does not create an exception to the causal brick wall.
 
 ---
 
-## 14. Deterministic Episode Seeds
+## 15. Deterministic Episode Seeds
 
 Every episode receives a deterministic unique seed derived from:
 
-- experiment-world fingerprint;
+- effective experiment identity, including the world and reward-policy
+  fingerprints;
 - model/base fingerprint;
 - causal-learning lineage; and
 - episode sequence identity.
@@ -450,7 +623,7 @@ independent validation trials merely because they have different seeds.
 
 ---
 
-## 15. World and Experiment Identity
+## 16. World and Experiment Identity
 
 Comparable episodes bind at minimum these immutable or content-addressed facts
 into the experiment-world and episode provenance:
@@ -468,8 +641,11 @@ into the experiment-world and episode provenance:
 - bankruptcy and `ECONOMIC_DEAD_END` definitions;
 - stale/non-realizable-value and reconciliation-block policy;
 - causal-time definition;
-- dense reward formula, functional family, and 24,570-minute half-life;
-- terminal-evaluation contract;
+- reward-policy schema, complete canonical configuration, provenance, and
+  SHA-256 fingerprint;
+- dense reward formula, enabled terms, coefficients, functional families,
+  thresholds, grace periods, caps, and 24,570-minute default half-life;
+- terminal-evaluation policy and its configurable economic-comparison parameters;
 - security master, universe, corporate actions, and reservoir manifests;
 - event schema and deterministic ordering;
 - model/base and causal-learning capsule lineage;
@@ -478,12 +654,14 @@ into the experiment-world and episode provenance:
 - code revision and execution environment; and
 - applicable governance configuration.
 
-Changing world physics creates a new experiment-world identity. Episodes from
-incompatible identities must not be presented as one controlled population.
+World physics and reward policy retain distinct fingerprints. The effective
+experiment identity binds both. Changing either world physics or any reward
+parameter creates a new effective experiment identity. Episodes from incompatible
+identities must not be presented as one controlled population.
 
 ---
 
-## 16. Crash and Restart Semantics
+## 17. Crash and Restart Semantics
 
 Process failure is neither bankruptcy nor an episode restart. Recovery follows
 ADR-0011 and must restore the last atomic complete causal boundary, causally
@@ -497,7 +675,7 @@ outcome initiates the fresh-account earliest-boundary lifecycle described above.
 
 ---
 
-## 17. Deliberately Deferred Capabilities
+## 18. Deliberately Deferred Capabilities
 
 The following are deferred from V1, not permanently forbidden:
 
@@ -527,6 +705,16 @@ later reviewed decision:
 
 - exact model family, learning algorithm, optimizer treatment, capsule cadence,
   and causally versioned parameter-composition mechanism;
+- exact reward-policy serialization format and configuration location;
+- exact schema-defined validation domains and canonical numeric encoding;
+- exact optional penalty functions, thresholds, grace periods, rates, weights,
+  and caps for future non-default profiles;
+- preference-vector encoding, conditioning/training method, and the selected
+  model family's fitness for reward/preference conditioning;
+- the rules determining when a reward-policy change permits continued adaptation
+  with causally legal learned state and when lineage must branch or reset;
+- optional terminal-learning and solvent-comparison parameterization beyond the
+  frozen default evidence contract;
 - the exact reconciled-boundary cadence at which dense rewards are emitted;
 - internal decimal scale and rounding rules beyond exact cent reconciliation at
   external cash settlement boundaries;
@@ -555,7 +743,11 @@ explicit policy decision before its dependent executable behavior is built.
 - V1 offers a meaningful neutral long cash-equity world without prescribing a
   trading method.
 - Economic growth and earlier durable compounding drive learning; behavioral
-  proxies remain evidence rather than reward shaping.
+  proxies remain evidence rather than reward shaping in the default V1 profile.
+- Reward tuning is an external, versioned policy change rather than a model or
+  accounting source-code change.
+- Consequence channels remain measurable even when their reward terms are
+  disabled.
 - Bankruptcy cannot be outweighed by temporary gains, and poor but solvent
   performance cannot be mislabeled bankruptcy.
 - Missing lifecycle or valuation evidence blocks reconciliation instead of
