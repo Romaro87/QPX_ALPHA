@@ -595,6 +595,7 @@ class Acquisition:
         state.setdefault("live_session_yield_date", None)
         state.setdefault("request_rate_measurement_started_at_utc", self.now().isoformat())
         state.setdefault("request_rate_measurement_baseline", state.get("api_request_count", 0))
+        state["morning_deadline"] = "REPLACED_BY_GUARDED_LIVE_COEXISTENCE"
 
     def _set_request_rate(self, requests_per_minute: int) -> None:
         governor = getattr(self.client, "governor", None)
