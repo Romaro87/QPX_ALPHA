@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "policy_name": "wildcard_default_v1",
+  "policy_version": "1.0.0",
+  "required_world_contract_id": "ADR-0012_WILDCARD_WORLD_V1",
+  "consequence_schema_version": "wildcard_consequence_channels_v1",
+  "terminal_policy_id": "solvency_lexicographic_v1",
+  "terms": {
+    "growth": {
+      "enabled": true,
+      "function_id": "delta_log_equity_v1",
+      "parameters": {
+        "weight": "1"
+      }
+    },
+    "speed_bonus": {
+      "enabled": true,
+      "function_id": "exp_half_life_delta_log_equity_v1",
+      "parameters": {
+        "weight": "1",
+        "half_life_scheduled_market_minutes": 24570
+      }
+    },
+    "cash_exposure": {
+      "enabled": false,
+      "function_id": null,
+      "parameters": null
+    },
+    "inactivity": {
+      "enabled": false,
+      "function_id": null,
+      "parameters": null
+    },
+    "turnover": {
+      "enabled": false,
+      "function_id": null,
+      "parameters": null
+    },
+    "concentration": {
+      "enabled": false,
+      "function_id": null,
+      "parameters": null
+    },
+    "drawdown": {
+      "enabled": false,
+      "function_id": null,
+      "parameters": null
+    },
+    "volatility": {
+      "enabled": false,
+      "function_id": null,
+      "parameters": null
+    },
+    "costs": {
+      "enabled": false,
+      "function_id": null,
+      "parameters": null
+    }
+  }
+}

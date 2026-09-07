@@ -1,0 +1,16 @@
+{
+  "approval_schema_version": 1,
+  "policy_content_fingerprint": "19d29f646439680d16c1eb51433d5d5a702c875abf848e8cfcf18aaedfe3bfa0",
+  "approval_status": "APPROVED",
+  "approval_authority": "QPX_USER_GOVERNANCE",
+  "created_at_utc": "2026-09-07T18:25:04Z",
+  "approved_at_utc": "2026-09-04T22:29:04Z",
+  "approval_reference": {
+    "kind": "git_commit",
+    "commit": "f529ea24bc31bb04a6fe8ffde1862dd17bbeceaa",
+    "document_path": "docs/adr/ADR-0012-wildcard-experimental-world-and-reward-contract.md",
+    "decision_identity": "ADR_0012_DEFAULT_V1_REWARD_POLICY"
+  },
+  "parent_policy_fingerprint": null,
+  "change_note": "Initial externally configurable Default V1 reward profile."
+}
