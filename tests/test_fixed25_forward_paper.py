@@ -12,6 +12,7 @@ from qpx_bot.fixed25_forward_paper import (
     apply_qdte_corporate_actions, fingerprint, initialize, load_contract,
     select_causal_execution_bar,
 )
+from qpx_bot.candidate_v1_config import load_candidate_v1_config
 from qpx_bot.accelerators.profit_recycling import ProfitRecyclingContext, ProfitSource
 from qpx_bot.portfolio import Position
 
@@ -19,7 +20,14 @@ from qpx_bot.portfolio import Position
 class Fixed25ForwardPaperTest(unittest.TestCase):
     def test_contract_is_fixed25_paper_only(self):
         contract = load_contract()
-        self.assertEqual(contract["maximum_position_notional_fraction"], 0.25)
+        self.assertEqual(
+            contract["candidate_v1_configuration_authority"],
+            "QPX_CANDIDATE_V1.json",
+        )
+        self.assertEqual(
+            load_candidate_v1_config().maximum_position_notional_fraction,
+            0.25,
+        )
         self.assertFalse(contract["live_broker_enabled"])
         self.assertTrue(contract["simulated_fills_only"])
         self.assertEqual(contract["decision_timeframe"], "15Min")

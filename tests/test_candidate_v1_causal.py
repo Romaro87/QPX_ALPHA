@@ -10,36 +10,14 @@ from qpx_bot.candidate_v1_causal import (
     CandidateV1CausalInputs,
     evaluate_candidate_v1_causal,
 )
+from qpx_bot.candidate_v1_config import load_candidate_v1_config
 from qpx_bot.config import BotConfig
 from qpx_bot.data_loader import Candle
 from qpx_bot.indicators import calculate_indicators
 
 
 def config() -> BotConfig:
-    return replace(
-        BotConfig(),
-        starting_cash=1300.0,
-        starting_swing_cash=0.0,
-        monthly_contribution=0.0,
-        dividend_allocation_years_1_2=0.125,
-        swing_allocation_years_1_2=0.875,
-        dividend_allocation_later=0.125,
-        swing_allocation_later=0.875,
-        allocation_rebalance_frequency="weekly",
-        maximum_swing_positions=6,
-        minimum_average_daily_volume=75_000,
-        breakout_volume_multiplier=1.05,
-        breakout_lookback=10,
-        maximum_vix_for_entries=32.0,
-        rsi_overbought=75.0,
-        risk_per_trade=0.03,
-        maximum_active_portfolio_risk=0.10,
-        stop_atr_multiple=2.5,
-        target_atr_multiple=5.0,
-        trailing_activation_atr=3.0,
-        slippage_rate=0.00075,
-        annual_tax_reserve_rate=0.37,
-    )
+    return load_candidate_v1_config().bot_config
 
 
 def candles() -> list[Candle]:

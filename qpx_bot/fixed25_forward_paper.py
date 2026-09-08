@@ -32,6 +32,12 @@ from qpx_bot.paper_state import (
 from qpx_bot.risk import calculate_position_size
 from qpx_bot.strategy import evaluate_exit
 from qpx_bot.candidate_v1_causal import CandidateV1CausalInputs, evaluate_candidate_v1_causal
+from qpx_bot.candidate_v1_config import (
+    CandidateV1ConfigSnapshot,
+    candidate_v1_config_from_snapshot,
+    disabled_kelly_trade_history,
+    load_candidate_v1_config,
+)
 from qpx_bot.allocation import rebalance_income_allocation
 from qpx_bot.accelerators.profit_recycling import (
     ProfitRecyclingContext,
@@ -41,7 +47,6 @@ from qpx_bot.accelerators.profit_recycling import (
     load_profit_recycling_config,
 )
 from qpx_bot.shadow_matrix.forward import build_cycle_payload, dispatch_cycle, flush_pending_event
-import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as qualified
 
 ROOT = Path(__file__).resolve().parent.parent
 KEY_FILE = Path.home() / ".config/qpx/alpaca.json"
@@ -54,9 +59,6 @@ CORPORATE_ACTION_URL = "https://data.alpaca.markets/v1/corporate-actions"
 NY = ZoneInfo("America/New_York")
 QUALIFIED_COMMIT = "bba0f48273815ede42374015db7c5770bf446962"
 DATASET_FINGERPRINT = "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8"
-STARTING_CAPITAL = 1470.0
-NOTIONAL_CAP = 0.25
-SLIPPAGE = 0.00075
 PROFIT_FINGERPRINT = "c8d634fcd6a5c1c9503f5dbe38de807b5ee607e21afbb6ea06d1903ba0b5c049"
 SCHEMA = 2
 DECISION_CYCLE_TELEMETRY_EVENT = "IEX_RESEARCH_DECISION_CYCLE_TELEMETRY"
@@ -83,8 +85,6 @@ def load_contract() -> dict[str, Any]:
         raise RuntimeError("Frozen Top-100 identity is invalid.")
     if qualification["dataset_fingerprint"] != DATASET_FINGERPRINT:
         raise RuntimeError("Qualified dataset fingerprint changed.")
-    if float(qualification["maximum_position_notional_fraction"]) != NOTIONAL_CAP:
-        raise RuntimeError("Qualified Fixed-25 cap changed.")
     profit_config = load_profit_recycling_config(PROFIT_CONFIG)
     if profit_config.fingerprint != PROFIT_FINGERPRINT:
         raise RuntimeError("PR_FRACTION_50 configuration fingerprint changed.")
@@ -98,7 +98,9 @@ def load_contract() -> dict[str, Any]:
         "feed": "sip",
         "live_broker_enabled": False,
         "simulated_fills_only": True,
-        "maximum_position_notional_fraction": NOTIONAL_CAP,
+        "candidate_v1_configuration_authority": "QPX_CANDIDATE_V1.json",
+        "candidate_v1_configuration_schema_version": 1,
+        "candidate_v1_configuration_reload_boundary": "COMPLETED_15M_DECISION_BOUNDARY",
         "pyramiding_enabled": False,
         "profit_recycling_policy": "PR_FRACTION_50",
         "profit_recycling_configuration_fingerprint": PROFIT_FINGERPRINT,
@@ -219,7 +221,7 @@ def _profit_runtime(state: Mapping[str, Any]) -> ProfitRecyclingRuntime:
     persisted = state["profit_recycling"]
     if persisted["configuration_fingerprint"] != config.fingerprint:
         raise RuntimeError("Persisted Profit Recycling configuration differs from PR_FRACTION_50.")
-    runtime = ProfitRecyclingRuntime(config, STARTING_CAPITAL)
+    runtime = ProfitRecyclingRuntime(config, float(state["contributed_capital"]))
     runtime.ledger = ProfitSourceLedger.from_dict(persisted["ledger"])
     return runtime
 
@@ -480,6 +482,22 @@ def _position(raw: Mapping[str, Any]) -> Position:
                     entry_price=float(raw["entry_price"]), entry_atr=float(raw["entry_atr"]),
                     stop_price=float(raw["stop_price"]), target_price=float(raw["target_price"]),
                     highest_price=float(raw["highest_price"]),
+                    entry_stop_atr_multiple=(
+                        float(raw["entry_stop_atr_multiple"])
+                        if raw.get("entry_stop_atr_multiple") is not None else None
+                    ),
+                    entry_target_atr_multiple=(
+                        float(raw["entry_target_atr_multiple"])
+                        if raw.get("entry_target_atr_multiple") is not None else None
+                    ),
+                    entry_trailing_activation_atr=(
+                        float(raw["entry_trailing_activation_atr"])
+                        if raw.get("entry_trailing_activation_atr") is not None else None
+                    ),
+                    exit_slippage_rate=(
+                        float(raw["exit_slippage_rate"])
+                        if raw.get("exit_slippage_rate") is not None else None
+                    ),
                     entry_semantic_snapshot=(
                         dict(raw["entry_semantic_snapshot"])
                         if isinstance(raw.get("entry_semantic_snapshot"), Mapping)
@@ -492,6 +510,14 @@ def _position_dict(value: Position) -> dict[str, Any]:
             "entry_price": value.entry_price, "entry_atr": value.entry_atr,
             "stop_price": value.stop_price, "target_price": value.target_price,
             "highest_price": value.highest_price,
+            **({"entry_stop_atr_multiple": value.entry_stop_atr_multiple}
+               if value.entry_stop_atr_multiple is not None else {}),
+            **({"entry_target_atr_multiple": value.entry_target_atr_multiple}
+               if value.entry_target_atr_multiple is not None else {}),
+            **({"entry_trailing_activation_atr": value.entry_trailing_activation_atr}
+               if value.entry_trailing_activation_atr is not None else {}),
+            **({"exit_slippage_rate": value.exit_slippage_rate}
+               if value.exit_slippage_rate is not None else {}),
             **({"entry_semantic_snapshot": value.entry_semantic_snapshot}
                if value.entry_semantic_snapshot is not None else {})}
 
@@ -763,6 +789,75 @@ def _flush_pending_decision_cycle_telemetry(
     return True
 
 
+def _flush_pending_candidate_v1_config_event(
+    state: dict[str, Any], store: "Store",
+) -> bool:
+    pending = state.get("candidate_v1_config_event_pending")
+    if pending is None:
+        return False
+    store.event("CANDIDATE_V1_CONFIGURATION_CHANGED", pending)
+    state.pop("candidate_v1_config_event_pending", None)
+    store.save(state)
+    return True
+
+
+def bind_candidate_v1_config_at_boundary(
+    state: dict[str, Any],
+    store: "Store",
+    boundary: datetime,
+    *,
+    config_path: Path | None = None,
+) -> CandidateV1ConfigSnapshot:
+    """Atomically bind one immutable config snapshot to one decision boundary."""
+    boundary_text = boundary.isoformat()
+    persisted_payload = state.get("candidate_v1_config_snapshot")
+    persisted_fingerprint = state.get("candidate_v1_config_fingerprint")
+    if (
+        state.get("candidate_v1_config_effective_boundary") == boundary_text
+        and isinstance(persisted_payload, Mapping)
+        and isinstance(persisted_fingerprint, str)
+    ):
+        return candidate_v1_config_from_snapshot(
+            persisted_payload, persisted_fingerprint
+        )
+
+    candidate = (
+        load_candidate_v1_config()
+        if config_path is None
+        else load_candidate_v1_config(config_path)
+    )
+    old_fingerprint: str | None = None
+    if persisted_fingerprint is not None or persisted_payload is not None:
+        if not isinstance(persisted_fingerprint, str) or not isinstance(
+            persisted_payload, Mapping
+        ):
+            raise RuntimeError("Persisted Candidate V1 configuration is incomplete.")
+        old = candidate_v1_config_from_snapshot(
+            persisted_payload, persisted_fingerprint
+        )
+        old_fingerprint = old.fingerprint
+
+    state["candidate_v1_config_snapshot"] = candidate.as_dict()
+    state["candidate_v1_config_fingerprint"] = candidate.fingerprint
+    state["candidate_v1_config_effective_boundary"] = boundary_text
+    if old_fingerprint != candidate.fingerprint:
+        state["candidate_v1_config_event_pending"] = {
+            "event_id": fingerprint({
+                "kind": "candidate_v1_configuration_change",
+                "old_fingerprint": old_fingerprint,
+                "new_fingerprint": candidate.fingerprint,
+                "effective_boundary": boundary_text,
+            }),
+            "old_fingerprint": old_fingerprint,
+            "new_fingerprint": candidate.fingerprint,
+            "effective_boundary": boundary_text,
+            "authority": "QPX_CANDIDATE_V1.json",
+        }
+    store.save(state)
+    _flush_pending_candidate_v1_config_event(state, store)
+    return candidate
+
+
 def _iex_qdte_sizing_mark(
     histories: Mapping[str, list[dict[str, Any]]],
     indices: Mapping[str, Mapping[datetime, int]],
@@ -805,6 +900,7 @@ def _vix_previous_close(day) -> float:
 
 def process_latest_decision(state: dict[str, Any], store: Store, observed_at: datetime) -> None:
     """Process each newly completed 15-minute timestamp exactly once."""
+    _flush_pending_candidate_v1_config_event(state, store)
     if state["contract"].get("feed") == "iex":
         _flush_pending_decision_cycle_telemetry(state, store)
         flush_pending_event(state, store)
@@ -828,7 +924,6 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
     if not new_times: return
     if len(new_times) > 26:
         raise RuntimeError("More than one session of decisions is missing; fail closed for operator review.")
-    config = qualified.candidate_config()
     profit_runtime = _profit_runtime(state)
     broker_risk_block = (
         state.get("broker_reconciliation", {}).get("risk_block_reason")
@@ -838,7 +933,6 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
     candle_sets = {symbol: [Candle(date=row["start"].date(), open=row["open"], high=row["high"],
                     low=row["low"], close=row["close"], volume=row["volume"]) for row in rows]
                    for symbol, rows in histories.items()}
-    indicators = {symbol: calculate_indicators(candles, config) for symbol, candles in candle_sets.items()}
     indices = {symbol: {row["start"]: index for index, row in enumerate(rows)} for symbol, rows in histories.items()}
     minute_symbols = tuple(dict.fromkeys((*symbols, "QDTE")))
     minute_raw: dict[str, list[dict[str, Any]]] = {}
@@ -846,18 +940,31 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
     for offset in range(0, len(minute_symbols), 20):
         minute_raw.update(request_bars(minute_symbols[offset:offset + 20], "1Min", minute_start, observed_at))
 
+    indicators_by_config: dict[str, dict[str, Any]] = {}
     for bar_time in new_times:
+        candidate_snapshot = bind_candidate_v1_config_at_boundary(
+            state, store, bar_time
+        )
+        config = candidate_snapshot.bot_config
+        indicators = indicators_by_config.get(candidate_snapshot.fingerprint)
+        if indicators is None:
+            indicators = {
+                symbol: calculate_indicators(candles, config)
+                for symbol, candles in candle_sets.items()
+            }
+            indicators_by_config[candidate_snapshot.fingerprint] = indicators
         completed_id = fingerprint({"kind": "decision", "bar": bar_time.isoformat(),
-                                    "contract": state["contract_fingerprint"]})
+                                    "contract": state["contract_fingerprint"],
+                                    "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint})
         if completed_id in state["completed_execution_ids"]:
             state["last_decision_bar"] = bar_time.isoformat(); continue
         positions = {symbol: _position(value) for symbol, value in state["positions"].items()}
         apply_qdte_corporate_actions(state, store, bar_time)
 
-        # Qualified Thursday-only 12.5% QDTE / 87.5% swing allocation.
+        # Apply the governed Candidate V1 allocation at its configured weekday.
         if (
             broker_risk_block is None
-            and bar_time.weekday() == 3
+            and bar_time.weekday() == candidate_snapshot.rebalance_weekday
             and bar_time in indices.get("QDTE", {})
         ):
             iso = bar_time.isocalendar()
@@ -878,7 +985,8 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                     income_shares=state["qdte_shares"], income_cost=state["qdte_cost"],
                     swing_cash=state["cash"],
                     swing_market_value=sum(pos.shares * marks.get(name, pos.entry_price) for name, pos in positions.items()),
-                    income_price=qdte_price, target_income_weight=0.125,
+                    income_price=qdte_price,
+                    target_income_weight=config.dividend_allocation_years_1_2,
                     slippage_rate=config.slippage_rate,
                     tax_reserve_rate=config.annual_tax_reserve_rate,
                     tolerance=config.allocation_rebalance_tolerance,
@@ -893,7 +1001,9 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                 store.event("SIMULATED_THURSDAY_REBALANCE", {
                     "week": week_key, "action": result.action,
                     "shares_before": result.shares_before, "shares_after": result.shares_after,
-                    "target_income_weight": 0.125, "sip_1m_bar": str(one["t"]),
+                    "target_income_weight": config.dividend_allocation_years_1_2,
+                    "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
+                    "sip_1m_bar": str(one["t"]),
                     "profit_recycling_event_sequence": sequence,
                     "profit_recycling_released": released,
                 })
@@ -907,14 +1017,23 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             if datetime.fromisoformat(signal["signal_bar"]) >= bar_time: continue
             if symbol not in indices or bar_time not in indices[symbol]: continue
             one = _minute_for_bar(minute_raw.get(symbol, []), bar_time)
+            signal_snapshot = candidate_v1_config_from_snapshot(
+                signal.get("candidate_v1_config_snapshot"),
+                str(signal.get("candidate_v1_config_fingerprint", "")),
+            )
+            signal_config = signal_snapshot.bot_config
             open_price = float(one["o"]); gap = abs(open_price - signal["prior_close"]) / signal["atr"]
             execution_id = fingerprint({"kind": "entry", "symbol": symbol, "bar": bar_time.isoformat(),
                                         "signal": signal["signal_id"], "contract": state["contract_fingerprint"]})
             if execution_id in state["completed_execution_ids"]:
                 state["pending"].pop(symbol, None); continue
-            if gap > 2.0 or len(positions) >= 6:
+            if (
+                gap > signal_snapshot.maximum_gap_atr_multiple
+                or len(positions) >= signal_config.maximum_swing_positions
+            ):
                 store.event("SIMULATED_ENTRY_CANCELLED", {"symbol": symbol, "execution_id": execution_id,
-                            "reason": "GAP" if gap > 2.0 else "CAPACITY"})
+                            "reason": "GAP" if gap > signal_snapshot.maximum_gap_atr_multiple else "CAPACITY",
+                            "candidate_v1_config_fingerprint": signal_snapshot.fingerprint})
                 state["completed_execution_ids"].append(execution_id); state["pending"].pop(symbol, None); continue
             marks = {name: histories[name][indices[name][bar_time]]["open"] for name in positions if bar_time in indices.get(name, {})}
             swing_value = sum(pos.shares * marks.get(name, pos.entry_price) for name, pos in positions.items())
@@ -944,8 +1063,12 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             state["profit_recycling"]["current_event_sequence"] = next_sequence
             deployable_cash = profit_runtime.ledger.available_swing_cash(state["cash"], next_sequence)
             sizing = calculate_position_size(account_equity=equity, available_cash=deployable_cash, entry_price=open_price,
-                atr=signal["atr"], active_risk=active_risk, config=config, trade_results_r=())
-            share_cap = math.floor((equity * NOTIONAL_CAP) / sizing.entry_fill) if sizing.entry_fill else 0
+                atr=signal["atr"], active_risk=active_risk, config=signal_config,
+                trade_results_r=disabled_kelly_trade_history(signal_snapshot))
+            share_cap = math.floor(
+                (equity * signal_snapshot.maximum_position_notional_fraction)
+                / sizing.entry_fill
+            ) if sizing.entry_fill else 0
             shares = min(sizing.shares, share_cap)
             if not sizing.is_tradeable or shares < 1:
                 store.event("SIMULATED_ENTRY_REJECTED", {"symbol": symbol, "execution_id": execution_id, "reason": sizing.blocked_reason or "NOTIONAL_CAP"})
@@ -957,10 +1080,19 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                 state["cash"] -= cost
                 positions[symbol] = Position(symbol=symbol, shares=shares, entry_date=bar_time.date(),
                     entry_price=sizing.entry_fill, entry_atr=signal["atr"], stop_price=sizing.stop_price,
-                    target_price=sizing.target_price, highest_price=sizing.entry_fill)
+                    target_price=sizing.target_price, highest_price=sizing.entry_fill,
+                    entry_stop_atr_multiple=signal_config.stop_atr_multiple,
+                    entry_target_atr_multiple=signal_config.target_atr_multiple,
+                    entry_trailing_activation_atr=signal_config.trailing_activation_atr,
+                    exit_slippage_rate=signal_config.slippage_rate,
+                    entry_semantic_snapshot={
+                        "candidate_v1_config_fingerprint": signal_snapshot.fingerprint,
+                        "candidate_v1_config_snapshot": signal_snapshot.as_dict(),
+                    })
                 store.event("SIMULATED_ENTRY_FILLED", {"symbol": symbol, "execution_id": execution_id,
                     "shares": shares, "fill_price": sizing.entry_fill, "sip_1m_bar": str(one["t"]),
-                    "recycled_profit_consumed": used})
+                    "recycled_profit_consumed": used,
+                    "candidate_v1_config_fingerprint": signal_snapshot.fingerprint})
             state["completed_execution_ids"].append(execution_id); state["pending"].pop(symbol, None)
 
         # CLOSE: preserve qualified 15-minute exit logic; 1-minute bars provide
@@ -968,10 +1100,31 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
         for symbol, position in list(positions.items()):
             index = indices.get(symbol, {}).get(bar_time)
             if index is None: continue
-            atr = indicators[symbol].atr[index]
+            entry_semantics = position.entry_semantic_snapshot
+            if not isinstance(entry_semantics, Mapping):
+                raise RuntimeError(
+                    "Open position lacks its Candidate V1 entry configuration snapshot."
+                )
+            position_snapshot = candidate_v1_config_from_snapshot(
+                entry_semantics.get("candidate_v1_config_snapshot"),
+                str(entry_semantics.get("candidate_v1_config_fingerprint", "")),
+            )
+            position_config = position_snapshot.bot_config
+            position_indicators = indicators_by_config.get(
+                position_snapshot.fingerprint
+            )
+            if position_indicators is None:
+                position_indicators = {
+                    name: calculate_indicators(candles, position_config)
+                    for name, candles in candle_sets.items()
+                }
+                indicators_by_config[
+                    position_snapshot.fingerprint
+                ] = position_indicators
+            atr = position_indicators[symbol].atr[index]
             if atr is None or atr <= 0: continue
             row = histories[symbol][index]
-            evaluation = evaluate_exit(position=position, candle=candle_sets[symbol][index], current_atr=float(atr), config=config)
+            evaluation = evaluate_exit(position=position, candle=candle_sets[symbol][index], current_atr=float(atr), config=position_config)
             if evaluation.should_exit:
                 execution_id = fingerprint({"kind": "exit", "symbol": symbol, "bar": bar_time.isoformat(),
                                             "reason": evaluation.reason, "contract": state["contract_fingerprint"]})
@@ -981,7 +1134,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                     )
                     fill = float(evaluation.exit_price); proceeds = position.shares * fill
                     pnl = (fill - position.entry_price) * position.shares
-                    tax_reserved = max(0.0, pnl) * config.annual_tax_reserve_rate
+                    tax_reserved = max(0.0, pnl) * position_config.annual_tax_reserve_rate
                     state["cash"] += proceeds - tax_reserved
                     state["realized_pnl"] = state.get("realized_pnl", 0.0) + pnl
                     state["tax_reserve_cash"] += tax_reserved
@@ -1046,14 +1199,24 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                         qualifying.append((hashlib.sha256(
                             (bar_time.isoformat() + "|" + symbol).encode()
                         ).hexdigest(), symbol, inputs.current_atr, inputs.current_close))
-        slots = max(0, 6 - len(positions) - len(state["pending"]))
+        slots = max(
+            0,
+            config.maximum_swing_positions
+            - len(positions)
+            - len(state["pending"]),
+        )
         for _, symbol, atr, close in sorted(qualifying)[:slots]:
             signal_id = fingerprint({"symbol": symbol, "bar": bar_time.isoformat(), "atr": atr,
-                                     "contract": state["contract_fingerprint"]})
+                                     "contract": state["contract_fingerprint"],
+                                     "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint})
             pending_signal = {"signal_id": signal_id, "decision_id": completed_id,
                               "signal_bar": bar_time.isoformat(),
-                              "atr": atr, "prior_close": close}
-            event_details = {"symbol": symbol, "signal_id": signal_id, "bar": bar_time.isoformat()}
+                              "atr": atr, "prior_close": close,
+                              "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
+                              "candidate_v1_config_snapshot": candidate_snapshot.as_dict()}
+            event_details = {"symbol": symbol, "signal_id": signal_id,
+                             "bar": bar_time.isoformat(),
+                             "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint}
             if state["contract"].get("feed") == "iex":
                 decision_observed = datetime.now(timezone.utc)
                 eligible = decision_observed.replace(second=0, microsecond=0) + timedelta(minutes=1)
@@ -1091,6 +1254,9 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                     vix=vix,
                     census=decision_census,
                 )
+                state["decision_cycle_telemetry_pending"][
+                    "candidate_v1_config_fingerprint"
+                ] = candidate_snapshot.fingerprint
             except Exception as exc:
                 # Diagnostics are strictly additive; never change or block a
                 # strategy decision because telemetry cannot be serialized.
@@ -1132,23 +1298,35 @@ def select_causal_execution_bar(rows: list[dict[str, Any]], observed_at: datetim
 
 
 def initialize(store: Store, contract: Mapping[str, Any], observed_at: datetime) -> dict[str, Any]:
-    rows = request_bars(("QDTE",), "1Min", observed_at - timedelta(days=7), observed_at)["QDTE"]
+    candidate_snapshot = load_candidate_v1_config()
+    config = candidate_snapshot.bot_config
+    starting_capital = candidate_snapshot.forward_starting_capital
+    rows = request_bars(
+        (config.dividend_symbol,),
+        "1Min",
+        observed_at - timedelta(days=7),
+        observed_at,
+    )[config.dividend_symbol]
     execution = select_causal_execution_bar(rows, observed_at)
-    fill = execution["source_price"] * (1.0 + SLIPPAGE)
-    shares = math.floor(STARTING_CAPITAL / fill)
+    fill = execution["source_price"] * (1.0 + config.slippage_rate)
+    shares = math.floor(starting_capital / fill)
     if shares < 1: raise RuntimeError("Starting capital cannot purchase one simulated QDTE share.")
-    cost = shares * fill; cash = STARTING_CAPITAL - cost
-    identity = {"capital": STARTING_CAPITAL, "symbol": "QDTE", "shares": shares,
+    cost = shares * fill; cash = starting_capital - cost
+    identity = {"capital": starting_capital, "symbol": config.dividend_symbol, "shares": shares,
                 "cash_remainder": cash, "fill_price": fill, **execution,
+                "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
                 "contract_fingerprint": fingerprint(contract)}
     persisted_contract = json.loads(canonical(contract))
     profit_config = load_profit_recycling_config(PROFIT_CONFIG)
-    profit_runtime = ProfitRecyclingRuntime(profit_config, STARTING_CAPITAL)
+    profit_runtime = ProfitRecyclingRuntime(profit_config, starting_capital)
     state = {"schema_version": SCHEMA, "mode": "FORWARD_PAPER_ONLY",
              "live_broker_enabled": False, "simulated_fills_only": True,
              "contract": persisted_contract, "contract_fingerprint": fingerprint(contract),
              "initialization": identity, "initialization_fingerprint": fingerprint(identity),
-             "contributed_capital": STARTING_CAPITAL, "cash": cash,
+             "candidate_v1_config_snapshot": candidate_snapshot.as_dict(),
+             "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
+             "candidate_v1_config_effective_boundary": None,
+             "contributed_capital": starting_capital, "cash": cash,
              "qdte_shares": shares, "qdte_cost": cost, "positions": {}, "pending": {},
              "tax_reserve_cash": 0.0, "realized_pnl": 0.0,
              "completed_execution_ids": [fingerprint(identity)], "last_decision_bar": None,

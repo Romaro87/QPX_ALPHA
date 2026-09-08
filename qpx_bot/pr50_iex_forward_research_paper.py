@@ -63,11 +63,15 @@ EXTERNAL_BROKER_RISK_BLOCK = "EXTERNAL_BROKER_POSITION_UNMANAGED_FAIL_CLOSED"
 OLD_SEMANTIC_CONTRACT_FINGERPRINT = (
     "d594cd578070ab61393411e2cec97803d7c9e62f8061ac3c38f018b26f8fdf5b"
 )
-NEW_SEMANTIC_CONTRACT_FINGERPRINT = (
+PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT = (
     "5fcab69089cbfd069727b754f1ca1be9338500234348fbbc56bf3e5633603c5d"
 )
+NEW_SEMANTIC_CONTRACT_FINGERPRINT = (
+    "8d8a8faa72d318d92e6f1124c4238093a817b5231cf85ef5a37b4f348c355c2b"
+)
 SEMANTIC_VERSION_OLD = "PR50_IEX_PRE_PARITY_V1"
-SEMANTIC_VERSION_NEW = "PR50_IEX_HISTORICAL_CANDIDATE_V1_SPLIT_V2"
+SEMANTIC_VERSION_PARITY = "PR50_IEX_HISTORICAL_CANDIDATE_V1_SPLIT_V2"
+SEMANTIC_VERSION_NEW = "PR50_IEX_CANDIDATE_V1_CONFIG_AUTHORITY_V3"
 ENTRY_SEMANTICS_VERSION = "CANDIDATE_V1_HISTORICAL_NINE_GATE_V1"
 ENTRY_SEMANTICS_FINGERPRINT = sip.fingerprint({
     "implementation": "qpx_bot.strategy.evaluate_entry",
@@ -603,8 +607,11 @@ def _transition_semantic_contract_if_required(
     expected = sip.fingerprint(contract)
     if current == expected:
         return False
-    if current != OLD_SEMANTIC_CONTRACT_FINGERPRINT:
-        raise RuntimeError("Persisted semantic contract is not the allowlisted OLD contract.")
+    if current not in {
+        OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+        PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT,
+    }:
+        raise RuntimeError("Persisted semantic contract is not an allowlisted predecessor.")
     if (
         expected != NEW_SEMANTIC_CONTRACT_FINGERPRINT
         or str(contract.get("semantic_version")) != SEMANTIC_VERSION_NEW
@@ -644,11 +651,15 @@ def _transition_semantic_contract_if_required(
         }),
         "old_contract_fingerprint": current,
         "new_contract_fingerprint": expected,
-        "old_semantic_version": SEMANTIC_VERSION_OLD,
+        "old_semantic_version": (
+            SEMANTIC_VERSION_OLD
+            if current == OLD_SEMANTIC_CONTRACT_FINGERPRINT
+            else SEMANTIC_VERSION_PARITY
+        ),
         "new_semantic_version": SEMANTIC_VERSION_NEW,
         "effective_observation_timestamp_utc": observed_at.astimezone(timezone.utc).isoformat(),
         "first_decision_boundary_governed_by_new_contract": _next_decision_boundary(state, observed_at),
-        "reason": "FORWARD_PARITY_CORRECTION",
+        "reason": "CANDIDATE_V1_JSON_CONFIGURATION_AUTHORITY",
         "entry_semantics_version": ENTRY_SEMANTICS_VERSION,
         "entry_semantics_fingerprint": ENTRY_SEMANTICS_FINGERPRINT,
         "bar_adjustment_old": "raw",
@@ -1406,11 +1417,19 @@ def process_pending_execution_clock(
             store.save(state)
             continue
         execution_id = _entry_execution_id(state, symbol, signal)
+        candidate_snapshot = sip.candidate_v1_config_from_snapshot(
+            signal.get("candidate_v1_config_snapshot"),
+            str(signal.get("candidate_v1_config_fingerprint", "")),
+        )
+        config = candidate_snapshot.bot_config
         open_price = float(one["o"])
         gap = abs(open_price - float(signal["prior_close"])) / float(signal["atr"])
-        if gap > 2.0 or len(positions) >= 6:
+        if (
+            gap > candidate_snapshot.maximum_gap_atr_multiple
+            or len(positions) >= config.maximum_swing_positions
+        ):
             _expire_pending(state, store, symbol, signal, observed_at,
-                            "GAP" if gap > 2.0 else "CAPACITY")
+                            "GAP" if gap > candidate_snapshot.maximum_gap_atr_multiple else "CAPACITY")
             store.save(state)
             continue
         swing_value = sum(pos.shares * marks[name] for name, pos in positions.items())
@@ -1426,13 +1445,15 @@ def process_pending_execution_clock(
         broker_snapshot = state.get("broker_reconciliation", {}).get("last_snapshot")
         if broker_snapshot is not None and broker_snapshot.get("buying_power") is not None:
             deployable = min(deployable, max(0.0, float(broker_snapshot["buying_power"])))
-        config = sip.qualified.candidate_config()
         sizing = sip.calculate_position_size(
             account_equity=equity, available_cash=deployable, entry_price=open_price,
             atr=float(signal["atr"]), active_risk=active_risk, config=config,
-            trade_results_r=(),
+            trade_results_r=sip.disabled_kelly_trade_history(candidate_snapshot),
         )
-        share_cap = math.floor((equity * sip.NOTIONAL_CAP) / sizing.entry_fill) if sizing.entry_fill else 0
+        share_cap = math.floor(
+            (equity * candidate_snapshot.maximum_position_notional_fraction)
+            / sizing.entry_fill
+        ) if sizing.entry_fill else 0
         shares = min(sizing.shares, share_cap)
         if not sizing.is_tradeable or shares < 1:
             _expire_pending(state, store, symbol, signal, observed_at,
@@ -1449,6 +1470,10 @@ def process_pending_execution_clock(
             entry_price=sizing.entry_fill, entry_atr=float(signal["atr"]),
             stop_price=sizing.stop_price, target_price=sizing.target_price,
             highest_price=sizing.entry_fill,
+            entry_stop_atr_multiple=config.stop_atr_multiple,
+            entry_target_atr_multiple=config.target_atr_multiple,
+            entry_trailing_activation_atr=config.trailing_activation_atr,
+            exit_slippage_rate=config.slippage_rate,
         )
         state["positions"] = {name: sip._position_dict(value) for name, value in positions.items()}
         entry_snapshot = {
@@ -1461,6 +1486,8 @@ def process_pending_execution_clock(
             "profit_recycling_configuration_fingerprint": state["contract"].get("profit_recycling_configuration_fingerprint"),
             "bar_adjustment": state["contract"].get("bar_adjustment"),
             "provider_input_semantics_version": state["contract"].get("provider_input_semantics_version"),
+            "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
+            "candidate_v1_config_snapshot": candidate_snapshot.as_dict(),
         }
         state["positions"][symbol]["entry_semantic_snapshot"] = entry_snapshot
         sip._persist_profit_runtime(state, profit_runtime)
@@ -1478,6 +1505,7 @@ def process_pending_execution_clock(
             "execution_window_observed_at_utc": signal["execution_window_observed_at_utc"],
             "execution_observed_at_utc": execution_observed_at.isoformat(),
             "recycled_profit_consumed": used,
+            "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
         })
         store.save(state)
     return False
@@ -1486,22 +1514,26 @@ def process_pending_execution_clock(
 def initialize(
     store: IEXResearchStore, contract: Mapping[str, Any], observed_at: datetime
 ) -> dict[str, Any]:
+    candidate_snapshot = sip.load_candidate_v1_config()
+    config = candidate_snapshot.bot_config
+    starting_capital = candidate_snapshot.forward_starting_capital
     rows = request_bars(("QDTE",), "1Min", observed_at - timedelta(days=7), observed_at)["QDTE"]
     execution = select_causal_execution_bar(rows, observed_at)
-    fill = execution["source_price"] * (1.0 + sip.SLIPPAGE)
-    shares = math.floor(sip.STARTING_CAPITAL / fill)
+    fill = execution["source_price"] * (1.0 + config.slippage_rate)
+    shares = math.floor(starting_capital / fill)
     if shares < 1:
         raise RuntimeError("Starting capital cannot purchase one simulated QDTE share.")
     cost = shares * fill
-    cash = sip.STARTING_CAPITAL - cost
+    cash = starting_capital - cost
     identity = {
-        "capital": sip.STARTING_CAPITAL, "symbol": "QDTE", "shares": shares,
+        "capital": starting_capital, "symbol": config.dividend_symbol, "shares": shares,
         "cash_remainder": cash, "fill_price": fill, **execution,
+        "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
         "runner_variant": VARIANT, "contract_fingerprint": sip.fingerprint(contract),
     }
     persisted_contract = json.loads(sip.canonical(contract))
     profit_config = load_profit_recycling_config(sip.PROFIT_CONFIG)
-    profit_runtime = ProfitRecyclingRuntime(profit_config, sip.STARTING_CAPITAL)
+    profit_runtime = ProfitRecyclingRuntime(profit_config, starting_capital)
     state = {
         "schema_version": sip.SCHEMA, "mode": VARIANT,
         "research_only": True, "sip_parity_claimed": False,
@@ -1510,7 +1542,10 @@ def initialize(
         "live_broker_enabled": False, "simulated_fills_only": True,
         "contract": persisted_contract, "contract_fingerprint": sip.fingerprint(contract),
         "initialization": identity, "initialization_fingerprint": sip.fingerprint(identity),
-        "contributed_capital": sip.STARTING_CAPITAL, "cash": cash,
+        "candidate_v1_config_snapshot": candidate_snapshot.as_dict(),
+        "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
+        "candidate_v1_config_effective_boundary": None,
+        "contributed_capital": starting_capital, "cash": cash,
         "qdte_shares": shares, "qdte_cost": cost, "positions": {}, "pending": {},
         "tax_reserve_cash": 0.0, "realized_pnl": 0.0,
         "completed_execution_ids": [sip.fingerprint(identity)], "last_decision_bar": None,
@@ -1599,6 +1634,7 @@ def _cycle(
             raise
     elif state.get("contract_fingerprint") not in {
         OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+        PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT,
         sip.fingerprint(contract),
     }:
         raise RuntimeError("Persisted IEX research strategy identity differs from its contract.")

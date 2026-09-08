@@ -28,6 +28,7 @@ from qpx_bot.pr50_iex_forward_research_paper import (
     EXTERNAL_BROKER_RECONCILIATION_EVENT,
     EXTERNAL_BROKER_RISK_BLOCK,
     OLD_SEMANTIC_CONTRACT_FINGERPRINT,
+    PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT,
     SEMANTIC_TRANSITION_EVENT,
     SEMANTIC_VERSION_NEW,
     _transition_semantic_contract_if_required,
@@ -69,7 +70,14 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         contract = load_contract()
         self.assertEqual(contract["feed"], "iex")
         self.assertEqual(contract["profit_recycling_policy"], "PR_FRACTION_50")
-        self.assertEqual(contract["maximum_position_notional_fraction"], 0.25)
+        self.assertEqual(
+            contract["candidate_v1_configuration_authority"],
+            "QPX_CANDIDATE_V1.json",
+        )
+        self.assertEqual(
+            sip.load_candidate_v1_config().maximum_position_notional_fraction,
+            0.25,
+        )
         self.assertFalse(contract["pyramiding_enabled"])
         self.assertFalse(contract["sip_parity_claimed"])
         self.assertNotEqual(DEFAULT_RUNTIME, sip.DEFAULT_RUNTIME)
@@ -78,8 +86,8 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             store = IEXResearchStore(Path(folder))
             state = {
-                "contract_fingerprint": OLD_SEMANTIC_CONTRACT_FINGERPRINT,
-                "contract": {"semantic_version": "PR50_IEX_PRE_PARITY_V1"},
+                "contract_fingerprint": PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT,
+                "contract": {"semantic_version": "PR50_IEX_HISTORICAL_CANDIDATE_V1_SPLIT_V2"},
                 "initialization_fingerprint": "i" * 64,
                 "positions": {}, "pending": {}, "revision": 7,
                 "cash": 1400.0, "qdte_shares": 0.0,
@@ -126,7 +134,7 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
                     _transition_semantic_contract_if_required(state, store, load_contract(), datetime(2026, 9, 3, 13, 25, tzinfo=timezone.utc))
             state["positions"] = {}
             state["contract_fingerprint"] = "x" * 64
-            with self.assertRaisesRegex(RuntimeError, "allowlisted OLD"):
+            with self.assertRaisesRegex(RuntimeError, "allowlisted predecessor"):
                 _transition_semantic_contract_if_required(state, store, load_contract(), datetime(2026, 9, 3, 13, 25, tzinfo=timezone.utc))
 
     def test_transition_pending_event_recovery_is_idempotent(self):

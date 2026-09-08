@@ -45,6 +45,10 @@ from qpx_bot.candidate_v1_causal import (
     CandidateV1CausalInputs,
     evaluate_candidate_v1_causal,
 )
+from qpx_bot.candidate_v1_config import (
+    CandidateV1ConfigSnapshot,
+    load_candidate_v1_config,
+)
 from qpx_bot.causal_dividends import (
     CausalDividendLedger,
     load_causal_dividends,
@@ -60,13 +64,6 @@ from qpx_bot.strategy import evaluate_exit
 
 START = date(2024, 3, 7)
 END = date(2026, 8, 7)
-INITIALIZATION_MARKET_BARS = 200
-MAXIMUM_POSITIONS = 6
-MAXIMUM_GAP_ATR = 2.0
-MAXIMUM_NOTIONAL_FRACTION = 0.90
-MOMENTUM_PERSISTENCE = 52.0
-VIX_EXCLUSION_LOW = 20.0
-VIX_EXCLUSION_HIGH = 25.0
 
 REPORT_ROOT = (
     ROOT
@@ -91,34 +88,21 @@ class PendingSignal:
 
 
 def candidate_config() -> BotConfig:
-    config = replace(
-        BotConfig(),
-        starting_cash=1300.0,
-        starting_swing_cash=0.0,
-        monthly_contribution=0.0,
-        dividend_allocation_years_1_2=0.125,
-        swing_allocation_years_1_2=0.875,
-        dividend_allocation_later=0.125,
-        swing_allocation_later=0.875,
-        allocation_rebalance_frequency="weekly",
-        maximum_swing_positions=6,
-        minimum_average_daily_volume=75_000,
-        breakout_volume_multiplier=1.05,
-        breakout_lookback=10,
-        maximum_vix_for_entries=32.0,
-        rsi_overbought=75.0,
-        risk_per_trade=0.03,
-        maximum_active_portfolio_risk=0.10,
-        stop_atr_multiple=2.5,
-        target_atr_multiple=5.0,
-        trailing_activation_atr=3.0,
-        slippage_rate=0.00075,
-        annual_tax_reserve_rate=0.37,
-        allocation_rebalance_tolerance=0.0025,
-        minimum_rebalance_trade=1.0,
+    """Compatibility surface backed only by the governed JSON snapshot."""
+    return load_candidate_v1_config().bot_config
+
+
+def initialization_market_bars(config: BotConfig) -> int:
+    """Derive warm-up length from the explicit governed indicator periods."""
+    return max(
+        config.sma_trend_period,
+        config.ema_slow_period,
+        config.rsi_period,
+        config.rmi_period + config.rmi_momentum,
+        config.atr_period,
+        config.average_volume_period,
+        config.breakout_lookback,
     )
-    config.validate()
-    return config
 
 
 def atomic_json(path: Path, payload) -> None:
@@ -279,7 +263,7 @@ def legacy_candidate_evaluation(
     config: BotConfig,
 ):
     index = indices[symbol][timestamp]
-    evaluation = qpx._evaluate_entry_relaxed_frequency(
+    evaluation = qpx.evaluate_entry(
         candles=candles[symbol],
         indicators=indicators[symbol],
         index=index,
@@ -287,30 +271,7 @@ def legacy_candidate_evaluation(
         config=config,
     )
 
-    if not (
-        VIX_EXCLUSION_LOW
-        < float(vix)
-        < VIX_EXCLUSION_HIGH
-    ):
-        return evaluation
-
-    checks = dict(evaluation.checks)
-    checks["candidate_vix_20_25_exclusion"] = False
-    failed = tuple(
-        dict.fromkeys(
-            (
-                *evaluation.failed_checks,
-                "candidate_vix_20_25_exclusion",
-            )
-        )
-    )
-    return qpx.EntryEvaluation(
-        index=evaluation.index,
-        should_enter=False,
-        checks=checks,
-        triggers=evaluation.triggers,
-        failed_checks=failed,
-    )
+    return evaluation
 
 
 def audit_indicator_and_strategy_equivalence(
@@ -341,7 +302,7 @@ def audit_indicator_and_strategy_equivalence(
         count = len(bars[symbol])
         sample_indices = sorted(
             {
-                min(count - 1, INITIALIZATION_MARKET_BARS),
+                min(count - 1, initialization_market_bars(config)),
                 count // 2,
                 count - 1,
             }
@@ -408,11 +369,6 @@ def audit_indicator_and_strategy_equivalence(
             strict = evaluate_candidate_v1_causal(
                 inputs=inputs,
                 config=config,
-                momentum_persistence_level=(
-                    MOMENTUM_PERSISTENCE
-                ),
-                vix_exclusion_low=VIX_EXCLUSION_LOW,
-                vix_exclusion_high=VIX_EXCLUSION_HIGH,
             )
             legacy = legacy_candidate_evaluation(
                 symbol=symbol,
@@ -455,6 +411,7 @@ def apply_notional_cap(
     *,
     sizing,
     account_equity: float,
+    maximum_notional_fraction: float,
 ):
     if not sizing.is_tradeable:
         return sizing, False, False
@@ -462,7 +419,7 @@ def apply_notional_cap(
     raw_share_cap = math.floor(
         (
             account_equity
-            * MAXIMUM_NOTIONAL_FRACTION
+            * maximum_notional_fraction
         )
         / sizing.entry_fill
     )
@@ -596,7 +553,9 @@ def load_enriched_frozen_state() -> tuple[dict, dict, tuple[str, ...]]:
     return selection, dataset, top100
 
 
-def run_strict() -> tuple[dict, dict]:
+def run_strict(
+    candidate_snapshot: CandidateV1ConfigSnapshot | None = None,
+) -> tuple[dict, dict]:
     selection, dataset, top100_tuple = (
         load_enriched_frozen_state()
     )
@@ -620,7 +579,8 @@ def run_strict() -> tuple[dict, dict]:
         if START <= event.ex_date <= END
     ])
 
-    config = candidate_config()
+    candidate_snapshot = candidate_snapshot or load_candidate_v1_config()
+    config = candidate_snapshot.bot_config
 
     histories: dict[
         str,
@@ -788,7 +748,7 @@ def run_strict() -> tuple[dict, dict]:
             income_cost=income_cost,
             qdte_price=first_qdte_open.open,
             position_prices={},
-            target_income_weight=0.125,
+            target_income_weight=config.dividend_allocation_years_1_2,
             config=config,
         )
     )
@@ -799,8 +759,8 @@ def run_strict() -> tuple[dict, dict]:
         qpx.AllocationRecord(
             time=clock.time,
             event_type="INITIAL_REBALANCE",
-            external_contribution=1300.0,
-            target_income_weight=0.125,
+            external_contribution=config.total_starting_capital,
+            target_income_weight=config.dividend_allocation_years_1_2,
             action=initial_rebalance.action,
             before_income_weight=(
                 initial_rebalance.before_income_weight
@@ -823,7 +783,7 @@ def run_strict() -> tuple[dict, dict]:
     first_iso = clock.time.isocalendar()
     current_rebalance_key = (
         (first_iso.year, first_iso.week)
-        if clock.time.weekday() == 3
+        if clock.time.weekday() == candidate_snapshot.rebalance_weekday
         else None
     )
 
@@ -834,7 +794,7 @@ def run_strict() -> tuple[dict, dict]:
     equity_points: list[qpx.EquityPoint] = []
     signal_records: list[qpx.SignalRecord] = []
 
-    total_contributions = 1300.0
+    total_contributions = config.total_starting_capital
     distributions_received = 0.0
     distribution_count = 0
     tax_reserve_released = 0.0
@@ -918,7 +878,7 @@ def run_strict() -> tuple[dict, dict]:
         # Thursday-only weekly allocation rebalance.
         qdte_open = portal.current_open("QDTE")
         if (
-            bar_time.weekday() == 3
+            bar_time.weekday() == candidate_snapshot.rebalance_weekday
             and qdte_open is not None
         ):
             iso = bar_time.isocalendar()
@@ -944,7 +904,7 @@ def run_strict() -> tuple[dict, dict]:
                     income_cost=income_cost,
                     qdte_price=qdte_open.open,
                     position_prices=position_marks,
-                    target_income_weight=0.125,
+                    target_income_weight=config.dividend_allocation_years_1_2,
                     config=config,
                 )
                 allocation_records.append(
@@ -954,7 +914,7 @@ def run_strict() -> tuple[dict, dict]:
                             "THURSDAY_WEEKLY_REBALANCE"
                         ),
                         external_contribution=0.0,
-                        target_income_weight=0.125,
+                        target_income_weight=config.dividend_allocation_years_1_2,
                         action=rebalance.action,
                         before_income_weight=(
                             rebalance.before_income_weight
@@ -999,7 +959,7 @@ def run_strict() -> tuple[dict, dict]:
 
             if (
                 len(portfolio.positions)
-                >= MAXIMUM_POSITIONS
+                >= config.maximum_swing_positions
             ):
                 capacity_deferred += 1
                 signal_records.append(
@@ -1024,7 +984,7 @@ def run_strict() -> tuple[dict, dict]:
                 )
                 / signal.signal_atr
             )
-            if gap_atr > MAXIMUM_GAP_ATR:
+            if gap_atr > candidate_snapshot.maximum_gap_atr_multiple:
                 gap_rejections += 1
                 signal_records.append(
                     qpx.SignalRecord(
@@ -1083,6 +1043,9 @@ def run_strict() -> tuple[dict, dict]:
             ) = apply_notional_cap(
                 sizing=sizing,
                 account_equity=account_equity,
+                maximum_notional_fraction=(
+                    candidate_snapshot.maximum_position_notional_fraction
+                ),
             )
             if notional_adjusted:
                 notional_adjustments += 1
@@ -1251,7 +1214,7 @@ def run_strict() -> tuple[dict, dict]:
                     evaluation.highest_price
                 )
 
-        if clock.index >= INITIALIZATION_MARKET_BARS:
+        if clock.index >= initialization_market_bars(config):
             qualifying: list[str] = []
             open_symbols = set(
                 portfolio.positions
@@ -1296,15 +1259,6 @@ def run_strict() -> tuple[dict, dict]:
                     evaluate_candidate_v1_causal(
                         inputs=inputs,
                         config=config,
-                        momentum_persistence_level=(
-                            MOMENTUM_PERSISTENCE
-                        ),
-                        vix_exclusion_low=(
-                            VIX_EXCLUSION_LOW
-                        ),
-                        vix_exclusion_high=(
-                            VIX_EXCLUSION_HIGH
-                        ),
                     )
                 )
 
@@ -1326,7 +1280,7 @@ def run_strict() -> tuple[dict, dict]:
 
             available_slots = max(
                 0,
-                MAXIMUM_POSITIONS
+                config.maximum_swing_positions
                 - len(portfolio.positions)
                 - len(pending),
             )
@@ -1491,7 +1445,7 @@ def run_strict() -> tuple[dict, dict]:
                     portfolio.tax_reserve_cash
                 ),
                 income_weight=income_weight,
-                target_income_weight=0.125,
+                target_income_weight=config.dividend_allocation_years_1_2,
                 open_positions=len(
                     portfolio.positions
                 ),
@@ -1553,7 +1507,7 @@ def run_strict() -> tuple[dict, dict]:
     equity_points[-1] = qpx.EquityPoint(
         time=final_time,
         total_equity=ending_equity,
-        total_contributions=1300.0,
+        total_contributions=config.total_starting_capital,
         income_value=final_income_value,
         swing_equity=final_swing_equity,
         swing_cash=portfolio.cash,
@@ -1573,7 +1527,7 @@ def run_strict() -> tuple[dict, dict]:
             ) > 0
             else 0.0
         ),
-        target_income_weight=0.125,
+        target_income_weight=config.dividend_allocation_years_1_2,
         open_positions=0,
         pending_entries=0,
         active_risk=0.0,
@@ -1581,7 +1535,7 @@ def run_strict() -> tuple[dict, dict]:
 
     metrics = qpx._daily_metrics(
         equity_points,
-        starting_capital=1300.0,
+        starting_capital=config.total_starting_capital,
     )
     closed_swing_pnl = sum(
         trade.pnl
@@ -1591,7 +1545,7 @@ def run_strict() -> tuple[dict, dict]:
         record.realized_pnl
         for record in allocation_records
     )
-    net_profit = ending_equity - 1300.0
+    net_profit = ending_equity - config.total_starting_capital
     winners = sum(
         trade.pnl > 0
         for trade in trade_records
@@ -1655,8 +1609,9 @@ def run_strict() -> tuple[dict, dict]:
     result = {
         "actual_start": START.isoformat(),
         "actual_end": END.isoformat(),
-        "starting_total_capital": 1300.0,
-        "monthly_contribution": 0.0,
+        "starting_total_capital": config.total_starting_capital,
+        "monthly_contribution": config.monthly_contribution,
+        "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
         "ending_equity": ending_equity,
         "net_profit": net_profit,
         "closed_swing_trade_pnl": (
@@ -1970,20 +1925,33 @@ def format_pf(value) -> str:
 
 
 def main() -> int:
+    candidate_snapshot = load_candidate_v1_config()
+    config = candidate_snapshot.bot_config
     print()
     print("=" * 92)
     print(
         "QPX CANDIDATE V1 — FROZEN TOP-100 STRICT-CAUSAL REPLAY"
     )
     print("=" * 92)
-    print("Starting total         : $1,300.00")
-    print("Starting QDTE          : $1,300.00")
-    print("Starting swing cash    : $0.00")
-    print("External contributions : $0.00")
-    print("Rebalance              : THURSDAY-ONLY WEEKLY")
-    print("Risk / active risk     : 3.00% / 10.00%")
-    print("Maximum positions      : 6")
-    print("Notional guard         : 90.00%")
+    print(f"Starting total         : ${config.total_starting_capital:,.2f}")
+    print(f"Starting QDTE          : ${config.starting_cash:,.2f}")
+    print(f"Starting swing cash    : ${config.starting_swing_cash:,.2f}")
+    print(f"External contributions : ${config.monthly_contribution:,.2f}")
+    print(
+        "Rebalance              : "
+        f"WEEKDAY-{candidate_snapshot.rebalance_weekday} "
+        f"{config.allocation_rebalance_frequency.upper()}"
+    )
+    print(
+        "Risk / active risk     : "
+        f"{config.risk_per_trade:.2%} / "
+        f"{config.maximum_active_portfolio_risk:.2%}"
+    )
+    print(f"Maximum positions      : {config.maximum_swing_positions}")
+    print(
+        "Notional guard         : "
+        f"{candidate_snapshot.maximum_position_notional_fraction:.2%}"
+    )
     print("Future strategy bars   : INACCESSIBLE")
     print("Clock                  : RECORDED REAL TIMESTAMP UNION")
     print("Forward fill trading   : DISABLED")
@@ -1995,7 +1963,7 @@ def main() -> int:
     print("=" * 92)
     print()
 
-    result, summary = run_strict()
+    result, summary = run_strict(candidate_snapshot)
 
     print()
     print("=" * 92)
