@@ -1347,6 +1347,7 @@ def process_pending_execution_clock(
     Returns true while a pending signal is waiting for or inside its execution
     minute, so the cycle avoids slow catch-up work until the opportunity closes.
     """
+    fixed25_notional_fraction = sip.load_qualified_fixed25_notional_fraction()
     broker_block = state.get("broker_reconciliation", {}).get("risk_block_reason")
     if broker_block:
         had_pending = bool(state["pending"])
@@ -1451,7 +1452,7 @@ def process_pending_execution_clock(
             trade_results_r=sip.disabled_kelly_trade_history(candidate_snapshot),
         )
         share_cap = math.floor(
-            (equity * candidate_snapshot.maximum_position_notional_fraction)
+            (equity * fixed25_notional_fraction)
             / sizing.entry_fill
         ) if sizing.entry_fill else 0
         shares = min(sizing.shares, share_cap)

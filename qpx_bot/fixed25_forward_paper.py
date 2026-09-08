@@ -77,6 +77,20 @@ def fingerprint(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
 
 
+def load_qualified_fixed25_notional_fraction() -> float:
+    """Load the Fixed25 cap from its governed qualification artifact."""
+    qualification = json.loads(QUALIFICATION.read_text(encoding="utf-8"))
+    if qualification.get("dataset_fingerprint") != DATASET_FINGERPRINT:
+        raise RuntimeError("Qualified dataset fingerprint changed.")
+    raw = qualification.get("maximum_position_notional_fraction")
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise RuntimeError("Qualified Fixed25 notional fraction is invalid.")
+    value = float(raw)
+    if not math.isfinite(value) or value <= 0.0 or value > 1.0:
+        raise RuntimeError("Qualified Fixed25 notional fraction is invalid.")
+    return value
+
+
 def load_contract() -> dict[str, Any]:
     universe = json.loads(UNIVERSE.read_text(encoding="utf-8"))
     qualification = json.loads(QUALIFICATION.read_text(encoding="utf-8"))
@@ -900,6 +914,7 @@ def _vix_previous_close(day) -> float:
 
 def process_latest_decision(state: dict[str, Any], store: Store, observed_at: datetime) -> None:
     """Process each newly completed 15-minute timestamp exactly once."""
+    fixed25_notional_fraction = load_qualified_fixed25_notional_fraction()
     _flush_pending_candidate_v1_config_event(state, store)
     if state["contract"].get("feed") == "iex":
         _flush_pending_decision_cycle_telemetry(state, store)
@@ -1066,7 +1081,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                 atr=signal["atr"], active_risk=active_risk, config=signal_config,
                 trade_results_r=disabled_kelly_trade_history(signal_snapshot))
             share_cap = math.floor(
-                (equity * signal_snapshot.maximum_position_notional_fraction)
+                (equity * fixed25_notional_fraction)
                 / sizing.entry_fill
             ) if sizing.entry_fill else 0
             shares = min(sizing.shares, share_cap)

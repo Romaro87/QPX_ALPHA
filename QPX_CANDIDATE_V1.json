@@ -50,7 +50,7 @@
     "kelly_enabled": false,
     "kelly_fraction": 0.25,
     "minimum_kelly_trades": 20,
-    "maximum_position_notional_fraction": 0.25
+    "maximum_position_notional_fraction": 0.90
   },
   "execution": {
     "slippage_rate": 0.00075

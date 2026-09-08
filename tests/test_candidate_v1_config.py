@@ -57,7 +57,7 @@ class CandidateV1ConfigTests(unittest.TestCase):
         self.assertEqual(config.rsi_overbought, 75.0)
         self.assertEqual(config.allocation_rebalance_frequency, "weekly")
         self.assertEqual(config.monthly_contribution, 0.0)
-        self.assertEqual(self.default.maximum_position_notional_fraction, 0.25)
+        self.assertEqual(self.default.maximum_position_notional_fraction, 0.90)
         self.assertEqual(self.default.maximum_gap_atr_multiple, 2.0)
         self.assertEqual(self.default.forward_starting_capital, 1470.0)
         self.assertFalse(self.default.kelly_enabled)
@@ -92,7 +92,7 @@ class CandidateV1ConfigTests(unittest.TestCase):
         self.assertEqual(self.default.bot_config, pre_repair)
         self.assertEqual(self.default.forward_starting_capital, 1470.0)
         self.assertEqual(self.default.maximum_gap_atr_multiple, 2.0)
-        self.assertEqual(self.default.maximum_position_notional_fraction, 0.25)
+        self.assertEqual(self.default.maximum_position_notional_fraction, 0.90)
 
     def test_every_bot_config_field_is_explicit_not_defaulted(self):
         loaded = self.default.bot_config

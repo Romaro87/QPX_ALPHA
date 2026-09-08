@@ -76,8 +76,9 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         )
         self.assertEqual(
             sip.load_candidate_v1_config().maximum_position_notional_fraction,
-            0.25,
+            0.90,
         )
+        self.assertEqual(sip.load_qualified_fixed25_notional_fraction(), 0.25)
         self.assertFalse(contract["pyramiding_enabled"])
         self.assertFalse(contract["sip_parity_claimed"])
         self.assertNotEqual(DEFAULT_RUNTIME, sip.DEFAULT_RUNTIME)
