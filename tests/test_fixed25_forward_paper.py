@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import hashlib
 import io
 import json
@@ -8,12 +8,15 @@ import unittest
 from unittest.mock import patch
 
 from qpx_bot.fixed25_forward_paper import (
-    Store, _minute_for_exit, _persist_profit_runtime, _profit_runtime,
+    Store, _completed_15m, _entry_inputs, _minute_for_exit,
+    _persist_profit_runtime, _profit_runtime,
     apply_qdte_corporate_actions, fingerprint, initialize, load_contract,
     select_causal_execution_bar,
 )
 from qpx_bot.candidate_v1_config import load_candidate_v1_config
 from qpx_bot.accelerators.profit_recycling import ProfitRecyclingContext, ProfitSource
+from qpx_bot.data_loader import Candle
+from qpx_bot.indicators import calculate_indicators
 from qpx_bot.portfolio import Position
 
 
@@ -42,6 +45,97 @@ class Fixed25ForwardPaperTest(unittest.TestCase):
         selected = select_causal_execution_bar(rows, now)
         self.assertEqual(selected["source_price"], 40)
         self.assertEqual(selected["feed"], "sip")
+
+    def test_first_session_bar_uses_prior_session_rolling_history(self):
+        from zoneinfo import ZoneInfo
+
+        ny = ZoneInfo("America/New_York")
+        prior_sessions = (
+            date(2026, 8, 26), date(2026, 8, 27),
+            date(2026, 8, 28), date(2026, 8, 31),
+            date(2026, 9, 1), date(2026, 9, 2),
+            date(2026, 9, 3), date(2026, 9, 4),
+        )
+        rows = []
+        sequence = 0
+        for session in prior_sessions:
+            session_open = datetime.combine(session, time(9, 30), tzinfo=ny)
+            for offset in range(26):
+                start = session_open + timedelta(minutes=15 * offset)
+                price = 100.0 + sequence / 100.0
+                rows.append({
+                    "t": start.isoformat(),
+                    "o": price,
+                    "h": price + 0.5,
+                    "l": price - 0.5,
+                    "c": price + 0.1,
+                    "v": 100_000 + sequence,
+                })
+                sequence += 1
+
+        current_open = datetime(2026, 9, 8, 9, 30, tzinfo=ny)
+        rows.extend((
+            {
+                "t": datetime(2026, 9, 8, 8, 0, tzinfo=ny).isoformat(),
+                "o": 1.0, "h": 1_000_000.0, "l": 1.0, "c": 1.0,
+                "v": 1_000_000_000,
+            },
+            {
+                "t": current_open.isoformat(),
+                "o": 103.0, "h": 103.5, "l": 102.5, "c": 103.1,
+                "v": 150_000,
+            },
+            {
+                "t": datetime(2026, 9, 4, 16, 0, tzinfo=ny).isoformat(),
+                "o": 1.0, "h": 1_000_000.0, "l": 1.0, "c": 1.0,
+                "v": 1_000_000_000,
+            },
+        ))
+
+        completed = _completed_15m(
+            rows,
+            datetime(2026, 9, 8, 9, 46, tzinfo=ny),
+        )
+        self.assertEqual(len(completed), len(prior_sessions) * 26 + 1)
+        self.assertEqual(completed[-1]["start"], current_open)
+        self.assertTrue(all(
+            time(9, 30) <= row["start"].time() < time(16, 0)
+            for row in completed
+        ))
+
+        cfg = load_candidate_v1_config().bot_config
+        candles = [
+            Candle(
+                date=row["start"].date(),
+                open=row["open"], high=row["high"],
+                low=row["low"], close=row["close"], volume=row["volume"],
+            )
+            for row in completed
+        ]
+        indicators = calculate_indicators(candles, cfg)
+        index = len(completed) - 1
+        inputs = _entry_inputs(completed, index, indicators, 18.0, cfg)
+
+        self.assertIsNotNone(inputs)
+        assert inputs is not None
+        self.assertEqual(
+            inputs.prior_high,
+            max(row["high"] for row in completed[index - 10:index]),
+        )
+        self.assertAlmostEqual(
+            inputs.baseline_volume,
+            sum(row["volume"] for row in completed[index - 20:index]) / 20,
+        )
+        self.assertEqual(
+            inputs.slope_sma,
+            indicators.sma_trend[index - cfg.sma_slope_lookback],
+        )
+        for series in (
+            indicators.ema_fast, indicators.ema_slow, indicators.rsi,
+            indicators.rmi, indicators.atr, indicators.sma_trend,
+        ):
+            self.assertIsNotNone(series[index])
+            self.assertIsNotNone(series[index - 1])
 
     def test_nonretryable_alpaca_error_preserves_status_and_body(self):
         from qpx_bot.fixed25_forward_paper import request_bars
