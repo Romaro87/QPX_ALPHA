@@ -621,10 +621,63 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
     def test_qualified_frozen_root_is_distinct(self):
         self.assertNotEqual(DEFAULT_ROOT, QUALIFIED_FROZEN_ROOT)
 
-    def test_partial_state_not_training_eligible(self):
-        estimate = initial_estimate(10, calculate_range(NOW), 900_000_000_000)
-        self.assertGreater(estimate["upper_bound_rows"], 0)
-        self.assertGreater(estimate["safety_reserve_bytes"], 0)
+    def test_initialization_state_is_not_training_eligible(self):
+        with tempfile.TemporaryDirectory() as folder:
+            acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW)
+            acquisition.disk_gate = lambda: 900_000_000_000
+            state = acquisition.initialize()
+            self.assertEqual(
+                state["training_eligibility"],
+                "ACQUISITION_PARTIAL_NOT_TRAINING_ELIGIBLE",
+            )
+
+    def test_finalize_reports_complete_without_training_qualification(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            master = {
+                "schema_version": 1,
+                "provider": "alpaca",
+                "assets": build_security_master([asset()], [asset("id-z", "ZZZ", "inactive")], NOW),
+            }
+            master_path = root / "security_master/alpaca_us_equity_assets.json.gz"
+            atomic_bytes(
+                master_path,
+                gzip.compress(
+                    json.dumps(master, sort_keys=True, separators=(",", ":")).encode(),
+                    mtime=0,
+                ),
+            )
+            state = {"observed_ranges": {}}
+            acquisition = Acquisition(root, FakeClient(), now=lambda: NOW)
+            acquisition.finalize(state)
+            self.assertEqual(state["status"], "COMPLETE")
+            self.assertEqual(state["stage"], "COMPLETE")
+            self.assertEqual(
+                state["training_eligibility"],
+                "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE",
+            )
+
+    def test_status_preserves_complete_not_qualified_state(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state = run_state()
+            state.update({
+                "status": "COMPLETE",
+                "training_eligibility": "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE",
+            })
+            Acquisition(root, FakeClient()).save_state(state)
+            result = status(root)
+            self.assertEqual(result["status"], "COMPLETE")
+            self.assertEqual(
+                result["training_eligibility"],
+                "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE",
+            )
+
+    def test_acquisition_has_no_positive_training_eligibility_literal(self):
+        source = (
+            Path(__file__).parents[1] / "qpx_bot/ml_historical_acquisition.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn('"TRAINING_ELIGIBLE"', source)
 
 
 if __name__ == "__main__":

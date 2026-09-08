@@ -1129,7 +1129,7 @@ class Acquisition:
         atomic_bytes(master_path, gzip.compress(json.dumps(master, sort_keys=True, separators=(",", ":")).encode(), mtime=0))
         atomic_json(master_path.with_suffix(master_path.suffix + ".manifest.json"), {"sha256": sha256_path(master_path), "security_count": len(master["assets"]), "active_count": sum(i["active"] for i in master["assets"]), "inactive_count": sum(not i["active"] for i in master["assets"]), "provenance_fingerprint": master["manifest_fingerprint"]})
         state["status"] = "COMPLETE"; state["stage"] = "COMPLETE"; state["current_partition"] = None
-        state["training_eligibility"] = "TRAINING_ELIGIBLE"; state["completed_at_utc"] = self.now().isoformat()
+        state["training_eligibility"] = "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE"; state["completed_at_utc"] = self.now().isoformat()
 
     def record_failure(self, state: dict[str, Any], item: Mapping[str, Any], exc: Exception) -> None:
         path = self.root / "failures" / "acquisition_failures.jsonl"
