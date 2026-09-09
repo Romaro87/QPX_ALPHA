@@ -12,6 +12,7 @@ import gzip
 import hashlib
 import io
 import json
+import math
 import os
 import random
 import re
@@ -32,11 +33,15 @@ from typing import Any, Callable, Iterable, Mapping
 from zoneinfo import ZoneInfo
 
 from qpx_bot.alpaca_provider import credentials
+from qpx_bot.historical_market_calendar import (
+    FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+    FrozenHistoricalMarketCalendar,
+    load_frozen_historical_calendar,
+)
 from qpx_bot.market_calendar import (
     NEW_YORK,
     is_market_session,
     latest_completed_session,
-    market_session,
     next_market_session,
 )
 from qpx_bot.paper_state import read_checksummed_state, write_checksummed_state
@@ -53,9 +58,13 @@ FEED = "sip"
 ADJUSTMENT = "raw"
 TIMEFRAME = "15Min"
 SCHEMA_VERSION = 1
-CHECKPOINT_SCHEMA_VERSION = 2
-ACQUISITION_PROVENANCE_VERSION = "QPX_ML_HISTORICAL_15M_V2"
-PROVIDER_INPUT_SEMANTIC_VERSION = "ALPACA_SIP_RAW_15M_HISTORICAL_V1"
+CHECKPOINT_SCHEMA_VERSION = 3
+ACQUISITION_PROVENANCE_VERSION = "QPX_ML_HISTORICAL_15M_V3"
+PROVIDER_INPUT_SEMANTIC_VERSION = "ALPACA_SIP_RAW_15M_HISTORICAL_V2"
+LEGACY_ACQUISITION_PROVENANCE_VERSION = "QPX_ML_HISTORICAL_15M_V2"
+LEGACY_PROVIDER_INPUT_SEMANTIC_VERSION = "ALPACA_SIP_RAW_15M_HISTORICAL_V1"
+REJECTION_EVIDENCE_SCHEMA_VERSION = 1
+PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION = 1
 BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
@@ -89,6 +98,20 @@ BAR_COLUMNS = (
     "session_date", "open", "high", "low", "close", "volume",
     "provider", "feed", "adjustment", "request_fingerprint",
 )
+BAR_OUTCOMES = (
+    "ACCEPTED", "BAD_TIMESTAMP", "FUTURE_OR_OUT_OF_RANGE", "OFF_15M_GRID",
+    "CALENDAR_REJECTED", "OUTSIDE_REGULAR_SESSION", "INVALID_OHLC",
+    "NEGATIVE_VOLUME", "MALFORMED_ROW",
+)
+REJECTION_CATEGORIES = tuple(value for value in BAR_OUTCOMES if value != "ACCEPTED")
+
+
+@dataclass(frozen=True, slots=True)
+class BarClassification:
+    outcome: str
+    accepted_row: dict[str, Any] | None
+    provider_timestamp: str | None
+    raw_provider_row_sha256: str
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -446,7 +469,8 @@ def build_security_master(active: Iterable[Mapping[str, Any]], inactive: Iterabl
 
 
 def batch_descriptor(
-    *, year: int, start: date, end: date, symbols: Iterable[str], asset_ids: Iterable[str]
+    *, year: int, start: date, end: date, symbols: Iterable[str], asset_ids: Iterable[str],
+    provider_input_semantic_version: str = PROVIDER_INPUT_SEMANTIC_VERSION,
 ) -> dict[str, Any]:
     symbol_values = list(symbols)
     identity_values = list(asset_ids)
@@ -462,48 +486,360 @@ def batch_descriptor(
     identity = {
         "year": int(year), "requested_start": start.isoformat(),
         "requested_end": end.isoformat(), "feed": FEED, "adjustment": ADJUSTMENT,
-        "timeframe": TIMEFRAME, "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+        "timeframe": TIMEFRAME, "provider_input_semantic_version": provider_input_semantic_version,
         "members": members,
     }
     return {**identity, "batch_fingerprint": fingerprint(identity)}
 
 
-def page_evidence(path: Path, *, page: int, row_count: int, request_fingerprint: str, batch_fingerprint: str) -> dict[str, Any]:
+def request_identity(request_core: Mapping[str, Any], batch_fingerprint: str, *,
+                     provider_input_semantic_version: str = PROVIDER_INPUT_SEMANTIC_VERSION) -> str:
+    return fingerprint({
+        "provider_input_semantic_version": provider_input_semantic_version,
+        "batch_fingerprint": batch_fingerprint,
+        "request": dict(request_core),
+    })
+
+
+def legacy_v2_page_evidence(path: Path, *, page: int, row_count: int,
+                            request_fingerprint: str, batch_fingerprint: str) -> dict[str, Any]:
+    """Reproduce historical V2 page evidence without relabelling it as V3."""
     core = {
-        "schema_version": CHECKPOINT_SCHEMA_VERSION, "page": page,
+        "schema_version": 2, "page": page,
         "sha256": sha256_path(path), "row_count": row_count,
         "request_fingerprint": request_fingerprint, "batch_fingerprint": batch_fingerprint,
-        "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+        "acquisition_provenance_version": LEGACY_ACQUISITION_PROVENANCE_VERSION,
     }
     return {**core, "evidence_fingerprint": fingerprint(core)}
 
 
-def validate_bar(raw: Mapping[str, Any], symbol: str, asset_id: str, request_fp: str, start: date, end: date, now: datetime) -> dict[str, Any] | None:
+def _canonical_source_value(value: Any) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        return {"qpx_nonfinite_number": repr(value)}
+    if isinstance(value, Mapping):
+        return {str(key): _canonical_source_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_source_value(item) for item in value]
+    if value is None or type(value) in {bool, int, float, str}:
+        return value
+    return {"qpx_unsupported_source_type": type(value).__name__, "text": str(value)}
+
+
+def raw_provider_row_fingerprint(raw: Any) -> str:
+    return fingerprint(_canonical_source_value(raw))
+
+
+def _numeric(value: Any) -> float:
+    if isinstance(value, bool):
+        raise ValueError("Boolean is not a provider numeric value.")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("Provider numeric value is non-finite.")
+    return result
+
+
+def classify_bar(raw: Any, symbol: str, asset_id: str, request_fp: str, start: date,
+                 end: date, now: datetime, calendar: FrozenHistoricalMarketCalendar) -> BarClassification:
+    raw_sha = raw_provider_row_fingerprint(raw)
+    if not isinstance(raw, Mapping):
+        return BarClassification("MALFORMED_ROW", None, None, raw_sha)
     try:
-        timestamp = datetime.fromisoformat(str(raw["t"]).replace("Z", "+00:00")).astimezone(EASTERN)
-        values = [float(raw[name]) for name in ("o", "h", "l", "c")]
-        volume = int(raw["v"])
+        raw_timestamp = raw["t"]
+        if not isinstance(raw_timestamp, str):
+            raise ValueError("Timestamp must be text.")
+        timestamp = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            raise ValueError("Timestamp must be timezone-aware.")
+        timestamp = timestamp.astimezone(EASTERN)
     except (KeyError, TypeError, ValueError, OverflowError):
-        return None
-    if not start <= timestamp.date() <= end or timestamp >= now.astimezone(EASTERN):
-        return None
+        return BarClassification("BAD_TIMESTAMP", None, None, raw_sha)
+    provider_timestamp = timestamp.isoformat()
+    try:
+        values = [_numeric(raw[name]) for name in ("o", "h", "l", "c")]
+        raw_volume = _numeric(raw["v"])
+        if not raw_volume.is_integer():
+            raise ValueError("Volume must be an integer.")
+        volume = int(raw_volume)
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return BarClassification("MALFORMED_ROW", None, provider_timestamp, raw_sha)
+    if (
+        not start <= timestamp.date() <= end
+        or not calendar.covered_start <= timestamp.date() <= calendar.covered_end
+        or timestamp + timedelta(minutes=15) > now.astimezone(EASTERN)
+    ):
+        return BarClassification("FUTURE_OR_OUT_OF_RANGE", None, provider_timestamp, raw_sha)
     if timestamp.minute % 15 or timestamp.second or timestamp.microsecond:
-        return None
-    if not is_market_session(timestamp.date()):
-        return None
-    session = market_session(timestamp.date())
+        return BarClassification("OFF_15M_GRID", None, provider_timestamp, raw_sha)
+    session = calendar.session_on(timestamp.date())
+    if session is None:
+        return BarClassification("CALENDAR_REJECTED", None, provider_timestamp, raw_sha)
     if not session.regular_open <= timestamp < session.regular_close:
-        return None
+        return BarClassification("OUTSIDE_REGULAR_SESSION", None, provider_timestamp, raw_sha)
     o, h, l, c = values
-    if min(values) <= 0 or h < max(o, l, c) or l > min(o, h, c) or volume < 0:
-        return None
-    return {
+    if min(values) <= 0 or h < max(o, l, c) or l > min(o, h, c):
+        return BarClassification("INVALID_OHLC", None, provider_timestamp, raw_sha)
+    if volume < 0:
+        return BarClassification("NEGATIVE_VOLUME", None, provider_timestamp, raw_sha)
+    accepted = {
         "provider_asset_id": asset_id, "observation_symbol": symbol,
         "market_timestamp": timestamp.isoformat(), "session_date": timestamp.date().isoformat(),
         "open": repr(o), "high": repr(h), "low": repr(l), "close": repr(c), "volume": str(volume),
         "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT,
         "request_fingerprint": request_fp,
     }
+    return BarClassification("ACCEPTED", accepted, provider_timestamp, raw_sha)
+
+
+def validate_bar(raw: Mapping[str, Any], symbol: str, asset_id: str, request_fp: str,
+                 start: date, end: date, now: datetime,
+                 calendar: FrozenHistoricalMarketCalendar | None = None) -> dict[str, Any] | None:
+    authority = calendar or load_frozen_historical_calendar()
+    return classify_bar(raw, symbol, asset_id, request_fp, start, end, now, authority).accepted_row
+
+
+def encode_gzip_jsonl(rows: Iterable[Mapping[str, Any]]) -> bytes:
+    raw = b"".join(canonical_bytes(row) + b"\n" for row in rows)
+    output = io.BytesIO()
+    with gzip.GzipFile(fileobj=output, mode="wb", mtime=0) as zipped:
+        zipped.write(raw)
+    return output.getvalue()
+
+
+def read_gzip_jsonl(path: Path) -> list[dict[str, Any]]:
+    with gzip.open(path, "rt", encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+
+def load_provider_population(root: Path) -> dict[str, Any]:
+    master_path = root / "security_master" / "alpaca_us_equity_assets.json.gz"
+    manifest_path = master_path.with_suffix(master_path.suffix + ".manifest.json")
+    try:
+        external = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if external.get("sha256") != sha256_path(master_path):
+            raise RuntimeError("Security-master checksum does not match.")
+        master = json.loads(gzip.decompress(master_path.read_bytes()))
+    except (OSError, gzip.BadGzipFile, json.JSONDecodeError) as exc:
+        raise RuntimeError("Security-master evidence is missing or corrupt.") from exc
+    claimed_master_fp = master.get("manifest_fingerprint")
+    master_core = {key: value for key, value in master.items() if key != "manifest_fingerprint"}
+    if not isinstance(claimed_master_fp, str) or fingerprint(master_core) != claimed_master_fp:
+        raise RuntimeError("Security-master provenance fingerprint does not match.")
+    if external.get("provenance_fingerprint") != claimed_master_fp:
+        raise RuntimeError("External security-master provenance does not match.")
+    assets = master.get("assets")
+    if not isinstance(assets, list) or not assets:
+        raise RuntimeError("Security master has no provider population.")
+    members: list[dict[str, str]] = []
+    seen_ids: set[str] = set()
+    by_symbol: dict[str, list[str]] = {}
+    for asset in assets:
+        if not isinstance(asset, Mapping):
+            raise RuntimeError("Security master contains a malformed asset.")
+        asset_id = canonical_provider_asset_id(asset.get("provider_asset_id", ""))
+        symbol = str(asset.get("canonical_current_symbol", "")).strip().upper()
+        if not symbol or asset_id in seen_ids:
+            raise RuntimeError("Security master contains missing or duplicate provider identity.")
+        seen_ids.add(asset_id)
+        members.append({"provider_asset_id": asset_id, "canonical_symbol": symbol})
+        by_symbol.setdefault(symbol, []).append(asset_id)
+    members.sort(key=lambda value: (value["provider_asset_id"], value["canonical_symbol"]))
+    population_core = {
+        "schema_version": PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION,
+        "security_master_fingerprint": claimed_master_fp,
+        "members": members,
+    }
+    population_fp = fingerprint(population_core)
+    population_evidence = {
+        **population_core, "provider_population_fingerprint": population_fp,
+    }
+    records: list[dict[str, Any]] = []
+    for symbol, ids in sorted(by_symbol.items()):
+        if len(ids) < 2:
+            continue
+        core = {
+            "schema_version": PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION,
+            "observation_symbol": symbol,
+            "conflicting_provider_asset_ids": sorted(ids),
+            "reason": "AMBIGUOUS_PROVIDER_IDENTITY",
+            "security_master_fingerprint": claimed_master_fp,
+            "provider_population_fingerprint": population_fp,
+            "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+            "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+        }
+        records.append({**core, "exclusion_fingerprint": fingerprint(core)})
+    exclusion_core = {
+        "schema_version": PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION,
+        "security_master_fingerprint": claimed_master_fp,
+        "provider_population_fingerprint": population_fp,
+        "record_count": len(records),
+        "affected_provider_id_count": sum(len(record["conflicting_provider_asset_ids"]) for record in records),
+        "records": records,
+    }
+    return {
+        "security_master_fingerprint": claimed_master_fp,
+        "provider_population_fingerprint": population_fp,
+        "provider_population_evidence": population_evidence,
+        "members": tuple(members),
+        "ambiguous_by_symbol": {
+            record["observation_symbol"]: tuple(record["conflicting_provider_asset_ids"])
+            for record in records
+        },
+        "ambiguous_records_by_symbol": {
+            record["observation_symbol"]: record for record in records
+        },
+        "ambiguous_exclusion_set": {
+            **exclusion_core,
+            "exclusion_set_fingerprint": fingerprint(exclusion_core),
+        },
+    }
+
+
+def partition_population_disposition(item: Mapping[str, Any], population: Mapping[str, Any],
+                                     provider_rejections: Iterable[Mapping[str, Any]] = ()) -> dict[str, Any]:
+    if len(item["symbols"]) != len(item["asset_ids"]):
+        raise RuntimeError("Planned symbols and provider identities are not one-to-one.")
+    planned = sorted(
+        ({"provider_asset_id": canonical_provider_asset_id(asset_id), "canonical_symbol": str(symbol).strip().upper()}
+         for symbol, asset_id in zip(item["symbols"], item["asset_ids"])),
+        key=lambda value: (value["provider_asset_id"], value["canonical_symbol"]),
+    )
+    if len(planned) != len(item["symbols"]) or len({value["provider_asset_id"] for value in planned}) != len(planned):
+        raise RuntimeError("Planned provider population is not one-to-one by provider identity.")
+    population_members = {
+        (value["provider_asset_id"], value["canonical_symbol"])
+        for value in population["members"]
+    }
+    if any((value["provider_asset_id"], value["canonical_symbol"]) not in population_members for value in planned):
+        raise RuntimeError("Planned batch membership is not present in the validated security master.")
+    ambiguous = population["ambiguous_by_symbol"]
+    rejected_ids = {
+        canonical_provider_asset_id(value.get("provider_asset_id", ""))
+        for value in provider_rejections
+        if value.get("reason") == "PROVIDER_REJECTED_SYMBOL"
+    }
+    requested: list[dict[str, str]] = []
+    ambiguous_excluded: list[dict[str, str]] = []
+    provider_excluded: list[dict[str, str]] = []
+    for member in planned:
+        if member["canonical_symbol"] in ambiguous:
+            ambiguous_excluded.append(member)
+        elif member["provider_asset_id"] in rejected_ids:
+            provider_excluded.append(member)
+        else:
+            requested.append(member)
+    requested_symbols = [value["canonical_symbol"] for value in requested]
+    if len(set(requested_symbols)) != len(requested_symbols):
+        raise RuntimeError("Requested symbols do not resolve one-to-one to provider identities.")
+    dispositions = (requested, ambiguous_excluded, provider_excluded)
+    disposition_ids = [value["provider_asset_id"] for group in dispositions for value in group]
+    planned_ids = [value["provider_asset_id"] for value in planned]
+    if len(disposition_ids) != len(set(disposition_ids)) or sorted(disposition_ids) != sorted(planned_ids):
+        raise RuntimeError("Provider population disposition does not reconcile exactly.")
+    applicable_ambiguous_records = [
+        population["ambiguous_records_by_symbol"][symbol]
+        for symbol in sorted({value["canonical_symbol"] for value in ambiguous_excluded})
+    ]
+    provider_rejected_records: list[dict[str, Any]] = []
+    for member in provider_excluded:
+        record_core = {
+            "schema_version": PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION,
+            "observation_symbol": member["canonical_symbol"],
+            "provider_asset_id": member["provider_asset_id"],
+            "reason": "PROVIDER_REJECTED_SYMBOL",
+            "security_master_fingerprint": population["security_master_fingerprint"],
+            "provider_population_fingerprint": population["provider_population_fingerprint"],
+            "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+            "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+        }
+        provider_rejected_records.append({
+            **record_core, "exclusion_fingerprint": fingerprint(record_core),
+        })
+    exclusion_set_core = {
+        "schema_version": PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION,
+        "ambiguous_identity_exclusions": applicable_ambiguous_records,
+        "provider_rejected_exclusions": provider_rejected_records,
+        "security_master_fingerprint": population["security_master_fingerprint"],
+        "provider_population_fingerprint": population["provider_population_fingerprint"],
+    }
+    exclusion_set_fingerprint = fingerprint(exclusion_set_core)
+    core = {
+        "schema_version": PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION,
+        "planned_provider_ids": planned_ids,
+        "requested_unambiguous_provider_ids": [value["provider_asset_id"] for value in requested],
+        "ambiguous_identity_excluded_provider_ids": [value["provider_asset_id"] for value in ambiguous_excluded],
+        "other_governed_excluded_provider_ids": [value["provider_asset_id"] for value in provider_excluded],
+        "requested_members": requested,
+        "ambiguous_identity_excluded_members": ambiguous_excluded,
+        "ambiguous_identity_exclusions": applicable_ambiguous_records,
+        "provider_rejected_exclusions": provider_rejected_records,
+        "exclusion_set_fingerprint": exclusion_set_fingerprint,
+        "provider_population_fingerprint": population["provider_population_fingerprint"],
+        "security_master_fingerprint": population["security_master_fingerprint"],
+    }
+    return {**core, "population_disposition_fingerprint": fingerprint(core)}
+
+
+def rejection_record(*, raw: Any, outcome: BarClassification, partition: str, page: int,
+                     ordinal: int, symbol: str | None, asset_id: str | None,
+                     request_fingerprint: str, batch_fingerprint: str,
+                     calendar_fingerprint: str) -> dict[str, Any]:
+    if outcome.outcome == "ACCEPTED":
+        raise ValueError("Accepted rows do not belong in rejection evidence.")
+    core = {
+        "schema_version": REJECTION_EVIDENCE_SCHEMA_VERSION,
+        "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+        "partition": partition,
+        "page": page,
+        "source_row_ordinal": ordinal,
+        "observation_symbol": symbol,
+        "provider_asset_id": asset_id,
+        "provider_timestamp": outcome.provider_timestamp,
+        "rejection_category": outcome.outcome,
+        "raw_provider_row_sha256": outcome.raw_provider_row_sha256,
+        "request_fingerprint": request_fingerprint,
+        "batch_fingerprint": batch_fingerprint,
+        "frozen_calendar_fingerprint": calendar_fingerprint,
+    }
+    return {**core, "rejection_fingerprint": fingerprint(core)}
+
+
+def page_evidence(accepted_path: Path, rejection_path: Path, *, page: int,
+                  source_row_count: int, accepted_row_count: int, rejected_row_count: int,
+                  rejection_counts_by_category: Mapping[str, int], request_fingerprint: str,
+                  batch_fingerprint: str, calendar_fingerprint: str,
+                  provider_population_fingerprint: str,
+                  population_disposition_fingerprint: str,
+                  exclusion_set_fingerprint: str) -> dict[str, Any]:
+    if any(type(value) is not int for value in (source_row_count, accepted_row_count, rejected_row_count)):
+        raise RuntimeError("Page row counts must be structural integers.")
+    if min(source_row_count, accepted_row_count, rejected_row_count) < 0 or source_row_count != accepted_row_count + rejected_row_count:
+        raise RuntimeError("Page source-row reconciliation failed.")
+    if set(rejection_counts_by_category) - set(REJECTION_CATEGORIES):
+        raise RuntimeError("Page evidence contains an unknown rejection category.")
+    if any(type(value) is not int for value in rejection_counts_by_category.values()):
+        raise RuntimeError("Page rejection counts must be structural integers.")
+    normalized_counts = {category: int(rejection_counts_by_category.get(category, 0)) for category in REJECTION_CATEGORIES}
+    if any(value < 0 for value in normalized_counts.values()) or sum(normalized_counts.values()) != rejected_row_count:
+        raise RuntimeError("Page rejection-category reconciliation failed.")
+    core = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "page": page,
+        "source_row_count": source_row_count,
+        "accepted_row_count": accepted_row_count,
+        "rejected_row_count": rejected_row_count,
+        "rejection_counts_by_category": normalized_counts,
+        "accepted_fragment_sha256": sha256_path(accepted_path),
+        "rejection_evidence_sha256": sha256_path(rejection_path),
+        "request_fingerprint": request_fingerprint,
+        "batch_fingerprint": batch_fingerprint,
+        "frozen_calendar_fingerprint": calendar_fingerprint,
+        "provider_population_fingerprint": provider_population_fingerprint,
+        "population_disposition_fingerprint": population_disposition_fingerprint,
+        "exclusion_set_fingerprint": exclusion_set_fingerprint,
+        "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+        "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+    }
+    return {**core, "page_evidence_fingerprint": fingerprint(core)}
 
 
 def encode_gzip_csv(rows: Iterable[Mapping[str, Any]], columns: tuple[str, ...]) -> bytes:
@@ -573,6 +909,10 @@ class Acquisition:
         self.stop_requested = False
         self.request_count_base = 0
         self.retry_count_base = 0
+        self.historical_calendar = load_frozen_historical_calendar()
+        if self.historical_calendar.content_fingerprint != FROZEN_CALENDAR_CONTENT_FINGERPRINT:
+            raise RuntimeError("Frozen historical calendar fingerprint is not governed.")
+        self._provider_population_cache: dict[str, Any] | None = None
         self.state_path = self.root / "acquisition_state" / "state.json"
         self.state_checksum = self.state_path.with_suffix(".sha256")
         governor = getattr(self.client, "governor", None)
@@ -580,6 +920,44 @@ class Acquisition:
             governor.sleep = self._cooperative_wait
         if hasattr(self.client, "wait"):
             self.client.wait = self._cooperative_wait
+
+    def _calendar_preflight(self, requested: Mapping[str, str]) -> None:
+        start = date.fromisoformat(str(requested["actual_first_requested_session"]))
+        end = date.fromisoformat(str(requested["actual_last_completed_session"]))
+        if start < self.historical_calendar.covered_start or end > self.historical_calendar.covered_end or start > end:
+            raise RuntimeError("Requested acquisition range exceeds frozen historical calendar authority.")
+
+    def _provider_population(self) -> dict[str, Any]:
+        if self._provider_population_cache is None:
+            population = load_provider_population(self.root)
+            population_evidence = population["provider_population_evidence"]
+            population_path = (
+                self.root / "manifests" / "provider_populations"
+                / f"{population['provider_population_fingerprint']}.json"
+            )
+            if population_path.exists():
+                try:
+                    if json.loads(population_path.read_text(encoding="utf-8")) != population_evidence:
+                        raise RuntimeError("Content-addressed provider-population evidence conflicts.")
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError("Provider-population evidence is corrupt.") from exc
+            else:
+                atomic_json(population_path, population_evidence)
+            exclusion = population["ambiguous_exclusion_set"]
+            evidence_path = (
+                self.root / "manifests" / "provider_population_exclusions"
+                / f"{exclusion['exclusion_set_fingerprint']}.json"
+            )
+            if evidence_path.exists():
+                try:
+                    if json.loads(evidence_path.read_text(encoding="utf-8")) != exclusion:
+                        raise RuntimeError("Content-addressed ambiguous exclusion evidence conflicts.")
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError("Ambiguous exclusion evidence is corrupt.") from exc
+            else:
+                atomic_json(evidence_path, exclusion)
+            self._provider_population_cache = population
+        return self._provider_population_cache
 
     def _cooperative_wait(self, seconds: float) -> None:
         remaining = max(0.0, float(seconds))
@@ -804,17 +1182,19 @@ class Acquisition:
             raise RuntimeError("ML reservoir may not overlap the qualified frozen dataset.")
         free = self.disk_gate()
         acquired = self.now()
+        requested = calculate_range(acquired)
+        self._calendar_preflight(requested)
         active = self.client.assets("active")
         inactive = self.client.assets("inactive")
         master = build_security_master(active, inactive, acquired)
         if not master or not any(not item["active"] for item in master):
             raise RuntimeError("Survivorship gate failed: inactive provider assets were not recovered.")
-        requested = calculate_range(acquired)
         master_payload = {"schema_version": SCHEMA_VERSION, "provider": PROVIDER, "assets": master}
         master_payload["manifest_fingerprint"] = fingerprint(master_payload)
         master_path = self.root / "security_master" / "alpaca_us_equity_assets.json.gz"
         atomic_bytes(master_path, gzip.compress(json.dumps(master_payload, sort_keys=True, separators=(",", ":")).encode(), mtime=0))
         atomic_json(master_path.with_suffix(master_path.suffix + ".manifest.json"), {"sha256": sha256_path(master_path), "security_count": len(master), "active_count": sum(i["active"] for i in master), "inactive_count": sum(not i["active"] for i in master), "provenance_fingerprint": master_payload["manifest_fingerprint"]})
+        self._provider_population_cache = None
         years = list(range(date.fromisoformat(requested["actual_first_requested_session"]).year, date.fromisoformat(requested["actual_last_completed_session"]).year + 1))
         batches = [master[index:index + BATCH_SIZE] for index in range(0, len(master), BATCH_SIZE)]
         partitions = []
@@ -869,9 +1249,59 @@ class Acquisition:
         page_root.rename(destination)
         atomic_json(destination / "rebuild_reason.json", {"reason": reason, "evidence": dict(evidence), "recorded_at_utc": self.now().isoformat(), "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION})
 
+    def _partition_context(self, state: Mapping[str, Any], item: Mapping[str, Any]) -> dict[str, Any]:
+        self._calendar_preflight(state["requested_range"])
+        year = int(item["year"])
+        start, end = self._partition_bounds(year, state["requested_range"])
+        population = self._provider_population()
+        disposition = partition_population_disposition(
+            item, population, state.get("unqueryable_symbols", ()),
+        )
+        descriptor = batch_descriptor(
+            year=year, start=start, end=end,
+            symbols=item["symbols"], asset_ids=item["asset_ids"],
+        )
+        request_core = {
+            "symbols": ",".join(value["canonical_symbol"] for value in disposition["requested_members"]),
+            "timeframe": TIMEFRAME,
+            "start": start.isoformat() + "T00:00:00Z",
+            "end": (end + timedelta(days=1)).isoformat() + "T00:00:00Z",
+            "limit": str(PAGE_LIMIT), "feed": FEED,
+            "adjustment": ADJUSTMENT, "sort": "asc",
+        }
+        return {
+            "year": year, "batch": int(item["batch"]), "start": start, "end": end,
+            "descriptor": descriptor, "request_core": request_core,
+            "request_fingerprint": request_identity(request_core, descriptor["batch_fingerprint"]),
+            "population": population, "disposition": disposition,
+        }
+
+    @staticmethod
+    def _page_aggregate(page_root: Path, page_count: int) -> dict[str, Any]:
+        counts = {category: 0 for category in REJECTION_CATEGORIES}
+        source = accepted = rejected = 0
+        evidence_fingerprints: list[str] = []
+        for page in range(1, page_count + 1):
+            fragment = page_root / f"page-{page:06d}.csv.gz"
+            manifest = json.loads(fragment.with_suffix(fragment.suffix + ".manifest.json").read_text())
+            source += int(manifest["source_row_count"])
+            accepted += int(manifest["accepted_row_count"])
+            rejected += int(manifest["rejected_row_count"])
+            for category in REJECTION_CATEGORIES:
+                counts[category] += int(manifest["rejection_counts_by_category"][category])
+            evidence_fingerprints.append(manifest["page_evidence_fingerprint"])
+        return {
+            "source_row_count": source, "accepted_row_count": accepted,
+            "rejected_row_count": rejected, "rejection_counts_by_category": counts,
+            "page_evidence_fingerprints": evidence_fingerprints,
+        }
+
     def _validated_resume(
         self, page_root: Path, *, expected_request_fingerprint: str,
         expected_batch_fingerprint: str, descriptor: Mapping[str, Any],
+        provider_population_fingerprint: str,
+        population_disposition_fingerprint: str,
+        exclusion_set_fingerprint: str,
     ) -> tuple[int, str | None]:
         checkpoint = page_root / "checkpoint.json"
         fragments = sorted(page_root.glob("page-*.csv.gz")) if page_root.exists() else []
@@ -898,6 +1328,11 @@ class Acquisition:
             "year": descriptor["year"], "requested_start": descriptor["requested_start"],
             "requested_end": descriptor["requested_end"],
             "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+            "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+            "frozen_calendar_fingerprint": FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+            "provider_population_fingerprint": provider_population_fingerprint,
+            "population_disposition_fingerprint": population_disposition_fingerprint,
+            "exclusion_set_fingerprint": exclusion_set_fingerprint,
         }
         if any(saved.get(key) != value for key, value in checks.items()):
             self._quarantine_partial(page_root, "CHECKPOINT_IDENTITY_MISMATCH", {"expected": checks, "observed": {key: saved.get(key) for key in checks}})
@@ -907,13 +1342,49 @@ class Acquisition:
         if [path.name for path in fragments] != expected_names:
             self._quarantine_partial(page_root, "PAGE_SEQUENCE_MISMATCH", {"expected": expected_names, "observed": [path.name for path in fragments]})
             return 0, None
+        expected_rejections = [f"page-{number:06d}.rejections.jsonl.gz" for number in range(1, page + 1)]
+        observed_rejections = sorted(path.name for path in page_root.glob("page-*.rejections.jsonl.gz"))
+        if observed_rejections != expected_rejections:
+            self._quarantine_partial(page_root, "REJECTION_EVIDENCE_SEQUENCE_MISMATCH", {"expected": expected_rejections, "observed": observed_rejections})
+            return 0, None
         for number, fragment in enumerate(fragments, start=1):
             manifest_path = fragment.with_suffix(fragment.suffix + ".manifest.json")
+            rejection_path = page_root / f"page-{number:06d}.rejections.jsonl.gz"
             try:
                 evidence = json.loads(manifest_path.read_text())
                 rows = read_gzip_csv(fragment)
+                rejections = read_gzip_jsonl(rejection_path)
+                rejection_identities = [
+                    (record.get("page"), record.get("source_row_ordinal"))
+                    for record in rejections
+                ]
+                rejection_valid = all(
+                    record.get("schema_version") == REJECTION_EVIDENCE_SCHEMA_VERSION
+                    and record.get("acquisition_provenance_version") == ACQUISITION_PROVENANCE_VERSION
+                    and record.get("page") == number
+                    and record.get("request_fingerprint") == expected_request_fingerprint
+                    and record.get("batch_fingerprint") == expected_batch_fingerprint
+                    and record.get("frozen_calendar_fingerprint") == FROZEN_CALENDAR_CONTENT_FINGERPRINT
+                    and record.get("rejection_category") in REJECTION_CATEGORIES
+                    and record.get("rejection_fingerprint") == fingerprint({key: value for key, value in record.items() if key != "rejection_fingerprint"})
+                    for record in rejections
+                ) and len(rejection_identities) == len(set(rejection_identities))
                 valid = (
-                    evidence == page_evidence(fragment, page=number, row_count=len(rows), request_fingerprint=expected_request_fingerprint, batch_fingerprint=expected_batch_fingerprint)
+                    rejection_valid
+                    and all(type(evidence.get(key)) is int for key in ("source_row_count", "accepted_row_count", "rejected_row_count"))
+                    and len(rejections) == int(evidence["rejected_row_count"])
+                    and evidence == page_evidence(
+                        fragment, rejection_path, page=number,
+                        source_row_count=int(evidence["source_row_count"]),
+                        accepted_row_count=len(rows), rejected_row_count=len(rejections),
+                        rejection_counts_by_category=evidence["rejection_counts_by_category"],
+                        request_fingerprint=expected_request_fingerprint,
+                        batch_fingerprint=expected_batch_fingerprint,
+                        calendar_fingerprint=FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+                        provider_population_fingerprint=provider_population_fingerprint,
+                        population_disposition_fingerprint=population_disposition_fingerprint,
+                        exclusion_set_fingerprint=exclusion_set_fingerprint,
+                    )
                     and all(row.get("request_fingerprint") == expected_request_fingerprint for row in rows)
                 )
             except Exception:
@@ -921,37 +1392,122 @@ class Acquisition:
             if not valid:
                 self._quarantine_partial(page_root, "PAGE_FRAGMENT_INTEGRITY_FAILURE", {"page": number, **descriptor})
                 return 0, None
+        try:
+            aggregate = self._page_aggregate(page_root, page)
+        except Exception:
+            self._quarantine_partial(page_root, "PAGE_AGGREGATE_INTEGRITY_FAILURE", descriptor)
+            return 0, None
+        for key in ("source_row_count", "accepted_row_count", "rejected_row_count", "rejection_counts_by_category", "page_evidence_fingerprints"):
+            if saved.get(key) != aggregate[key]:
+                self._quarantine_partial(page_root, "CHECKPOINT_PAGE_AGGREGATE_MISMATCH", {"field": key, **descriptor})
+                return 0, None
         return page, saved.get("next_page_token")
 
     def _finalize_downloaded_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
-        year, batch = int(item["year"]), int(item["batch"])
-        start, end = self._partition_bounds(year, state["requested_range"])
-        descriptor = batch_descriptor(year=year, start=start, end=end, symbols=item["symbols"], asset_ids=item["asset_ids"])
-        excluded = {entry["symbol"] for entry in state.setdefault("unqueryable_symbols", [])}
-        symbols = [symbol for symbol in item["symbols"] if symbol not in excluded]
-        request_core = {"symbols": ",".join(symbols), "timeframe": TIMEFRAME, "start": start.isoformat() + "T00:00:00Z", "end": (end + timedelta(days=1)).isoformat() + "T00:00:00Z", "limit": str(PAGE_LIMIT), "feed": FEED, "adjustment": ADJUSTMENT, "sort": "asc"}
-        request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request_core})
+        context = self._partition_context(state, item)
+        year, batch = context["year"], context["batch"]
+        start, end = context["start"], context["end"]
+        descriptor = context["descriptor"]
+        request_fp = context["request_fingerprint"]
+        population = context["population"]
+        disposition = context["disposition"]
         part_id = f"year={year}/batch={batch:05d}"
         page_root = self.root / "acquisition_state" / "pages" / f"year={year}" / f"batch={batch:05d}"
-        page, token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
-        if page < 1 or token is not None:
+        requested_count = len(disposition["requested_members"])
+        if requested_count:
+            page, token = self._validated_resume(
+                page_root, expected_request_fingerprint=request_fp,
+                expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor,
+                provider_population_fingerprint=population["provider_population_fingerprint"],
+                population_disposition_fingerprint=disposition["population_disposition_fingerprint"],
+                exclusion_set_fingerprint=disposition["exclusion_set_fingerprint"],
+            )
+        else:
+            page, token = 0, None
+        if (requested_count and page < 1) or token is not None:
             raise RuntimeError(f"Pending partition is not download-complete: {part_id}.")
         combined: dict[tuple[str, str], dict[str, str]] = {}
+        combined_rejections: list[dict[str, Any]] = []
         for page_path in sorted(page_root.glob("page-*.csv.gz")):
             for row in read_gzip_csv(page_path):
                 key = (row["provider_asset_id"], row["market_timestamp"])
                 if key in combined: raise RuntimeError(f"Duplicate provider identity/timestamp in {part_id}.")
                 combined[key] = row
+            page_number = int(page_path.name.removeprefix("page-").removesuffix(".csv.gz"))
+            combined_rejections.extend(read_gzip_jsonl(page_root / f"page-{page_number:06d}.rejections.jsonl.gz"))
         ordered = [combined[key] for key in sorted(combined)]
+        aggregate = self._page_aggregate(page_root, page) if page else {
+            "source_row_count": 0, "accepted_row_count": 0, "rejected_row_count": 0,
+            "rejection_counts_by_category": {category: 0 for category in REJECTION_CATEGORIES},
+            "page_evidence_fingerprints": [],
+        }
+        if aggregate["accepted_row_count"] != len(ordered) or aggregate["rejected_row_count"] != len(combined_rejections):
+            raise RuntimeError(f"Partition row reconciliation failed for {part_id}.")
         destination = self.root / "bars_15m" / f"year={year}" / f"batch={batch:05d}.csv.gz"
         manifest = destination.with_suffix(destination.suffix + ".manifest.json")
-        self.disk_gate(); atomic_bytes(destination, encode_gzip_csv(ordered, BAR_COLUMNS))
+        rejection_destination = self.root / "rejection_evidence" / f"year={year}" / f"batch={batch:05d}.rejections.jsonl.gz"
+        self.disk_gate()
+        atomic_bytes(destination, encode_gzip_csv(ordered, BAR_COLUMNS))
+        atomic_bytes(rejection_destination, encode_gzip_jsonl(combined_rejections))
         sessions = sorted({row["session_date"] for row in ordered})
-        partition_manifest = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION, "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "partition": part_id, "year": year, "batch": batch, "batch_fingerprint": descriptor["batch_fingerprint"], "ordered_provider_asset_ids": [member["provider_asset_id"] for member in descriptor["members"]], "ordered_symbol_mapping": descriptor["members"], "requested_start": start.isoformat(), "requested_end": end.isoformat(), "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT, "timeframe": TIMEFRAME, "request_fingerprint": request_fp, "requested_security_count": len(descriptor["members"]), "security_count": len({r["provider_asset_id"] for r in ordered}), "row_count": len(ordered), "actual_first_observation": min((r["market_timestamp"] for r in ordered), default=None), "actual_last_observation": max((r["market_timestamp"] for r in ordered), default=None), "first_observed_bar": min((r["market_timestamp"] for r in ordered), default=None), "last_observed_bar": max((r["market_timestamp"] for r in ordered), default=None), "first_session": sessions[0] if sessions else None, "last_session": sessions[-1] if sessions else None, "sha256": sha256_path(destination), "page_count": page, "synthetic_bars": False, "forward_fill": False, "timestamp_substitution": False, "completed_at_utc": self.now().isoformat()}
-        partition_manifest["manifest_fingerprint"] = fingerprint(partition_manifest)
+        partition_manifest = {
+            "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "rejection_evidence_schema_version": REJECTION_EVIDENCE_SCHEMA_VERSION,
+            "provider_population_exclusion_schema_version": PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION,
+            "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+            "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+            "partition": part_id, "year": year, "batch": batch,
+            "original_state_batch_fingerprint": item.get("batch_fingerprint"),
+            "batch_fingerprint": descriptor["batch_fingerprint"],
+            "ordered_provider_asset_ids": [member["provider_asset_id"] for member in descriptor["members"]],
+            "ordered_symbol_mapping": descriptor["members"],
+            "requested_start": start.isoformat(), "requested_end": end.isoformat(),
+            "provider": PROVIDER, "feed": FEED, "adjustment": ADJUSTMENT, "timeframe": TIMEFRAME,
+            "request_fingerprint": request_fp,
+            "actual_request_members": disposition["requested_members"],
+            "provider_population_fingerprint": population["provider_population_fingerprint"],
+            "security_master_fingerprint": population["security_master_fingerprint"],
+            "ambiguous_exclusion_set_fingerprint": population["ambiguous_exclusion_set"]["exclusion_set_fingerprint"],
+            "population_disposition": disposition,
+            "population_disposition_fingerprint": disposition["population_disposition_fingerprint"],
+            "exclusion_set_fingerprint": disposition["exclusion_set_fingerprint"],
+            "frozen_calendar_fingerprint": FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+            "requested_security_count": requested_count,
+            "security_count": len({row["provider_asset_id"] for row in ordered}),
+            "row_count": len(ordered), **aggregate,
+            "accepted_partition_sha256": sha256_path(destination),
+            "sha256": sha256_path(destination),
+            "rejection_evidence_sha256": sha256_path(rejection_destination),
+            "rejection_evidence_fingerprint": fingerprint(combined_rejections),
+            "actual_first_observation": min((row["market_timestamp"] for row in ordered), default=None),
+            "actual_last_observation": max((row["market_timestamp"] for row in ordered), default=None),
+            "first_observed_bar": min((row["market_timestamp"] for row in ordered), default=None),
+            "last_observed_bar": max((row["market_timestamp"] for row in ordered), default=None),
+            "first_session": sessions[0] if sessions else None,
+            "last_session": sessions[-1] if sessions else None,
+            "page_count": page, "synthetic_bars": False, "forward_fill": False,
+            "timestamp_substitution": False, "completed_at_utc": self.now().isoformat(),
+        }
+        partition_manifest["manifest_fingerprint"] = fingerprint({
+            key: value for key, value in partition_manifest.items()
+            if key != "completed_at_utc"
+        })
         atomic_json(manifest, partition_manifest)
-        for path in page_root.glob("*"): path.unlink()
-        page_root.rmdir()
+        observed_manifest = json.loads(manifest.read_text(encoding="utf-8"))
+        if (
+            observed_manifest.get("manifest_fingerprint") != fingerprint({
+                key: value for key, value in observed_manifest.items()
+                if key not in {"manifest_fingerprint", "completed_at_utc"}
+            })
+            or observed_manifest.get("source_row_count") != observed_manifest.get("accepted_row_count") + observed_manifest.get("rejected_row_count")
+            or observed_manifest.get("accepted_partition_sha256") != sha256_path(destination)
+            or observed_manifest.get("rejection_evidence_sha256") != sha256_path(rejection_destination)
+        ):
+            raise RuntimeError(f"Final V3 evidence validation failed for {part_id}.")
+        if page_root.exists():
+            for path in page_root.glob("*"):
+                path.unlink()
+            page_root.rmdir()
         if part_id not in state["completed"]:
             state["completed"].append(part_id)
             state["rows_15m"] += len(ordered)
@@ -1003,23 +1559,34 @@ class Acquisition:
 
     def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
         year, batch = int(item["year"]), int(item["batch"])
-        start, end = self._partition_bounds(year, state["requested_range"])
-        descriptor = batch_descriptor(year=year, start=start, end=end, symbols=item["symbols"], asset_ids=item["asset_ids"])
-        identity = dict(zip(item["symbols"], item["asset_ids"]))
-        previously_unqueryable = {entry["symbol"] for entry in state.setdefault("unqueryable_symbols", [])}
-        symbols = [symbol for symbol in item["symbols"] if symbol not in previously_unqueryable]
         part_id = f"year={year}/batch={batch:05d}"
         destination = self.root / "bars_15m" / f"year={year}" / f"batch={batch:05d}.csv.gz"
         manifest = destination.with_suffix(destination.suffix + ".manifest.json")
         if destination.exists() and manifest.exists() and json.loads(manifest.read_text())["sha256"] == sha256_path(destination):
             if part_id not in state["completed"]: state["completed"].append(part_id)
             return
+        context = self._partition_context(state, item)
+        start, end = context["start"], context["end"]
+        descriptor = context["descriptor"]
+        population = context["population"]
+        disposition = context["disposition"]
+        request_core = context["request_core"]
+        request_fp = context["request_fingerprint"]
+        identity = {
+            member["canonical_symbol"]: member["provider_asset_id"]
+            for member in disposition["requested_members"]
+        }
+        symbols = list(identity)
         page_root = self.root / "acquisition_state" / "pages" / f"year={year}" / f"batch={batch:05d}"
         checkpoint = page_root / "checkpoint.json"
-        request_core = {"symbols": ",".join(symbols), "timeframe": TIMEFRAME, "start": start.isoformat() + "T00:00:00Z", "end": (end + timedelta(days=1)).isoformat() + "T00:00:00Z", "limit": str(PAGE_LIMIT), "feed": FEED, "adjustment": ADJUSTMENT, "sort": "asc"}
-        request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request_core})
-        page, token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
-        pagination_complete = page > 0 and token is None
+        page, token = self._validated_resume(
+            page_root, expected_request_fingerprint=request_fp,
+            expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor,
+            provider_population_fingerprint=population["provider_population_fingerprint"],
+            population_disposition_fingerprint=disposition["population_disposition_fingerprint"],
+            exclusion_set_fingerprint=disposition["exclusion_set_fingerprint"],
+        )
+        pagination_complete = not symbols or (page > 0 and token is None)
         while not pagination_complete:
             params = dict(request_core)
             if token: params["page_token"] = token
@@ -1040,42 +1607,108 @@ class Acquisition:
                 bad_symbol = invalid.group(1).upper() if invalid else None
                 if exc.status != 400 or bad_symbol not in symbols or page:
                     raise
-                state["unqueryable_symbols"].append({"symbol": bad_symbol, "provider_asset_id": identity[bad_symbol], "reason": "PROVIDER_REJECTED_SYMBOL", "observed_at_utc": self.now().isoformat()})
+                state.setdefault("unqueryable_symbols", []).append({"symbol": bad_symbol, "provider_asset_id": identity[bad_symbol], "reason": "PROVIDER_REJECTED_SYMBOL", "observed_at_utc": self.now().isoformat()})
                 state["bad_symbol_failure_count"] = int(state.get("bad_symbol_failure_count", 0)) + 1
-                symbols.remove(bad_symbol)
-                request_core["symbols"] = ",".join(symbols)
-                request_fp = fingerprint({"provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION, "batch_fingerprint": descriptor["batch_fingerprint"], "request": request_core})
+                context = self._partition_context(state, item)
+                disposition = context["disposition"]
+                request_core = context["request_core"]
+                request_fp = context["request_fingerprint"]
+                identity = {
+                    member["canonical_symbol"]: member["provider_asset_id"]
+                    for member in disposition["requested_members"]
+                }
+                symbols = list(identity)
                 self.sync_provider_counts(state); self.save_state(state)
                 if symbols:
                     continue
-                payload = {"bars": {}, "next_page_token": None}
-            if not isinstance(payload, dict) or not isinstance(payload.get("bars", {}), dict):
+                pagination_complete = True
+                break
+            if not isinstance(payload, dict) or "bars" not in payload or not isinstance(payload["bars"], dict):
                 raise ProviderError("Malformed bars response.", systemic=True)
             accepted: list[dict[str, Any]] = []
-            invalid = 0
-            for symbol, rows in payload.get("bars", {}).items():
-                if symbol not in identity or not isinstance(rows, list): continue
+            rejections: list[dict[str, Any]] = []
+            counts = {category: 0 for category in REJECTION_CATEGORIES}
+            source_row_count = 0
+            bars = payload["bars"]
+            unexpected = sorted(str(symbol) for symbol in bars if symbol not in identity)
+            if unexpected:
+                raise ProviderError(f"Unexpected provider response symbols: {unexpected}", systemic=True)
+            page_number = page + 1
+            page_now = self.now()
+            for symbol in sorted(bars):
+                rows = bars[symbol]
+                if not isinstance(rows, list):
+                    raise ProviderError(f"Malformed provider page rows for {symbol}.", systemic=True)
                 for raw in rows:
-                    bar = validate_bar(raw, symbol, identity[symbol], request_fp, start, end, self.now()) if isinstance(raw, Mapping) else None
-                    if bar is None: invalid += 1
-                    else: accepted.append(bar)
+                    ordinal = source_row_count
+                    source_row_count += 1
+                    outcome = classify_bar(
+                        raw, symbol, identity[symbol], request_fp, start, end,
+                        page_now, self.historical_calendar,
+                    )
+                    if outcome.outcome == "ACCEPTED":
+                        assert outcome.accepted_row is not None
+                        accepted.append(outcome.accepted_row)
+                    else:
+                        counts[outcome.outcome] += 1
+                        rejections.append(rejection_record(
+                            raw=raw, outcome=outcome, partition=part_id,
+                            page=page_number, ordinal=ordinal, symbol=symbol,
+                            asset_id=identity[symbol], request_fingerprint=request_fp,
+                            batch_fingerprint=descriptor["batch_fingerprint"],
+                            calendar_fingerprint=FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+                        ))
             page += 1
             accepted.sort(key=lambda row: (row["provider_asset_id"], row["market_timestamp"]))
             fragment = page_root / f"page-{page:06d}.csv.gz"
+            rejection_path = page_root / f"page-{page:06d}.rejections.jsonl.gz"
             atomic_bytes(fragment, encode_gzip_csv(accepted, BAR_COLUMNS))
-            atomic_json(fragment.with_suffix(fragment.suffix + ".manifest.json"), page_evidence(fragment, page=page, row_count=len(accepted), request_fingerprint=request_fp, batch_fingerprint=descriptor["batch_fingerprint"]))
+            atomic_bytes(rejection_path, encode_gzip_jsonl(rejections))
+            atomic_json(fragment.with_suffix(fragment.suffix + ".manifest.json"), page_evidence(
+                fragment, rejection_path, page=page,
+                source_row_count=source_row_count, accepted_row_count=len(accepted),
+                rejected_row_count=len(rejections), rejection_counts_by_category=counts,
+                request_fingerprint=request_fp,
+                batch_fingerprint=descriptor["batch_fingerprint"],
+                calendar_fingerprint=FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+                provider_population_fingerprint=population["provider_population_fingerprint"],
+                population_disposition_fingerprint=disposition["population_disposition_fingerprint"],
+                exclusion_set_fingerprint=disposition["exclusion_set_fingerprint"],
+            ))
             token = payload.get("next_page_token")
             last_boundary = ([accepted[-1]["provider_asset_id"], accepted[-1]["market_timestamp"]] if accepted else None)
-            checkpoint_payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "year": year, "batch": batch, "batch_fingerprint": descriptor["batch_fingerprint"], "requested_start": start.isoformat(), "requested_end": end.isoformat(), "page": page, "next_page_token": token, "last_completed_boundary": last_boundary, "invalid_rows": invalid, "request_fingerprint": request_fp, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION}
+            aggregate = self._page_aggregate(page_root, page)
+            checkpoint_payload = {
+                "schema_version": CHECKPOINT_SCHEMA_VERSION, "year": year, "batch": batch,
+                "batch_fingerprint": descriptor["batch_fingerprint"],
+                "requested_start": start.isoformat(), "requested_end": end.isoformat(),
+                "page": page, "next_page_token": token,
+                "last_completed_boundary": last_boundary,
+                "request_fingerprint": request_fp,
+                "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+                "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+                "frozen_calendar_fingerprint": FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+                "provider_population_fingerprint": population["provider_population_fingerprint"],
+                "population_disposition_fingerprint": disposition["population_disposition_fingerprint"],
+                "exclusion_set_fingerprint": disposition["exclusion_set_fingerprint"],
+                **aggregate,
+            }
             checkpoint_payload["checkpoint_fingerprint"] = fingerprint(checkpoint_payload)
             atomic_json(checkpoint, checkpoint_payload)
             self.sync_provider_counts(state)
             state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
             state["last_historical_activity_at_utc"] = self.now().isoformat()
             if not token: pagination_complete = True
-        verified_page, verified_token = self._validated_resume(page_root, expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
-        if verified_page != page or verified_token is not None:
-            raise RuntimeError(f"Final page-fragment validation failed for {part_id}.")
+        if page:
+            verified_page, verified_token = self._validated_resume(
+                page_root, expected_request_fingerprint=request_fp,
+                expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor,
+                provider_population_fingerprint=population["provider_population_fingerprint"],
+                population_disposition_fingerprint=disposition["population_disposition_fingerprint"],
+                exclusion_set_fingerprint=disposition["exclusion_set_fingerprint"],
+            )
+            if verified_page != page or verified_token is not None:
+                raise RuntimeError(f"Final page-fragment validation failed for {part_id}.")
         assessment = dict(self.capacity_probe(self.now()))
         if assessment.get("mode") != "OFF_MARKET":
             self._enqueue_pending_finalization(state, item, descriptor, request_fp, page)
@@ -1142,6 +1775,8 @@ class Acquisition:
     def _run(self, max_partitions: int | None = None) -> dict[str, Any]:
         state = self.load_state() or self.initialize()
         self._state_defaults(state)
+        self._calendar_preflight(state["requested_range"])
+        self._provider_population()
         self.request_count_base = int(state.get("api_request_count", 0)) - self.client.request_count
         self.retry_count_base = int(state.get("retry_count", 0)) - self.client.retry_count
         self._drain_pending_finalizations(state)

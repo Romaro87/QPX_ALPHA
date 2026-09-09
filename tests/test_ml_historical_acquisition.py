@@ -12,15 +12,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 from qpx_bot.ml_historical_acquisition import (
-    ACQUISITION_PROVENANCE_VERSION, ADJUSTMENT, BAR_COLUMNS, BARS_URL,
+    ACQUISITION_PROVENANCE_VERSION, ADJUSTMENT, BAR_COLUMNS, BAR_OUTCOMES, BARS_URL,
     CHECKPOINT_SCHEMA_VERSION, DEFAULT_ROOT, FEED, LIVE_REQUESTS_PER_MINUTE, PAGE_LIMIT,
-    PROVIDER_INPUT_SEMANTIC_VERSION, QUALIFIED_FROZEN_ROOT, TIMEFRAME,
+    LEGACY_PROVIDER_INPUT_SEMANTIC_VERSION, PROVIDER_INPUT_SEMANTIC_VERSION,
+    QUALIFIED_FROZEN_ROOT, TIMEFRAME,
     Acquisition, AlpacaHistoricalClient, CooperativeStop, ProviderError, RateGovernor, aggregate_bars, atomic_bytes,
     atomic_json, batch_descriptor, build_security_master, calculate_range,
-    canonical_provider_asset_id, encode_gzip_csv, fingerprint, initial_estimate,
-    classify_transport_error, normalize_corporate_action, page_evidence, read_gzip_csv, sha256_path,
+    canonical_provider_asset_id, classify_bar, encode_gzip_csv, fingerprint, initial_estimate,
+    classify_transport_error, load_provider_population, normalize_corporate_action,
+    page_evidence, partition_population_disposition, read_gzip_csv, request_identity, sha256_path,
     coexistence_capacity, status, validate_bar,
 )
+from qpx_bot.historical_market_calendar import FROZEN_CALENDAR_CONTENT_FINGERPRINT, load_frozen_historical_calendar
 
 
 NOW = datetime(2026, 9, 3, 22, 0, tzinfo=timezone.utc)
@@ -32,6 +35,20 @@ def asset(identity="id-a", symbol="AAA", state="active"):
 
 def raw_bar(stamp="2026-09-03T13:30:00Z"):
     return {"t": stamp, "o": 10, "h": 12, "l": 9, "c": 11, "v": 100}
+
+
+def write_security_master(root: Path, assets):
+    payload = {"schema_version": 1, "provider": "alpaca", "assets": list(assets)}
+    payload["manifest_fingerprint"] = fingerprint(payload)
+    path = root / "security_master/alpaca_us_equity_assets.json.gz"
+    atomic_bytes(path, gzip.compress(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(), mtime=0))
+    atomic_json(path.with_suffix(path.suffix + ".manifest.json"), {
+        "sha256": sha256_path(path), "security_count": len(payload["assets"]),
+        "active_count": sum(bool(item.get("active")) for item in payload["assets"]),
+        "inactive_count": sum(not bool(item.get("active")) for item in payload["assets"]),
+        "provenance_fingerprint": payload["manifest_fingerprint"],
+    })
+    return path
 
 
 class FakeClient:
@@ -678,6 +695,267 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             Path(__file__).parents[1] / "qpx_bot/ml_historical_acquisition.py"
         ).read_text(encoding="utf-8")
         self.assertNotIn('"TRAINING_ELIGIBLE"', source)
+
+
+class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
+    calendar = load_frozen_historical_calendar()
+
+    @staticmethod
+    def state(start="2026-09-01", end="2026-09-03"):
+        return {
+            "requested_range": {
+                "actual_first_requested_session": start,
+                "actual_last_completed_session": end,
+            },
+            "completed": [], "observed_ranges": {}, "unqueryable_symbols": [],
+            "rows_15m": 0, "api_request_count": 0, "retry_count": 0,
+            "pending_finalizations": [],
+        }
+
+    @staticmethod
+    def governed_assets(*pairs):
+        return build_security_master(
+            [asset(identity, symbol) for identity, symbol in pairs], [], NOW,
+        )
+
+    def acquisition(self, root, client):
+        result = Acquisition(
+            root, client, now=lambda: NOW,
+            capacity_probe=lambda _now: {"mode": "OFF_MARKET", "reason": "TEST"},
+        )
+        result.disk_gate = lambda: 900_000_000_000
+        return result
+
+    def classify(self, stamp, *, start=date(2016, 9, 6), end=date(2026, 9, 3), **changes):
+        raw = raw_bar(stamp)
+        raw.update(changes)
+        return classify_bar(raw, "AAA", "a", "f", start, end, NOW, self.calendar)
+
+    def test_frozen_calendar_classification_contract(self):
+        for stamp in (
+            "2017-06-19T13:30:00Z", "2018-06-19T13:30:00Z",
+            "2019-06-19T13:30:00Z", "2020-06-19T13:30:00Z",
+            "2021-06-18T13:30:00Z", "2021-12-31T14:30:00Z",
+        ):
+            self.assertEqual(self.classify(stamp).outcome, "ACCEPTED", stamp)
+        self.assertEqual(self.classify("2018-12-05T14:30:00Z").outcome, "CALENDAR_REJECTED")
+        self.assertEqual(self.classify("2025-01-09T14:30:00Z").outcome, "CALENDAR_REJECTED")
+        self.assertEqual(self.classify("2025-07-03T17:00:00Z").outcome, "OUTSIDE_REGULAR_SESSION")
+
+    def test_legacy_and_v3_request_identities_remain_explicit(self):
+        arguments = dict(year=2026, start=date(2026, 9, 1), end=date(2026, 9, 3), symbols=["AAA"], asset_ids=["a"])
+        legacy = batch_descriptor(**arguments, provider_input_semantic_version=LEGACY_PROVIDER_INPUT_SEMANTIC_VERSION)
+        current = batch_descriptor(**arguments)
+        request = {"symbols": "AAA"}
+        self.assertNotEqual(legacy["batch_fingerprint"], current["batch_fingerprint"])
+        self.assertNotEqual(
+            request_identity(request, legacy["batch_fingerprint"], provider_input_semantic_version=LEGACY_PROVIDER_INPUT_SEMANTIC_VERSION),
+            request_identity(request, current["batch_fingerprint"]),
+        )
+
+    def test_classifier_precedence_and_single_outcomes(self):
+        cases = (
+            ({"t": "bad", "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}, "BAD_TIMESTAMP"),
+            ({"t": "2026-09-03T13:30:00Z", "o": "bad", "h": 1, "l": 1, "c": 1, "v": 1}, "MALFORMED_ROW"),
+            ({"t": "2026-09-03T13:30:00Z", "o": 10, "h": 9, "l": 8, "c": 9, "v": 1}, "INVALID_OHLC"),
+            ({"t": "2026-09-03T13:30:00Z", "o": 10, "h": 12, "l": 9, "c": 11, "v": -1}, "NEGATIVE_VOLUME"),
+            ([], "MALFORMED_ROW"),
+        )
+        for raw, expected in cases:
+            outcome = classify_bar(raw, "AAA", "a", "f", date(2026, 9, 1), date(2026, 9, 3), NOW, self.calendar)
+            self.assertEqual(outcome.outcome, expected)
+            self.assertIn(outcome.outcome, BAR_OUTCOMES)
+
+    def test_ambiguous_provider_population_is_explicit_and_deterministic(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("d2", "DUP"), ("a", "AAA"), ("d1", "DUP")))
+            first = load_provider_population(root)
+            second = load_provider_population(root)
+            exclusion = first["ambiguous_exclusion_set"]
+            self.assertEqual(exclusion, second["ambiguous_exclusion_set"])
+            self.assertEqual(first["ambiguous_by_symbol"]["DUP"], ("d1", "d2"))
+            self.assertEqual(exclusion["record_count"], 1)
+            self.assertEqual(exclusion["affected_provider_id_count"], 2)
+            item = {"symbols": ["DUP", "AAA", "DUP"], "asset_ids": ["d2", "a", "d1"]}
+            disposition = partition_population_disposition(item, first)
+            self.assertEqual(disposition["requested_unambiguous_provider_ids"], ["a"])
+            self.assertEqual(sorted(disposition["ambiguous_identity_excluded_provider_ids"]), ["d1", "d2"])
+            write_security_master(root, self.governed_assets(("d3", "DUP"), ("a", "AAA"), ("d1", "DUP")))
+            changed = load_provider_population(root)
+            self.assertNotEqual(exclusion["exclusion_set_fingerprint"], changed["ambiguous_exclusion_set"]["exclusion_set_fingerprint"])
+
+    def test_v3_partition_reconciles_population_pages_and_rejections(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("d1", "DUP"), ("d2", "DUP"), ("a", "AAA")))
+            client = FakeClient([{"bars": {"AAA": [raw_bar(), {**raw_bar(), "o": -1}]}, "next_page_token": None}])
+            acquisition = self.acquisition(root, client)
+            item = {"year": 2026, "batch": 0, "symbols": ["DUP", "DUP", "AAA"], "asset_ids": ["d1", "d2", "a"]}
+            acquisition.acquire_partition(self.state(), item)
+            self.assertEqual(client.calls[0][1]["symbols"], "AAA")
+            manifest = json.loads((root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json").read_text())
+            self.assertEqual(manifest["source_row_count"], 2)
+            self.assertEqual(manifest["accepted_row_count"], 1)
+            self.assertEqual(manifest["rejected_row_count"], 1)
+            self.assertEqual(manifest["rejection_counts_by_category"]["INVALID_OHLC"], 1)
+            population = manifest["population_disposition"]
+            self.assertEqual(
+                len(population["planned_provider_ids"]),
+                len(population["requested_unambiguous_provider_ids"])
+                + len(population["ambiguous_identity_excluded_provider_ids"])
+                + len(population["other_governed_excluded_provider_ids"]),
+            )
+            self.assertEqual(manifest["frozen_calendar_fingerprint"], FROZEN_CALENDAR_CONTENT_FINGERPRINT)
+            self.assertFalse((root / "acquisition_state/pages/year=2026/batch=00000").exists())
+            self.assertTrue((root / "rejection_evidence/year=2026/batch=00000.rejections.jsonl.gz").exists())
+
+    def test_provider_rejection_remains_explicitly_accounted_for(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("bad", "BAD"), ("a", "AAA")))
+            state = self.state()
+            acquisition = self.acquisition(root, InvalidThenValidClient())
+            acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["BAD", "AAA"], "asset_ids": ["bad", "a"]})
+            manifest = json.loads((root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json").read_text())
+            self.assertEqual(manifest["population_disposition"]["other_governed_excluded_provider_ids"], ["bad"])
+            self.assertEqual(manifest["population_disposition"]["requested_unambiguous_provider_ids"], ["a"])
+
+    def test_exclusions_only_partition_makes_no_provider_request(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("d1", "DUP"), ("d2", "DUP")))
+            client = FakeClient()
+            acquisition = self.acquisition(root, client)
+            acquisition.acquire_partition(self.state(), {"year": 2026, "batch": 0, "symbols": ["DUP", "DUP"], "asset_ids": ["d1", "d2"]})
+            self.assertEqual(client.request_count, 0)
+            manifest = json.loads((root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json").read_text())
+            self.assertEqual((manifest["source_row_count"], manifest["accepted_row_count"], manifest["rejected_row_count"], manifest["page_count"]), (0, 0, 0, 0))
+
+    def test_unexpected_provider_symbol_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("a", "AAA")))
+            acquisition = self.acquisition(root, FakeClient([{"bars": {"OTHER": [raw_bar()]}, "next_page_token": None}]))
+            with self.assertRaisesRegex(ProviderError, "Unexpected provider response"):
+                acquisition.acquire_partition(self.state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+
+    def test_changed_calendar_identity_changes_page_evidence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            accepted = root / "accepted.gz"; rejected = root / "rejected.gz"
+            atomic_bytes(accepted, encode_gzip_csv([], BAR_COLUMNS)); atomic_bytes(rejected, gzip.compress(b"", mtime=0))
+            arguments = dict(page=1, source_row_count=0, accepted_row_count=0, rejected_row_count=0,
+                             rejection_counts_by_category={}, request_fingerprint="r", batch_fingerprint="b",
+                             provider_population_fingerprint="p", population_disposition_fingerprint="d",
+                             exclusion_set_fingerprint="e")
+            first = page_evidence(accepted, rejected, calendar_fingerprint="1" * 64, **arguments)
+            second = page_evidence(accepted, rejected, calendar_fingerprint="2" * 64, **arguments)
+            self.assertNotEqual(first["page_evidence_fingerprint"], second["page_evidence_fingerprint"])
+
+    def test_missing_rejection_artifact_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("a", "AAA")))
+            acquisition = Acquisition(
+                root, FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}]),
+                now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "reason": "TEST", "live_qpx_active": True},
+            )
+            state = self.state()
+            item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
+            acquisition.acquire_partition(state, item)
+            page_root = root / "acquisition_state/pages/year=2026/batch=00000"
+            (page_root / "page-000001.rejections.jsonl.gz").unlink()
+            context = acquisition._partition_context(state, item)
+            page, token = acquisition._validated_resume(
+                page_root,
+                expected_request_fingerprint=context["request_fingerprint"],
+                expected_batch_fingerprint=context["descriptor"]["batch_fingerprint"],
+                descriptor=context["descriptor"],
+                provider_population_fingerprint=context["population"]["provider_population_fingerprint"],
+                population_disposition_fingerprint=context["disposition"]["population_disposition_fingerprint"],
+                exclusion_set_fingerprint=context["disposition"]["exclusion_set_fingerprint"],
+            )
+            self.assertEqual((page, token), (0, None))
+            self.assertTrue(list((root / "acquisition_state/rebuild_evidence").iterdir()))
+
+    def test_duplicate_rejection_record_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("a", "AAA")))
+            acquisition = Acquisition(
+                root, FakeClient([{"bars": {"AAA": [{**raw_bar(), "o": -1}]}, "next_page_token": None}]),
+                now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "reason": "TEST", "live_qpx_active": True},
+            )
+            state = self.state()
+            item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
+            acquisition.acquire_partition(state, item)
+            page_root = root / "acquisition_state/pages/year=2026/batch=00000"
+            rejection_path = page_root / "page-000001.rejections.jsonl.gz"
+            record = gzip.decompress(rejection_path.read_bytes())
+            atomic_bytes(rejection_path, gzip.compress(record + record, mtime=0))
+            context = acquisition._partition_context(state, item)
+            page, token = acquisition._validated_resume(
+                page_root,
+                expected_request_fingerprint=context["request_fingerprint"],
+                expected_batch_fingerprint=context["descriptor"]["batch_fingerprint"],
+                descriptor=context["descriptor"],
+                provider_population_fingerprint=context["population"]["provider_population_fingerprint"],
+                population_disposition_fingerprint=context["disposition"]["population_disposition_fingerprint"],
+                exclusion_set_fingerprint=context["disposition"]["exclusion_set_fingerprint"],
+            )
+            self.assertEqual((page, token), (0, None))
+            self.assertTrue(list((root / "acquisition_state/rebuild_evidence").iterdir()))
+
+    def test_old_checkpoint_quarantines_only_incomplete_partition(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("a", "AAA")))
+            page_root = root / "acquisition_state/pages/year=2026/batch=00000"
+            page_root.mkdir(parents=True)
+            atomic_json(page_root / "checkpoint.json", {"schema_version": 2, "page": 0})
+            client = FakeClient([{"bars": {}, "next_page_token": None}])
+            self.acquisition(root, client).acquire_partition(
+                self.state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]},
+            )
+            self.assertTrue(list((root / "acquisition_state/rebuild_evidence").iterdir()))
+            self.assertEqual(client.request_count, 1)
+
+    def test_final_manifest_failure_preserves_transient_page_evidence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, self.governed_assets(("a", "AAA")))
+            acquisition = self.acquisition(root, FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}]))
+            final_manifest = root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json"
+            original_atomic_json = atomic_json
+
+            def fail_final(path, payload):
+                if path == final_manifest:
+                    raise OSError("simulated final-manifest failure")
+                original_atomic_json(path, payload)
+
+            with patch("qpx_bot.ml_historical_acquisition.atomic_json", side_effect=fail_final):
+                with self.assertRaisesRegex(OSError, "final-manifest"):
+                    acquisition.acquire_partition(self.state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            page_root = root / "acquisition_state/pages/year=2026/batch=00000"
+            self.assertTrue((page_root / "page-000001.csv.gz").exists())
+            self.assertTrue((page_root / "page-000001.rejections.jsonl.gz").exists())
+
+    def test_completed_legacy_partition_is_not_relabelled_or_redownloaded(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            destination = root / "bars_15m/year=2026/batch=00000.csv.gz"
+            atomic_bytes(destination, b"legacy")
+            legacy_manifest = {"schema_version": 2, "sha256": sha256_path(destination)}
+            atomic_json(destination.with_suffix(destination.suffix + ".manifest.json"), legacy_manifest)
+            client = FakeClient()
+            self.acquisition(root, client).acquire_partition(
+                self.state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]},
+            )
+            self.assertEqual(client.request_count, 0)
+            self.assertEqual(json.loads(destination.with_suffix(destination.suffix + ".manifest.json").read_text()), legacy_manifest)
 
 
 if __name__ == "__main__":
