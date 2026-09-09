@@ -1403,7 +1403,190 @@ class Acquisition:
                 return 0, None
         return page, saved.get("next_page_token")
 
+    def _validate_committed_v3_partition(
+        self, context: Mapping[str, Any],
+        destination: Path, manifest_path: Path,
+    ) -> tuple[dict[str, Any], list[dict[str, str]]]:
+        part_id = f"year={context['year']}/batch={context['batch']:05d}"
+        rejection_path = (
+            self.root / "rejection_evidence" / f"year={context['year']}"
+            / f"batch={context['batch']:05d}.rejections.jsonl.gz"
+        )
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            accepted = read_gzip_csv(destination)
+            rejections = read_gzip_jsonl(rejection_path)
+        except (OSError, EOFError, UnicodeDecodeError, gzip.BadGzipFile, csv.Error, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Committed V3 final evidence is missing or corrupt for {part_id}.") from exc
+
+        descriptor = context["descriptor"]
+        population = context["population"]
+        disposition = context["disposition"]
+        expected_identity = {
+            "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+            "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+            "partition": part_id,
+            "year": context["year"],
+            "batch": context["batch"],
+            "requested_start": context["start"].isoformat(),
+            "requested_end": context["end"].isoformat(),
+            "batch_fingerprint": descriptor["batch_fingerprint"],
+            "request_fingerprint": context["request_fingerprint"],
+            "frozen_calendar_fingerprint": FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+            "provider_population_fingerprint": population["provider_population_fingerprint"],
+            "security_master_fingerprint": population["security_master_fingerprint"],
+            "population_disposition_fingerprint": disposition["population_disposition_fingerprint"],
+            "exclusion_set_fingerprint": disposition["exclusion_set_fingerprint"],
+            "ambiguous_exclusion_set_fingerprint": population["ambiguous_exclusion_set"]["exclusion_set_fingerprint"],
+        }
+        if any(manifest.get(key) != value for key, value in expected_identity.items()):
+            raise RuntimeError(f"Committed V3 final evidence identity mismatch for {part_id}.")
+        if manifest.get("population_disposition") != disposition:
+            raise RuntimeError(f"Committed V3 population disposition mismatch for {part_id}.")
+        if manifest.get("actual_request_members") != disposition["requested_members"]:
+            raise RuntimeError(f"Committed V3 request membership mismatch for {part_id}.")
+        manifest_core = {
+            key: value for key, value in manifest.items()
+            if key not in {"manifest_fingerprint", "completed_at_utc"}
+        }
+        if manifest.get("manifest_fingerprint") != fingerprint(manifest_core):
+            raise RuntimeError(f"Committed V3 manifest fingerprint mismatch for {part_id}.")
+        accepted_sha = sha256_path(destination)
+        if manifest.get("accepted_partition_sha256") != accepted_sha or manifest.get("sha256") != accepted_sha:
+            raise RuntimeError(f"Committed V3 accepted-partition checksum mismatch for {part_id}.")
+        rejection_sha = sha256_path(rejection_path)
+        if manifest.get("rejection_evidence_sha256") != rejection_sha:
+            raise RuntimeError(f"Committed V3 rejection-evidence checksum mismatch for {part_id}.")
+        if manifest.get("rejection_evidence_fingerprint") != fingerprint(rejections):
+            raise RuntimeError(f"Committed V3 rejection-evidence fingerprint mismatch for {part_id}.")
+
+        count_fields = ("source_row_count", "accepted_row_count", "rejected_row_count", "row_count")
+        if any(type(manifest.get(key)) is not int or manifest[key] < 0 for key in count_fields):
+            raise RuntimeError(f"Committed V3 row counts are malformed for {part_id}.")
+        if manifest["source_row_count"] != manifest["accepted_row_count"] + manifest["rejected_row_count"]:
+            raise RuntimeError(f"Committed V3 source-row reconciliation failed for {part_id}.")
+        if manifest["row_count"] != manifest["accepted_row_count"] or len(accepted) != manifest["accepted_row_count"]:
+            raise RuntimeError(f"Committed V3 accepted-row reconciliation failed for {part_id}.")
+        rejection_counts = manifest.get("rejection_counts_by_category")
+        if not isinstance(rejection_counts, dict) or set(rejection_counts) != set(REJECTION_CATEGORIES):
+            raise RuntimeError(f"Committed V3 rejection categories are malformed for {part_id}.")
+        if any(type(value) is not int or value < 0 for value in rejection_counts.values()):
+            raise RuntimeError(f"Committed V3 rejection counts are malformed for {part_id}.")
+        if sum(rejection_counts.values()) != manifest["rejected_row_count"] or len(rejections) != manifest["rejected_row_count"]:
+            raise RuntimeError(f"Committed V3 rejected-row reconciliation failed for {part_id}.")
+        observed_rejection_counts = {category: 0 for category in REJECTION_CATEGORIES}
+        rejection_keys: set[tuple[Any, Any]] = set()
+        for record in rejections:
+            core = {key: value for key, value in record.items() if key != "rejection_fingerprint"}
+            category = record.get("rejection_category")
+            rejection_key = (record.get("page"), record.get("source_row_ordinal"))
+            if (
+                record.get("schema_version") != REJECTION_EVIDENCE_SCHEMA_VERSION
+                or record.get("acquisition_provenance_version") != ACQUISITION_PROVENANCE_VERSION
+                or record.get("request_fingerprint") != context["request_fingerprint"]
+                or record.get("batch_fingerprint") != descriptor["batch_fingerprint"]
+                or record.get("frozen_calendar_fingerprint") != FROZEN_CALENDAR_CONTENT_FINGERPRINT
+                or category not in REJECTION_CATEGORIES
+                or record.get("rejection_fingerprint") != fingerprint(core)
+                or rejection_key in rejection_keys
+            ):
+                raise RuntimeError(f"Committed V3 rejection record is invalid for {part_id}.")
+            rejection_keys.add(rejection_key)
+            observed_rejection_counts[category] += 1
+        if observed_rejection_counts != rejection_counts:
+            raise RuntimeError(f"Committed V3 rejection-category evidence mismatch for {part_id}.")
+
+        expected_members = {
+            member["provider_asset_id"]: member["canonical_symbol"]
+            for member in disposition["requested_members"]
+        }
+        accepted_keys: set[tuple[str, str]] = set()
+        for row in accepted:
+            key = (row.get("provider_asset_id", ""), row.get("market_timestamp", ""))
+            if (
+                key in accepted_keys
+                or row.get("request_fingerprint") != context["request_fingerprint"]
+                or expected_members.get(row.get("provider_asset_id")) != row.get("observation_symbol")
+            ):
+                raise RuntimeError(f"Committed V3 accepted-row identity is invalid for {part_id}.")
+            accepted_keys.add(key)
+        return manifest, accepted
+
+    def _clean_redundant_transient_pages(self, context: Mapping[str, Any]) -> None:
+        page_root = (
+            self.root / "acquisition_state" / "pages" / f"year={context['year']}"
+            / f"batch={context['batch']:05d}"
+        )
+        if not page_root.exists():
+            return
+        for path in page_root.iterdir():
+            if not path.is_file():
+                raise RuntimeError("Unexpected non-file in redundant V3 transient evidence.")
+        for path in page_root.iterdir():
+            path.unlink()
+        page_root.rmdir()
+
+    def _recover_committed_v3_state(
+        self, state: dict[str, Any], part_id: str, accepted: Iterable[Mapping[str, str]],
+    ) -> None:
+        if part_id in state["completed"]:
+            return
+        rows = list(accepted)
+        state["completed"].append(part_id)
+        state["rows_15m"] = int(state.get("rows_15m", 0)) + len(rows)
+        state["partitions_complete"] = len(state["completed"])
+        state["bytes_stored"] = sum(path.stat().st_size for path in self.root.rglob("*") if path.is_file())
+        observed_ranges = state.setdefault("observed_ranges", {})
+        for row in rows:
+            timestamp = row["market_timestamp"]
+            observed = observed_ranges.setdefault(row["provider_asset_id"], [timestamp, timestamp])
+            observed[0] = min(observed[0], timestamp)
+            observed[1] = max(observed[1], timestamp)
+
+    def _recover_existing_final_partition(
+        self, state: dict[str, Any], item: Mapping[str, Any],
+    ) -> bool:
+        year, batch = int(item["year"]), int(item["batch"])
+        part_id = f"year={year}/batch={batch:05d}"
+        destination = self.root / "bars_15m" / f"year={year}" / f"batch={batch:05d}.csv.gz"
+        manifest_path = destination.with_suffix(destination.suffix + ".manifest.json")
+        if not destination.exists() and not manifest_path.exists():
+            return False
+        if not destination.exists() or not manifest_path.exists():
+            raise RuntimeError(f"Incomplete committed partition evidence for {part_id}; refusing provider overwrite.")
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Unreadable committed partition manifest for {part_id}.") from exc
+        is_v3 = (
+            manifest.get("schema_version") == CHECKPOINT_SCHEMA_VERSION
+            and manifest.get("acquisition_provenance_version") == ACQUISITION_PROVENANCE_VERSION
+        )
+        if not is_v3:
+            if part_id in state["completed"] and manifest.get("schema_version") in {1, 2}:
+                if manifest.get("sha256") != sha256_path(destination):
+                    raise RuntimeError(f"Legacy finalized partition checksum mismatch for {part_id}.")
+                return True
+            raise RuntimeError(f"Legacy finalized partition is absent from completed state for {part_id}; refusing implicit adoption.")
+        context = self._partition_context(state, item)
+        manifest, accepted = self._validate_committed_v3_partition(
+            context, destination, manifest_path,
+        )
+        self._clean_redundant_transient_pages(context)
+        recovery_required = part_id not in state["completed"]
+        self._recover_committed_v3_state(state, part_id, accepted)
+        if recovery_required:
+            state["last_partition_recovery"] = {
+                "reason": "FINAL_EVIDENCE_COMMITTED_STATE_RECOVERY",
+                "partition": part_id,
+                "manifest_fingerprint": manifest["manifest_fingerprint"],
+            }
+        return True
+
     def _finalize_downloaded_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
+        if self._recover_existing_final_partition(state, item):
+            return
         context = self._partition_context(state, item)
         year, batch = context["year"], context["batch"]
         start, end = context["start"], context["end"]
@@ -1493,29 +1676,11 @@ class Acquisition:
             if key != "completed_at_utc"
         })
         atomic_json(manifest, partition_manifest)
-        observed_manifest = json.loads(manifest.read_text(encoding="utf-8"))
-        if (
-            observed_manifest.get("manifest_fingerprint") != fingerprint({
-                key: value for key, value in observed_manifest.items()
-                if key not in {"manifest_fingerprint", "completed_at_utc"}
-            })
-            or observed_manifest.get("source_row_count") != observed_manifest.get("accepted_row_count") + observed_manifest.get("rejected_row_count")
-            or observed_manifest.get("accepted_partition_sha256") != sha256_path(destination)
-            or observed_manifest.get("rejection_evidence_sha256") != sha256_path(rejection_destination)
-        ):
-            raise RuntimeError(f"Final V3 evidence validation failed for {part_id}.")
-        if page_root.exists():
-            for path in page_root.glob("*"):
-                path.unlink()
-            page_root.rmdir()
-        if part_id not in state["completed"]:
-            state["completed"].append(part_id)
-            state["rows_15m"] += len(ordered)
-        state["partitions_complete"] = len(state["completed"])
-        state["bytes_stored"] = sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file())
-        for row in ordered:
-            observed = state["observed_ranges"].setdefault(row["provider_asset_id"], [row["market_timestamp"], row["market_timestamp"]])
-            observed[0] = min(observed[0], row["market_timestamp"]); observed[1] = max(observed[1], row["market_timestamp"])
+        _validated_manifest, validated_rows = self._validate_committed_v3_partition(
+            context, destination, manifest,
+        )
+        self._clean_redundant_transient_pages(context)
+        self._recover_committed_v3_state(state, part_id, validated_rows)
 
     def _enqueue_pending_finalization(self, state: dict[str, Any], item: Mapping[str, Any],
                                       descriptor: Mapping[str, Any], request_fp: str, page: int) -> None:
@@ -1560,10 +1725,7 @@ class Acquisition:
     def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
         year, batch = int(item["year"]), int(item["batch"])
         part_id = f"year={year}/batch={batch:05d}"
-        destination = self.root / "bars_15m" / f"year={year}" / f"batch={batch:05d}.csv.gz"
-        manifest = destination.with_suffix(destination.suffix + ".manifest.json")
-        if destination.exists() and manifest.exists() and json.loads(manifest.read_text())["sha256"] == sha256_path(destination):
-            if part_id not in state["completed"]: state["completed"].append(part_id)
+        if self._recover_existing_final_partition(state, item):
             return
         context = self._partition_context(state, item)
         start, end = context["start"], context["end"]

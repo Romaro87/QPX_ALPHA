@@ -726,6 +726,26 @@ class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
         result.disk_gate = lambda: 900_000_000_000
         return result
 
+    def committed_v3_partition(self, root):
+        write_security_master(root, self.governed_assets(("a", "AAA")))
+        item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
+        producer = self.acquisition(root, FakeClient([{
+            "bars": {"AAA": [raw_bar("2026-09-01T13:30:00Z"), raw_bar("2026-09-03T13:30:00Z")]},
+            "next_page_token": None,
+        }]))
+        producer.acquire_partition(self.state(), item)
+        return item
+
+    @staticmethod
+    def rewrite_v3_manifest(path, **changes):
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifest.update(changes)
+        manifest["manifest_fingerprint"] = fingerprint({
+            key: value for key, value in manifest.items()
+            if key not in {"manifest_fingerprint", "completed_at_utc"}
+        })
+        atomic_json(path, manifest)
+
     def classify(self, stamp, *, start=date(2016, 9, 6), end=date(2026, 9, 3), **changes):
         raw = raw_bar(stamp)
         raw.update(changes)
@@ -943,7 +963,102 @@ class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
             self.assertTrue((page_root / "page-000001.csv.gz").exists())
             self.assertTrue((page_root / "page-000001.rejections.jsonl.gz").exists())
 
-    def test_completed_legacy_partition_is_not_relabelled_or_redownloaded(self):
+    def test_committed_v3_partition_recovers_state_once_without_provider_request(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            item = self.committed_v3_partition(root)
+            client = FakeClient()
+            acquisition = self.acquisition(root, client)
+            state = self.state()
+            state["rows_15m"] = 7
+            state["observed_ranges"] = {"prior": ["2020-01-02T09:30:00-05:00", "2020-01-02T09:45:00-05:00"]}
+            acquisition.acquire_partition(state, item)
+            self.assertEqual(client.request_count, 0)
+            self.assertEqual(state["completed"], ["year=2026/batch=00000"])
+            self.assertEqual(state["last_partition_recovery"]["reason"], "FINAL_EVIDENCE_COMMITTED_STATE_RECOVERY")
+            self.assertEqual(state["rows_15m"], 9)
+            self.assertEqual(state["partitions_complete"], 1)
+            self.assertEqual(
+                state["observed_ranges"]["a"],
+                ["2026-09-01T09:30:00-04:00", "2026-09-03T09:30:00-04:00"],
+            )
+            self.assertEqual(
+                state["bytes_stored"],
+                sum(path.stat().st_size for path in root.rglob("*") if path.is_file()),
+            )
+            snapshot = json.loads(json.dumps(state))
+            acquisition.acquire_partition(state, item)
+            self.assertEqual(state, snapshot)
+            self.assertEqual(client.request_count, 0)
+
+    def test_valid_committed_v3_evidence_cleans_stale_transient_pages(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            item = self.committed_v3_partition(root)
+            page_root = root / "acquisition_state/pages/year=2026/batch=00000"
+            page_root.mkdir(parents=True)
+            (page_root / "checkpoint.json").write_text("stale", encoding="utf-8")
+            client = FakeClient()
+            state = self.state()
+            self.acquisition(root, client).acquire_partition(state, item)
+            self.assertFalse(page_root.exists())
+            self.assertEqual(client.request_count, 0)
+            self.assertEqual(state["completed"], ["year=2026/batch=00000"])
+
+    def test_missing_or_corrupt_v3_rejection_evidence_fails_closed(self):
+        for mutation in ("missing", "corrupt"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                item = self.committed_v3_partition(root)
+                rejection = root / "rejection_evidence/year=2026/batch=00000.rejections.jsonl.gz"
+                if mutation == "missing":
+                    rejection.unlink()
+                else:
+                    rejection.write_bytes(b"not-gzip")
+                state = self.state(); client = FakeClient()
+                with self.assertRaisesRegex(RuntimeError, "missing or corrupt"):
+                    self.acquisition(root, client).acquire_partition(state, item)
+                self.assertEqual(state["completed"], [])
+                self.assertEqual(client.request_count, 0)
+
+    def test_corrupt_v3_manifest_fingerprint_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); item = self.committed_v3_partition(root)
+            manifest_path = root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json"
+            manifest = json.loads(manifest_path.read_text()); manifest["manifest_fingerprint"] = "0" * 64
+            atomic_json(manifest_path, manifest)
+            state = self.state(); client = FakeClient()
+            with self.assertRaisesRegex(RuntimeError, "manifest fingerprint"):
+                self.acquisition(root, client).acquire_partition(state, item)
+            self.assertEqual(state["completed"], []); self.assertEqual(client.request_count, 0)
+
+    def test_v3_accepted_partition_sha_mismatch_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); item = self.committed_v3_partition(root)
+            manifest_path = root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json"
+            self.rewrite_v3_manifest(manifest_path, accepted_partition_sha256="0" * 64, sha256="0" * 64)
+            state = self.state(); client = FakeClient()
+            with self.assertRaisesRegex(RuntimeError, "accepted-partition checksum"):
+                self.acquisition(root, client).acquire_partition(state, item)
+            self.assertEqual(state["completed"], []); self.assertEqual(client.request_count, 0)
+
+    def test_v3_bound_identity_mismatches_fail_closed(self):
+        fields = (
+            "request_fingerprint", "batch_fingerprint", "frozen_calendar_fingerprint",
+            "provider_population_fingerprint", "population_disposition_fingerprint",
+            "exclusion_set_fingerprint",
+        )
+        for field in fields:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder); item = self.committed_v3_partition(root)
+                manifest_path = root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json"
+                self.rewrite_v3_manifest(manifest_path, **{field: "0" * 64})
+                state = self.state(); client = FakeClient()
+                with self.assertRaisesRegex(RuntimeError, "identity mismatch"):
+                    self.acquisition(root, client).acquire_partition(state, item)
+                self.assertEqual(state["completed"], []); self.assertEqual(client.request_count, 0)
+
+    def test_legacy_partition_absent_from_completed_state_fails_closed(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             destination = root / "bars_15m/year=2026/batch=00000.csv.gz"
@@ -951,9 +1066,10 @@ class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
             legacy_manifest = {"schema_version": 2, "sha256": sha256_path(destination)}
             atomic_json(destination.with_suffix(destination.suffix + ".manifest.json"), legacy_manifest)
             client = FakeClient()
-            self.acquisition(root, client).acquire_partition(
-                self.state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]},
-            )
+            with self.assertRaisesRegex(RuntimeError, "refusing implicit adoption"):
+                self.acquisition(root, client).acquire_partition(
+                    self.state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]},
+                )
             self.assertEqual(client.request_count, 0)
             self.assertEqual(json.loads(destination.with_suffix(destination.suffix + ".manifest.json").read_text()), legacy_manifest)
 
