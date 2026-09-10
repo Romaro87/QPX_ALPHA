@@ -1478,3 +1478,17 @@ Scoring weights, thresholds, ranking formulas, holding/capture/recovery windows,
 **Status: VERIFIED_REPO research-only mechanism; no economic or promotion claim.** Post-Ex Recovery V1 consumes only a causally supplied ex-dividend reference price and chronologically ordered post-ex observations whose information-availability timestamps are no later than evaluation. It preserves event-effective, information-available, observed, and evaluation times separately and fails closed on future or incomplete inputs.
 
 Recovery threshold and evaluation/lookback windows are explicit research configuration, not production-qualified policy. The mechanism emits deterministic opportunity evidence or explicit `NO_OPPORTUNITY` / `NO_ACTION`; it has no capital, execution, qualification, promotion, income-role, paper, or live authority. Candidate V1, qualified QDTE behavior, frozen Top-100 artifacts, and existing qualification evidence remain unchanged.
+
+## Assistant/Codex Over-Engineering Failure Warning
+
+- Durable warning file:
+  QPX_ASSISTANT_CODEX_FAILURE_WARNING.md
+- ChatGPT and Codex repeatedly over-hardened skeleton-time work and created
+  unnecessary blockers.
+- Existing proportionality/governance rules were sufficient; the failure was
+  failure to follow them.
+- Future work must distinguish actual blocking correctness issues from
+  non-blocking later hardening.
+- Do not create new process rules to compensate for failure to follow existing
+  rules.
+- Keep QPX moving along the already-governed road.
