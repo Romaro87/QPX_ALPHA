@@ -148,6 +148,38 @@ class HistoricalCalendarRepairTests(unittest.TestCase):
                 ("2021-06-18", "2021-12-31"),
             )
 
+    def test_live_coexistence_allows_repair_requests(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); _write_master(root); _write_original(root)
+            client = RepairClient()
+            client.rate_limit = 200
+            client.rate_limit_remaining = 199
+            result = HistoricalCalendarRepair(
+                root, client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE"},
+            ).repair_partition(
+                {"unqueryable_symbols": []},
+                {"year": 2021, "batch": 0, "symbols": ["AAA", "DUP", "DUP"], "asset_ids": ["a", "d1", "d2"]},
+            )
+            self.assertEqual(result["accepted_row_count"], 2)
+            self.assertEqual(len(client.calls), 2)
+
+    def test_denied_capacity_issues_no_repair_request(self) -> None:
+        for mode in ("WAITING_FOR_LIVE_CAPACITY", "PROTECTED_DECISION_WINDOW"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder); _write_master(root); _write_original(root)
+                client = RepairClient()
+                repair = HistoricalCalendarRepair(
+                    root, client, now=lambda: NOW,
+                    capacity_probe=lambda _now: {"mode": mode},
+                )
+                with self.assertRaisesRegex(RuntimeError, "DEFERRED_BY_EXISTING_LIFECYCLE"):
+                    repair.repair_partition(
+                        {"unqueryable_symbols": []},
+                        {"year": 2021, "batch": 0, "symbols": ["AAA", "DUP", "DUP"], "asset_ids": ["a", "d1", "d2"]},
+                    )
+                self.assertFalse(client.calls)
+
     def test_overlay_is_content_deterministic_and_duplicate_free(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

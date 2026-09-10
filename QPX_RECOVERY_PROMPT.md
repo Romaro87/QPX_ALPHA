@@ -299,3 +299,39 @@ On restoration, read in this order:
 Recovery completion is not authorization to begin development. Do not touch main. Do not modify Candidate V1, frozen data/fingerprints, strict-causal provenance, permanent controls, or completed accelerator evidence without separate explicit authorization. Research, Shadow, Challenger, ML, Qualification, and Wildcard actors retain no self-promotion authority.
 
 The next development milestone still requires explicit user direction. Until then, remain preservation-only.
+
+
+<!-- QPX_SEPTEMBER10_CAPACITY_GOVERNED_FINALIZATION_RESTORE -->
+# SEPTEMBER 10 CAPACITY-GOVERNED FINALIZATION RESTORE
+
+Repository: `/home/ron/QPX_ALPHA`
+
+Branch: `qpx-shadow-matrix-v1-review-2026-08-12`
+
+Predecessor restore HEAD: `0d43008045a1d61c53c1db8c6d8c930ec123ea62`
+
+Restore the commit named `Restore capacity-governed historical finalization`,
+then verify its exact SHA, upstream state, and worktree before acting. Main remains
+protected and must not be touched.
+
+The governed coexistence rule is: Clean-V2 has priority, not exclusivity.
+Historical downloads and local partition finalization may proceed in
+`LIVE_COEXISTENCE` whenever the existing capacity authority permits them.
+Market-open status alone is not a blocker, and `OFF_MARKET` is not required for
+finalization. Existing protected-window, Clean-V2 health/degradation,
+host-pressure, attribution, safety-latch, and provider-capacity controls remain
+binding. Provider-request throttling applies to requests, not local finalization.
+
+At the read-only restore observation, the V3 smoke partition
+`year=2026/batch=00187` was already finalized: 6,888/7,370 complete,
+358,407,648 rows, 482 pending, zero pending finalizations, latest manifest
+integrity true, and training eligibility remained
+`ACQUISITION_PARTIAL_NOT_TRAINING_ELIGIBLE`. Historical acquisition was
+inactive/dead with PID 0. These are recovery observations, not authorization to
+restart it or begin training.
+
+Focused lifecycle/V3/calendar-repair tests passed 38/38. Continue to apply
+`QPX_TEST_SCOPE_RULE_V1`: do not turn stale unrelated legacy fixtures or optional
+hardening into a new blocker. Preserve downloaded evidence and use the existing
+capacity/coexistence arbitration when separately authorized to resume historical
+work.

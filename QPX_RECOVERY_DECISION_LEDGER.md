@@ -1492,3 +1492,25 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - Do not create new process rules to compensate for failure to follow existing
   rules.
 - Keep QPX moving along the already-governed road.
+
+## Capacity-Governed Historical Finalization — 2026-09-10
+
+- Corrected the historical lifecycle policy so `OFF_MARKET` and safe
+  `LIVE_COEXISTENCE` both permit partition finalization; market-open status alone
+  is not a finalization blocker.
+- The existing coexistence authority remains controlling. Protected Clean-V2
+  windows, attributable degradation, host pressure, safety latches, and other
+  denied-capacity modes still yield cooperatively.
+- Local finalization does not require provider-request budget evidence because it
+  makes no provider request. Calendar-repair requests retain provider throttling
+  and may proceed only in `OFF_MARKET` or governed `LIVE_COEXISTENCE`.
+- Old queued finalizations remain recoverable and may drain during safe live
+  coexistence without redownloading provider pages.
+- Focused lifecycle, V3 recovery, and calendar-repair verification passed 38/38.
+  The broader two-module discovery run exposed pre-existing stale legacy-test
+  fixtures outside this correction (104 run: 78 pass, 1 failure, 25 errors); they
+  were not converted into an unrelated hardening project.
+- Read-only runtime evidence showed the original V3 smoke partition
+  `year=2026/batch=00187` had already finalized before this correction: 6,888 of
+  7,370 partitions complete, 358,407,648 rows, zero pending finalizations, and
+  valid latest-manifest integrity. No runtime evidence was changed.

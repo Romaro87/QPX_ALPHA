@@ -163,6 +163,36 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
     def partition_state():
         return {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "unqueryable_symbols": [], "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
 
+    def queued_v3_partition(self, root):
+        write_security_master(root, build_security_master([asset("a", "AAA")], [], NOW))
+        client = FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}])
+        client.rate_limit = 200; client.rate_limit_remaining = 199
+        probe = lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True}
+        acquisition = Acquisition(root, client, now=lambda: NOW, capacity_probe=probe)
+        acquisition.disk_gate = lambda: 900_000_000_000
+        state = self.partition_state(); acquisition._state_defaults(state)
+        item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
+        state["partitions"] = [item]; state["partitions_total"] = 1
+        original_gate = acquisition._capacity_gate
+
+        def legacy_gate(value, partition, *, finalization=False):
+            if finalization:
+                raise CooperativeStop("simulate old deferred-finalization boundary")
+            return original_gate(value, partition, finalization=False)
+
+        with patch.object(acquisition, "_capacity_gate", side_effect=legacy_gate):
+            with self.assertRaises(CooperativeStop):
+                acquisition.acquire_partition(state, item)
+        context = acquisition._partition_context(state, item)
+        checkpoint = json.loads(
+            (root / "acquisition_state/pages/year=2026/batch=00000/checkpoint.json").read_text()
+        )
+        acquisition._enqueue_pending_finalization(
+            state, item, context["descriptor"], context["request_fingerprint"],
+            checkpoint["page"],
+        )
+        return state, item, client
+
     def test_enumeration_order_does_not_change_batch_membership(self):
         values = [asset("00000000-0000-0000-0000-000000000002", "BBB"), asset("00000000-0000-0000-0000-000000000001", "AAA")]
         first = build_security_master(values, [], NOW)
@@ -482,54 +512,85 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
                 acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertEqual(state["live_session_yield_date"], NOW.astimezone().date().isoformat())
 
-    def test_live_download_defers_finalization_and_can_continue(self):
+    def test_live_download_finalizes_immediately_without_pending_entry(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); client = FakeClient([{"bars": {}, "next_page_token": None}, {"bars": {}, "next_page_token": None}])
+            root = Path(folder); write_security_master(root, build_security_master([asset("a", "AAA")], [], NOW))
+            client = FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}])
             client.rate_limit = 200; client.rate_limit_remaining = 199
             probe = lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True, "clean_v2_service_state": "active"}
             acquisition = Acquisition(root, client, now=lambda: NOW, capacity_probe=probe)
+            acquisition.disk_gate = lambda: 900_000_000_000
             state = self.partition_state(); acquisition._state_defaults(state)
-            for batch in (0, 1):
-                acquisition.acquire_partition(state, {"year": 2026, "batch": batch, "symbols": ["AAA"], "asset_ids": ["a"]})
-            self.assertEqual(client.request_count, 2)
-            self.assertEqual(len(state["pending_finalizations"]), 2)
-            self.assertFalse((root / "bars_15m/year=2026/batch=00000.csv.gz").exists())
+            acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            self.assertEqual(client.request_count, 1)
+            self.assertFalse(state["pending_finalizations"])
+            self.assertEqual(state["partitions_complete"], 1)
+            self.assertEqual(state["rows_15m"], 1)
+            self.assertTrue((root / "bars_15m/year=2026/batch=00000.csv.gz").exists())
 
     def test_pending_finalization_survives_restart_and_is_not_redownloaded(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); client = FakeClient([{"bars": {}, "next_page_token": None}])
-            probe = lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True}
-            acquisition = Acquisition(root, client, now=lambda: NOW, capacity_probe=probe)
-            state = self.partition_state(); acquisition._state_defaults(state)
-            item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
-            state["partitions"] = [item]; state["partitions_total"] = 1
-            acquisition.acquire_partition(state, item); acquisition.save_state(state)
-            reloaded = Acquisition(root, FakeClient(), now=lambda: NOW, capacity_probe=probe).load_state()
+            root = Path(folder); state, _item, client = self.queued_v3_partition(root)
+            Acquisition(root, FakeClient(), now=lambda: NOW).save_state(state)
+            reloaded = Acquisition(root, FakeClient(), now=lambda: NOW).load_state()
             self.assertEqual(reloaded["pending_finalizations"][0]["partition"], "year=2026/batch=00000")
             self.assertEqual(client.request_count, 1)
 
     def test_off_market_drains_pending_finalization_without_download(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); live_client = FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}])
-            live = Acquisition(root, live_client, now=lambda: NOW, capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True})
-            live.disk_gate = lambda: 900_000_000_000
-            state = self.partition_state(); live._state_defaults(state)
-            item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}; state["partitions"] = [item]
-            live.acquire_partition(state, item)
+            root = Path(folder); state, _item, _client = self.queued_v3_partition(root)
             off_client = FakeClient(); off = Acquisition(root, off_client, now=lambda: NOW, capacity_probe=lambda _now: {"mode": "OFF_MARKET", "live_qpx_active": False})
             off.disk_gate = lambda: 900_000_000_000; off._drain_pending_finalizations(state)
             self.assertEqual(off_client.request_count, 0); self.assertEqual(state["partitions_complete"], 1)
             self.assertFalse(state["pending_finalizations"])
 
-    def test_queue_full_yields_then_drains_off_market(self):
+    def test_live_coexistence_drains_pending_finalization_without_download(self):
         with tempfile.TemporaryDirectory() as folder:
-            decisions = iter(({"mode": "LIVE_COEXISTENCE", "live_qpx_active": True}, {"mode": "OFF_MARKET", "live_qpx_active": False}))
-            sleeps = []; acquisition = Acquisition(Path(folder), FakeClient(), now=lambda: NOW, sleep=sleeps.append, capacity_probe=lambda _now: next(decisions))
+            root = Path(folder); state, _item, _client = self.queued_v3_partition(root)
+            client = FakeClient()
+            live = Acquisition(root, client, now=lambda: NOW, capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True})
+            live.disk_gate = lambda: 900_000_000_000
+            live._drain_pending_finalizations(state)
+            self.assertEqual(client.request_count, 0)
+            self.assertFalse(state["pending_finalizations"])
+            self.assertEqual(state["partitions_complete"], 1)
+            self.assertEqual(state["rows_15m"], 1)
+
+    def test_denied_capacity_keeps_pending_finalization_queued(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); state, _item, _client = self.queued_v3_partition(root)
+            holder = {}; client = FakeClient()
+
+            def sleeper(_seconds):
+                holder["acquisition"].stop_requested = True
+
+            denied = Acquisition(
+                root, client, now=lambda: NOW, sleep=sleeper,
+                capacity_probe=lambda _now: {
+                    "mode": "WAITING_FOR_LIVE_CAPACITY",
+                    "reason": "CPU_LOAD_PRESSURE",
+                    "live_qpx_active": True,
+                },
+            )
+            holder["acquisition"] = denied
+            with self.assertRaises(CooperativeStop):
+                denied._drain_pending_finalizations(state)
+            self.assertEqual(client.request_count, 0)
+            self.assertEqual(
+                [item["partition"] for item in state["pending_finalizations"]],
+                ["year=2026/batch=00000"],
+            )
+
+    def test_live_finalization_ignores_provider_request_budget(self):
+        with tempfile.TemporaryDirectory() as folder:
+            client = FakeClient(); client.request_count = 1
+            acquisition = Acquisition(
+                Path(folder), client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True},
+            )
             state = self.partition_state(); acquisition._state_defaults(state)
-            state["pending_finalizations"] = [{"partition": str(i)} for i in range(32)]
-            acquisition._drain_pending_finalizations = lambda value: value["pending_finalizations"].clear()
-            acquisition._pending_capacity_gate(state)
-            self.assertEqual(sum(sleeps), 30); self.assertFalse(state["pending_finalizations"])
+            acquisition._capacity_gate(state, {"year": 2026, "batch": 0}, finalization=True)
+            self.assertEqual(state["operating_mode"], "LIVE_COEXISTENCE")
 
     def test_recent_historical_activity_makes_clean_lag_yield_then_resume(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -604,11 +665,11 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             def sleeper(seconds):
                 sleeps.append(seconds); holder["acquisition"].stop_requested = True
             acquisition = Acquisition(Path(folder), FakeClient(), sleep=sleeper,
-                                      capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE"})
+                                      capacity_probe=lambda _now: {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "TEST_WAIT"})
             holder["acquisition"] = acquisition; state = self.partition_state(); acquisition._state_defaults(state)
-            state["pending_finalizations"] = [{"partition": str(i)} for i in range(32)]
-            with self.assertRaises(CooperativeStop): acquisition._pending_capacity_gate(state)
-            self.assertEqual(sleeps, [1.0]); self.assertEqual(state["status"], "WAITING_FOR_FINALIZATION_CAPACITY")
+            with self.assertRaises(CooperativeStop):
+                acquisition._capacity_gate(state, {"year": 2026, "batch": 0}, finalization=True)
+            self.assertEqual(sleeps, [1.0]); self.assertEqual(state["status"], "WAITING_FOR_LIVE_CAPACITY")
 
     def test_cooperative_stop_preserves_unfinished_fragment_and_state(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -1005,7 +1066,16 @@ class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
             )
             state = self.state()
             item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
-            acquisition.acquire_partition(state, item)
+            original_gate = acquisition._capacity_gate
+
+            def denied_finalization(value, partition, *, finalization=False):
+                if finalization:
+                    raise CooperativeStop("retain transient evidence for validation test")
+                return original_gate(value, partition, finalization=False)
+
+            with patch.object(acquisition, "_capacity_gate", side_effect=denied_finalization):
+                with self.assertRaises(CooperativeStop):
+                    acquisition.acquire_partition(state, item)
             page_root = root / "acquisition_state/pages/year=2026/batch=00000"
             (page_root / "page-000001.rejections.jsonl.gz").unlink()
             context = acquisition._partition_context(state, item)
@@ -1032,7 +1102,16 @@ class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
             )
             state = self.state()
             item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
-            acquisition.acquire_partition(state, item)
+            original_gate = acquisition._capacity_gate
+
+            def denied_finalization(value, partition, *, finalization=False):
+                if finalization:
+                    raise CooperativeStop("retain transient evidence for validation test")
+                return original_gate(value, partition, finalization=False)
+
+            with patch.object(acquisition, "_capacity_gate", side_effect=denied_finalization):
+                with self.assertRaises(CooperativeStop):
+                    acquisition.acquire_partition(state, item)
             page_root = root / "acquisition_state/pages/year=2026/batch=00000"
             rejection_path = page_root / "page-000001.rejections.jsonl.gz"
             record = gzip.decompress(rejection_path.read_bytes())

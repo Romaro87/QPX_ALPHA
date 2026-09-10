@@ -16,8 +16,10 @@ from qpx_bot.ml_historical_acquisition import (
     BARS_URL,
     BAR_COLUMNS,
     FEED,
+    LIVE_REQUESTS_PER_MINUTE,
     PAGE_LIMIT,
     PROVIDER_INPUT_SEMANTIC_VERSION,
+    REQUESTS_PER_MINUTE,
     REJECTION_CATEGORIES,
     TIMEFRAME,
     Acquisition,
@@ -153,9 +155,14 @@ class HistoricalCalendarRepair:
                 params = dict(request_core)
                 if token:
                     params["page_token"] = token
-                assessment = dict(self.acquisition.capacity_probe(self.now()))
-                if assessment.get("mode") != "OFF_MARKET":
+                assessment = self.acquisition._capacity_assessment(provider_request=True)
+                mode = assessment.get("mode")
+                if mode not in {"OFF_MARKET", "LIVE_COEXISTENCE"}:
                     raise RuntimeError("REAL_DATA_EXECUTION_DEFERRED_BY_EXISTING_LIFECYCLE")
+                self.acquisition._set_request_rate(
+                    LIVE_REQUESTS_PER_MINUTE if mode == "LIVE_COEXISTENCE"
+                    else REQUESTS_PER_MINUTE
+                )
                 try:
                     payload = self.client.request(BARS_URL, params)
                 except ProviderError as exc:

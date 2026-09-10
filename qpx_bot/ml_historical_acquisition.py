@@ -1224,19 +1224,34 @@ class Acquisition:
         if governor is not None and hasattr(governor, "set_requests_per_minute"):
             governor.set_requests_per_minute(requests_per_minute)
 
+    def _capacity_assessment(self, *, provider_request: bool) -> dict[str, Any]:
+        assessment = dict(self.capacity_probe(self.now()))
+        if (
+            provider_request
+            and assessment.get("mode") == "LIVE_COEXISTENCE"
+            and int(getattr(self.client, "request_count", 0)) > 0
+        ):
+            remaining = getattr(self.client, "rate_limit_remaining", None)
+            limit = getattr(self.client, "rate_limit", None)
+            if remaining is None or limit is None:
+                assessment.update({
+                    "mode": "WAITING_FOR_LIVE_CAPACITY",
+                    "reason": "PROVIDER_RATE_BUDGET_UNKNOWN",
+                })
+            elif remaining <= max(50, int(limit) // 2):
+                assessment.update({
+                    "mode": "WAITING_FOR_LIVE_CAPACITY",
+                    "reason": "PROVIDER_CAPACITY_RESERVED_FOR_CLEAN_V2",
+                })
+        return assessment
+
     def _capacity_gate(self, state: dict[str, Any], item: Mapping[str, Any], *, finalization: bool = False) -> None:
         while True:
-            assessment = dict(self.capacity_probe(self.now()))
+            assessment = self._capacity_assessment(provider_request=not finalization)
             market_date = self.now().astimezone(EASTERN).date().isoformat()
-            if assessment.get("mode") == "LIVE_COEXISTENCE" and int(getattr(self.client, "request_count", 0)) > 0:
-                remaining = getattr(self.client, "rate_limit_remaining", None)
-                limit = getattr(self.client, "rate_limit", None)
-                if remaining is None or limit is None:
-                    assessment.update({"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "PROVIDER_RATE_BUDGET_UNKNOWN"})
-                elif remaining <= max(50, int(limit) // 2):
-                    assessment.update({"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "PROVIDER_CAPACITY_RESERVED_FOR_CLEAN_V2"})
-                    state["live_session_yield_date"] = market_date
-                    state["live_session_latch_reason"] = "ATTRIBUTABLE_PROVIDER_CAPACITY_EXHAUSTION"
+            if assessment.get("reason") == "PROVIDER_CAPACITY_RESERVED_FOR_CLEAN_V2":
+                state["live_session_yield_date"] = market_date
+                state["live_session_latch_reason"] = "ATTRIBUTABLE_PROVIDER_CAPACITY_EXHAUSTION"
             degradation = assessment.get("reason") in {"CLEAN_V2_DECISION_LATENCY", "CLEAN_V2_PROVIDER_NOT_HEALTHY"}
             attribution = None
             if degradation:
@@ -1268,11 +1283,9 @@ class Acquisition:
             if mode == "LIVE_COEXISTENCE":
                 self._set_request_rate(LIVE_REQUESTS_PER_MINUTE)
                 state["historical_request_ceiling_per_minute"] = LIVE_REQUESTS_PER_MINUTE
-                state["live_capacity_reason"] = "FINALIZATION_DEFERRED_DURING_LIVE" if finalization else assessment.get("reason")
                 state["status"] = "RUNNING"; state["next_retry_at_utc"] = None
                 self.save_state(state)
-                if not finalization:
-                    return
+                return
             state["status"] = "WAITING_FOR_LIVE_CAPACITY"
             state["live_capacity_recheck_seconds"] = LIVE_CAPACITY_RECHECK_SECONDS
             state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
@@ -1844,35 +1857,24 @@ class Acquisition:
                             "request_fingerprint": request_fp, "page_count": page,
                             "download_completed_at_utc": self.now().isoformat()})
         state["status"] = "DOWNLOAD_COMPLETE_FINALIZATION_PENDING"
-        self._set_mode(state, "DOWNLOAD_COMPLETE_FINALIZATION_PENDING", "HEAVY_FINALIZATION_DEFERRED_DURING_LIVE", {}, None)
+        self._set_mode(state, "DOWNLOAD_COMPLETE_FINALIZATION_PENDING", "FINALIZATION_CAPACITY_DEFERRED", {}, None)
         self.save_state(state)
 
     def _drain_pending_finalizations(self, state: dict[str, Any]) -> None:
         pending = state.setdefault("pending_finalizations", [])
         while pending:
-            assessment = dict(self.capacity_probe(self.now()))
-            if assessment.get("mode") != "OFF_MARKET":
-                return
             entry = pending[0]
             item = next((value for value in state["partitions"] if int(value["year"]) == int(entry["year"]) and int(value["batch"]) == int(entry["batch"])), None)
             if item is None:
                 raise RuntimeError(f"Pending finalization has no partition definition: {entry['partition']}.")
-            self._set_mode(state, "OFF_MARKET", "DRAINING_PENDING_FINALIZATIONS", assessment)
+            self._capacity_gate(state, item, finalization=True)
             self._finalize_downloaded_partition(state, item)
             pending.pop(0)
             self.save_state(state)
 
     def _pending_capacity_gate(self, state: dict[str, Any]) -> None:
         while len(state.setdefault("pending_finalizations", [])) >= MAX_PENDING_FINALIZATIONS:
-            assessment = dict(self.capacity_probe(self.now()))
-            if assessment.get("mode") == "OFF_MARKET":
-                self._drain_pending_finalizations(state)
-                return
-            self._set_mode(state, "WAITING_FOR_FINALIZATION_CAPACITY", "PENDING_FINALIZATION_QUEUE_FULL", assessment)
-            state["status"] = "WAITING_FOR_FINALIZATION_CAPACITY"
-            state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
-            self.save_state(state)
-            self._cooperative_wait(LIVE_CAPACITY_RECHECK_SECONDS)
+            self._drain_pending_finalizations(state)
 
     def acquire_partition(self, state: dict[str, Any], item: Mapping[str, Any]) -> None:
         year, batch = int(item["year"]), int(item["batch"])
@@ -2023,10 +2025,7 @@ class Acquisition:
             )
             if verified_page != page or verified_token is not None:
                 raise RuntimeError(f"Final page-fragment validation failed for {part_id}.")
-        assessment = dict(self.capacity_probe(self.now()))
-        if assessment.get("mode") != "OFF_MARKET":
-            self._enqueue_pending_finalization(state, item, descriptor, request_fp, page)
-            return
+        self._capacity_gate(state, item, finalization=True)
         self._finalize_downloaded_partition(state, item)
 
     def acquire_corporate_actions(self, state: dict[str, Any]) -> None:
@@ -2220,15 +2219,7 @@ class Acquisition:
             completed_now += 1; state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
             if max_partitions is not None and completed_now >= max_partitions: break
         else:
-            while state.get("pending_finalizations"):
-                self._drain_pending_finalizations(state)
-                if not state.get("pending_finalizations"):
-                    break
-                assessment = dict(self.capacity_probe(self.now()))
-                self._set_mode(state, "WAITING_FOR_FINALIZATION_CAPACITY", "ALL_DOWNLOADS_COMPLETE_AWAITING_OFF_MARKET_FINALIZATION", assessment)
-                state["status"] = "WAITING_FOR_FINALIZATION_CAPACITY"
-                state["next_retry_at_utc"] = (self.now() + timedelta(seconds=LIVE_CAPACITY_RECHECK_SECONDS)).isoformat()
-                self.save_state(state); self._cooperative_wait(LIVE_CAPACITY_RECHECK_SECONDS)
+            self._drain_pending_finalizations(state)
             state["stage"] = "CORPORATE_ACTIONS"; state["status"] = "RUNNING"; state["current_partition"] = "corporate_actions"; self.save_state(state)
             self.acquire_corporate_actions(state); self.finalize(state)
         if max_partitions is not None and completed_now >= max_partitions:
