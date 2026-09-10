@@ -895,17 +895,36 @@ def aggregate_bars(rows: Iterable[Mapping[str, str]], period: str) -> list[dict[
 
 def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, _acquired_at: datetime) -> dict[str, Any]:
     """Preserve provider facts without inventing unavailable causal dates."""
+    if action_type not in CA_TYPES:
+        raise ValueError("Corporate action type is unsupported.")
     action_id = str(raw.get("id", "")).strip()
     symbol = str(raw.get("symbol", "")).strip().upper()
     if not action_id or not symbol:
         raise ValueError("Corporate action requires authoritative id and symbol.")
+    date_values: dict[str, str | None] = {}
+    for output_name, source_names in {
+        "announcement_or_observation_date": ("announcement_date",),
+        "ex_or_effective_date": ("ex_date", "effective_date"),
+        "record_date": ("record_date",),
+        "payable_date": ("payable_date",),
+        "process_date": ("process_date",),
+    }.items():
+        value = next((raw.get(name) for name in source_names if raw.get(name) is not None), None)
+        if value is not None:
+            if not isinstance(value, str):
+                raise ValueError("Corporate action date must be canonical text.")
+            try:
+                parsed = date.fromisoformat(value)
+            except ValueError as exc:
+                raise ValueError("Corporate action date is malformed.") from exc
+            if parsed.isoformat() != value:
+                raise ValueError("Corporate action date is not canonical.")
+        date_values[output_name] = value
     result = {
         "provider_event_id": action_id, "action_type": action_type,
         "symbol": symbol, "provider": PROVIDER,
-        "announcement_or_observation_date": raw.get("announcement_date"),
-        "ex_or_effective_date": raw.get("ex_date") or raw.get("effective_date"),
-        "record_date": raw.get("record_date"), "payable_date": raw.get("payable_date"),
-        "process_date": raw.get("process_date"), "old_symbol": raw.get("old_symbol"),
+        **date_values,
+        "old_symbol": raw.get("old_symbol"),
         "new_symbol": raw.get("new_symbol"), "rate": raw.get("rate"),
         "cash": raw.get("cash"),
         "raw_provider_fingerprint": fingerprint(raw),

@@ -401,10 +401,33 @@ def _load_repair(
         raise HistoricalQualificationError(f"Calendar repair reconciliation mismatch: {_partition_id(item)}.")
     page_counts = {category: 0 for category in REJECTION_CATEGORIES}
     page_source = page_accepted = page_rejected = 0
-    for index, page in enumerate(manifest.get("page_evidence", ()), 1):
+    previous_next_token_fingerprint: str | None = None
+    repair_pages = manifest.get("page_evidence", ())
+    for index, page in enumerate(repair_pages, 1):
         page_core = {key: value for key, value in page.items() if key != "page_evidence_fingerprint"}
-        if page.get("page") != index or page.get("page_evidence_fingerprint") != fingerprint(page_core):
+        expected_input_fingerprint = (
+            fingerprint({"page_token": page.get("input_page_token")})
+            if page.get("input_page_token") is not None else None
+        )
+        next_page = repair_pages[index] if index < len(repair_pages) else None
+        expected_terminal = (
+            next_page is None
+            or next_page.get("session_date") != page.get("session_date")
+        )
+        if (
+            page.get("page") != index
+            or page.get("page_evidence_fingerprint") != fingerprint(page_core)
+            or expected_input_fingerprint != previous_next_token_fingerprint
+            or (page.get("terminal_page") is True)
+            != expected_terminal
+            or page.get("request_fingerprint") not in manifest.get("request_fingerprints", ())
+        ):
             raise HistoricalQualificationError(f"Calendar repair page evidence is invalid: {_partition_id(item)}.")
+        previous_next_token_fingerprint = page.get("next_page_token_fingerprint")
+        if expected_terminal:
+            if previous_next_token_fingerprint is not None:
+                raise HistoricalQualificationError(f"Calendar repair terminal page is invalid: {_partition_id(item)}.")
+            previous_next_token_fingerprint = None
         try:
             page_source += page["source_row_count"]
             page_accepted += page["accepted_row_count"]
@@ -418,6 +441,7 @@ def _load_repair(
         or page_accepted != manifest["accepted_row_count"]
         or page_rejected != manifest["rejected_row_count"]
         or page_counts != manifest["rejection_counts_by_category"]
+        or previous_next_token_fingerprint is not None
     ):
         raise HistoricalQualificationError(f"Calendar repair page totals are invalid: {_partition_id(item)}.")
     observed_rejections = {category: 0 for category in REJECTION_CATEGORIES}
@@ -478,17 +502,33 @@ def _validate_corporate_actions(root: Path, state: Mapping[str, Any], population
     manifest_core = {key: value for key, value in manifest.items() if key != "manifest_fingerprint"}
     pages = manifest.get("page_evidence")
     pages_valid = isinstance(pages, list) and len(pages) == manifest.get("page_count")
+    previous_next_token_fingerprint: str | None = None
+    page_event_ids: list[str] = []
     if pages_valid:
         for index, page in enumerate(pages, 1):
             page_core = {key: value for key, value in page.items() if key != "page_evidence_fingerprint"}
+            expected_input_fingerprint = (
+                fingerprint({"page_token": page.get("input_page_token")})
+                if page.get("input_page_token") is not None else None
+            )
             if (
                 page.get("page") != index
                 or page.get("request_fingerprint") != manifest.get("request_fingerprint")
                 or page.get("page_evidence_fingerprint") != fingerprint(page_core)
                 or (page.get("terminal_page") is True) != (index == len(pages))
+                or expected_input_fingerprint != previous_next_token_fingerprint
+                or not isinstance(page.get("provider_event_ids"), list)
             ):
                 pages_valid = False
                 break
+            page_event_ids.extend(page["provider_event_ids"])
+            previous_next_token_fingerprint = page.get("next_page_token_fingerprint")
+        pages_valid = (
+            pages_valid
+            and previous_next_token_fingerprint is None
+            and sorted(page_event_ids)
+            == sorted(record.get("provider_event_id") for record in records)
+        )
     if (
         manifest.get("schema_version") != CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION
         or manifest.get("corporate_action_semantic_version") != CORPORATE_ACTION_SEMANTIC_VERSION
@@ -540,7 +580,6 @@ def _qualify_historical_dataset_strict(
     state = _load_state(root)
     calendar = load_frozen_historical_calendar()
     population = load_provider_population(root)
-    _validate_partition_plan(state, population)
     _validate_partition_plan(state, population)
     reasons: list[str] = []
     planned = {_partition_id(item) for item in state.get("partitions", ())}

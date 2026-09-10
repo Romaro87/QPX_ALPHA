@@ -148,6 +148,7 @@ class HistoricalCalendarRepair:
             if not identity:
                 continue
             token: str | None = None
+            seen_tokens: set[str] = set()
             while True:
                 params = dict(request_core)
                 if token:
@@ -246,10 +247,12 @@ class HistoricalCalendarRepair:
                     "page": page_number,
                     "session_date": session_date.isoformat(),
                     "request_fingerprint": repair_request_fp,
+                    "input_page_token": token,
                     "source_row_count": source,
                     "accepted_row_count": accepted,
                     "rejected_row_count": rejected,
                     "rejection_counts_by_category": counts,
+                    "terminal_page": payload.get("next_page_token") is None,
                     "next_page_token_fingerprint": (
                         fingerprint({"page_token": payload.get("next_page_token")})
                         if payload.get("next_page_token") else None
@@ -261,6 +264,10 @@ class HistoricalCalendarRepair:
                 token = payload.get("next_page_token")
                 if token is not None and (not isinstance(token, str) or not token):
                     raise ProviderError("Malformed calendar-repair page token.", systemic=True)
+                if token is not None and token in seen_tokens:
+                    raise ProviderError("Repeated calendar-repair page token.", systemic=True)
+                if token is not None:
+                    seen_tokens.add(token)
                 if not token:
                     break
 

@@ -422,6 +422,14 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
         action = normalize_corporate_action({"id": "e", "symbol": "AAA", "ex_date": "2020-01-02", "record_date": "2020-01-03", "payable_date": "2020-01-04", "process_date": "2020-01-05"}, "cash_dividend", NOW)
         self.assertEqual(action["ex_or_effective_date"], "2020-01-02"); self.assertEqual(action["process_date"], "2020-01-05")
 
+    def test_corporate_action_dates_fail_closed_when_not_canonical(self):
+        with self.assertRaises(ValueError):
+            normalize_corporate_action(
+                {"id": "e", "symbol": "AAA", "ex_date": "2020-1-2"},
+                "cash_dividend",
+                NOW,
+            )
+
     def test_daily_aggregation_is_deterministic(self):
         rows = [{"provider_asset_id": "a", "session_date": "2026-09-03", "market_timestamp": "2026-09-03T09:30:00-04:00", "open": "10", "high": "12", "low": "9", "close": "11", "volume": "4"}, {"provider_asset_id": "a", "session_date": "2026-09-03", "market_timestamp": "2026-09-03T09:45:00-04:00", "open": "11", "high": "13", "low": "10", "close": "12", "volume": "6"}]
         result = aggregate_bars(rows, "daily")[0]
