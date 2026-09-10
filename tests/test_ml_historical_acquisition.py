@@ -20,6 +20,7 @@ from qpx_bot.ml_historical_acquisition import (
     atomic_json, batch_descriptor, build_security_master, calculate_range,
     canonical_provider_asset_id, classify_bar, encode_gzip_csv, fingerprint, initial_estimate,
     classify_transport_error, corporate_action_identity_resolution,
+    encode_gzip_jsonl,
     load_provider_population, normalize_corporate_action, observational_coverage_evidence,
     page_evidence, partition_population_disposition, read_gzip_csv, request_identity, sha256_path,
     coexistence_capacity, status, validate_bar,
@@ -67,6 +68,7 @@ class FakeClient:
 
 class ScriptedAcquisition(Acquisition):
     def __init__(self, root, state, outcomes, *, now=lambda: NOW, sleep=lambda _seconds: None):
+        write_security_master(root, build_security_master([asset("a", "AAA")], [], NOW))
         super().__init__(root, FakeClient(), now=now, sleep=sleep, monotonic=lambda: 0.0)
         self.test_state = state; self.outcomes = list(outcomes); self.snapshots = []; self.calls = 0
 
@@ -87,7 +89,7 @@ class ScriptedAcquisition(Acquisition):
 
 def run_state():
     return {
-        "status": "PARTIAL", "requested_range": {}, "completed": [],
+        "status": "PARTIAL", "requested_range": calculate_range(NOW), "completed": [],
         "partitions": [{"year": 2017, "batch": 458}], "partitions_complete": 0,
         "partitions_total": 1, "rows_15m": 0, "bytes_stored": 0,
         "api_request_count": 0, "retry_count": 0, "failure_count": 0,
@@ -142,17 +144,50 @@ def resume_identity(symbols=("AAA",), asset_ids=("a",)):
     return descriptor, request_fp
 
 
-def write_v2_resume(root: Path, *, token="resume", request_fp=None, batch_fp=None, corrupt=False):
-    descriptor, expected_request = resume_identity()
+def write_v3_resume(root: Path, *, token="resume", request_fp=None, batch_fp=None, corrupt=False):
+    write_security_master(root, build_security_master([asset("a", "AAA")], [], NOW))
+    state = MLHistoricalAcquisitionTests.partition_state()
+    acquisition = Acquisition(root, FakeClient(), now=lambda: NOW)
+    item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
+    context = acquisition._partition_context(state, item)
+    descriptor = context["descriptor"]
+    expected_request = context["request_fingerprint"]
     request_fp = request_fp or expected_request; batch_fp = batch_fp or descriptor["batch_fingerprint"]
     page_root = root / "acquisition_state/pages/year=2026/batch=00000"; page_root.mkdir(parents=True)
     fragment = page_root / "page-000001.csv.gz"
     row = validate_bar(raw_bar(), "AAA", "a", request_fp, date(2026, 9, 1), date(2026, 9, 3), NOW)
     atomic_bytes(fragment, encode_gzip_csv([row], BAR_COLUMNS))
-    evidence = page_evidence(fragment, page=1, row_count=1, request_fingerprint=request_fp, batch_fingerprint=batch_fp)
-    if corrupt: evidence["sha256"] = "0" * 64
+    rejection_path = page_root / "page-000001.rejections.jsonl.gz"
+    atomic_bytes(rejection_path, encode_gzip_jsonl([]))
+    evidence = page_evidence(
+        fragment, rejection_path, page=1, source_row_count=1,
+        accepted_row_count=1, rejected_row_count=0,
+        rejection_counts_by_category={}, request_fingerprint=request_fp,
+        batch_fingerprint=batch_fp,
+        calendar_fingerprint=FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+        provider_population_fingerprint=context["population"]["provider_population_fingerprint"],
+        population_disposition_fingerprint=context["disposition"]["population_disposition_fingerprint"],
+        exclusion_set_fingerprint=context["disposition"]["exclusion_set_fingerprint"],
+    )
+    if corrupt: evidence["accepted_fragment_sha256"] = "0" * 64
     atomic_json(fragment.with_suffix(fragment.suffix + ".manifest.json"), evidence)
-    checkpoint = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "year": 2026, "batch": 0, "batch_fingerprint": batch_fp, "requested_start": "2026-09-01", "requested_end": "2026-09-03", "page": 1, "next_page_token": token, "last_completed_boundary": ["a", row["market_timestamp"]], "invalid_rows": 0, "request_fingerprint": request_fp, "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION}
+    checkpoint = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION, "year": 2026, "batch": 0,
+        "batch_fingerprint": batch_fp, "requested_start": "2026-09-01",
+        "requested_end": "2026-09-03", "page": 1,
+        "next_page_token": token,
+        "last_completed_boundary": ["a", row["market_timestamp"]],
+        "request_fingerprint": request_fp,
+        "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+        "provider_input_semantic_version": PROVIDER_INPUT_SEMANTIC_VERSION,
+        "frozen_calendar_fingerprint": FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+        "provider_population_fingerprint": context["population"]["provider_population_fingerprint"],
+        "population_disposition_fingerprint": context["disposition"]["population_disposition_fingerprint"],
+        "exclusion_set_fingerprint": context["disposition"]["exclusion_set_fingerprint"],
+        "source_row_count": 1, "accepted_row_count": 1, "rejected_row_count": 0,
+        "rejection_counts_by_category": evidence["rejection_counts_by_category"],
+        "page_evidence_fingerprints": [evidence["page_evidence_fingerprint"]],
+    }
     checkpoint["checkpoint_fingerprint"] = fingerprint(checkpoint)
     atomic_json(page_root / "checkpoint.json", checkpoint)
     return page_root
@@ -268,8 +303,10 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
 
     def test_duplicate_prevention_fails_closed(self):
         with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset("id-a", "AAA")], [], NOW))
             client = FakeClient([{"bars": {"AAA": [raw_bar(), raw_bar()]}, "next_page_token": None}])
-            acquisition = Acquisition(Path(folder), client, now=lambda: NOW)
+            acquisition = Acquisition(root, client, now=lambda: NOW)
             acquisition.disk_gate = lambda: 900_000_000_000
             state = {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
             with self.assertRaisesRegex(RuntimeError, "Duplicate"):
@@ -277,7 +314,9 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
 
     def test_provider_batch_is_single_symbol_list_request(self):
         with tempfile.TemporaryDirectory() as folder:
-            client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(Path(folder), client, now=lambda: NOW)
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset("a", "AAA"), asset("b", "BBB")], [], NOW))
+            client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW)
             acquisition.disk_gate = lambda: 900_000_000_000
             state = {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
             acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA", "BBB"], "asset_ids": ["a", "b"]})
@@ -286,6 +325,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
     def test_final_manifest_contains_exact_membership(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); client = FakeClient([{"bars": {"AAA": [raw_bar()]}, "next_page_token": None}])
+            write_security_master(root, build_security_master([asset("a", "AAA")], [], NOW))
             acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
             acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             manifest = json.loads((root / "bars_15m/year=2026/batch=00000.csv.gz.manifest.json").read_text())
@@ -295,28 +335,28 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
 
     def test_matching_checkpoint_fingerprint_resumes_with_token(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); write_v2_resume(root)
+            root = Path(folder); write_v3_resume(root)
             client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
             acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertEqual(client.calls[0][1]["page_token"], "resume")
 
     def test_mismatched_request_fingerprint_rebuilds_without_token(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); write_v2_resume(root, request_fp="f" * 64)
+            root = Path(folder); write_v3_resume(root, request_fp="f" * 64)
             client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
             acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertNotIn("page_token", client.calls[0][1]); self.assertTrue(list((root / "acquisition_state/rebuild_evidence").iterdir()))
 
     def test_missing_token_finalizes_valid_pages_without_provider_request(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); write_v2_resume(root, token=None)
+            root = Path(folder); write_v3_resume(root, token=None)
             client = FakeClient(); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
             acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertEqual(client.request_count, 0)
 
     def test_rejected_token_rebuilds_only_current_partition(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); write_v2_resume(root)
+            root = Path(folder); write_v3_resume(root)
             client = RejectedTokenClient(); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
             acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertIn("page_token", client.calls[0][1]); self.assertNotIn("page_token", client.calls[1][1])
@@ -324,28 +364,42 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
     def test_completed_partition_is_not_redownloaded(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); destination = root / "bars_15m/year=2026/batch=00000.csv.gz"; atomic_bytes(destination, b"done")
-            atomic_json(destination.with_suffix(destination.suffix + ".manifest.json"), {"sha256": sha256_path(destination)})
+            atomic_json(destination.with_suffix(destination.suffix + ".manifest.json"), {
+                "schema_version": 2, "sha256": sha256_path(destination),
+            })
             client = FakeClient(); acquisition = Acquisition(root, client, now=lambda: NOW)
-            state = self.partition_state(); acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
+            state = self.partition_state()
+            state["completed"] = ["year=2026/batch=00000"]
+            state["partitions_complete"] = 1
+            acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertEqual(client.request_count, 0); self.assertEqual(destination.read_bytes(), b"done")
 
     def test_corrupt_page_fragment_is_rejected_and_rebuilt(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); write_v2_resume(root, corrupt=True)
+            root = Path(folder); write_v3_resume(root, corrupt=True)
             client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
             acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
             self.assertNotIn("page_token", client.calls[0][1])
 
     def test_valid_page_fragment_checksum_passes(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); write_v2_resume(root, token=None); acquisition = Acquisition(root, FakeClient(), now=lambda: NOW)
-            descriptor, request_fp = resume_identity()
-            page, token = acquisition._validated_resume(root / "acquisition_state/pages/year=2026/batch=00000", expected_request_fingerprint=request_fp, expected_batch_fingerprint=descriptor["batch_fingerprint"], descriptor=descriptor)
+            root = Path(folder); write_v3_resume(root, token=None); acquisition = Acquisition(root, FakeClient(), now=lambda: NOW)
+            state = self.partition_state(); item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
+            context = acquisition._partition_context(state, item)
+            page, token = acquisition._validated_resume(
+                root / "acquisition_state/pages/year=2026/batch=00000",
+                expected_request_fingerprint=context["request_fingerprint"],
+                expected_batch_fingerprint=context["descriptor"]["batch_fingerprint"],
+                descriptor=context["descriptor"],
+                provider_population_fingerprint=context["population"]["provider_population_fingerprint"],
+                population_disposition_fingerprint=context["disposition"]["population_disposition_fingerprint"],
+                exclusion_set_fingerprint=context["disposition"]["exclusion_set_fingerprint"],
+            )
             self.assertEqual((page, token), (1, None))
 
     def test_pages_from_different_requests_cannot_be_combined(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); page_root = write_v2_resume(root)
+            root = Path(folder); page_root = write_v3_resume(root)
             manifest = next(page_root.glob("*.csv.gz.manifest.json")); evidence = json.loads(manifest.read_text()); evidence["request_fingerprint"] = "0" * 64; atomic_json(manifest, evidence)
             client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW); acquisition.disk_gate = lambda: 900_000_000_000
             acquisition.acquire_partition(self.partition_state(), {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]})
@@ -353,7 +407,11 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
 
     def test_provider_rejected_symbol_is_bounded_and_preserved(self):
         with tempfile.TemporaryDirectory() as folder:
-            client = InvalidThenValidClient(); acquisition = Acquisition(Path(folder), client, now=lambda: NOW)
+            root = Path(folder)
+            write_security_master(root, build_security_master([
+                asset("bad-id", "BAD"), asset("good-id", "AAA"),
+            ], [], NOW))
+            client = InvalidThenValidClient(); acquisition = Acquisition(root, client, now=lambda: NOW)
             acquisition.disk_gate = lambda: 900_000_000_000
             state = {"requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"}, "completed": [], "observed_ranges": {}, "unqueryable_symbols": [], "rows_15m": 0, "api_request_count": 0, "retry_count": 0}
             acquisition.acquire_partition(state, {"year": 2026, "batch": 0, "symbols": ["BAD", "AAA"], "asset_ids": ["bad-id", "good-id"]})
@@ -363,6 +421,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
     def test_legacy_checkpoint_is_explicitly_rebuilt(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); client = FakeClient([{"bars": {}, "next_page_token": None}]); acquisition = Acquisition(root, client, now=lambda: NOW)
+            write_security_master(root, build_security_master([asset("a", "AAA")], [], NOW))
             acquisition.disk_gate = lambda: 900_000_000_000
             page_root = root / "acquisition_state/pages/year=2026/batch=00000"; page_root.mkdir(parents=True)
             (page_root / "checkpoint.json").write_text(json.dumps({"page": 1, "next_page_token": "resume", "invalid_rows": 0, "request_fingerprint": "x"}))
@@ -505,7 +564,9 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             def request(self, url, params):
                 raise ProviderError("limited", status=429, transient=True, failure_class="HTTP_429")
         with tempfile.TemporaryDirectory() as folder:
-            acquisition = Acquisition(Path(folder), Limited(), now=lambda: NOW, capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True})
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset("a", "AAA")], [], NOW))
+            acquisition = Acquisition(root, Limited(), now=lambda: NOW, capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "live_qpx_active": True})
             acquisition.disk_gate = lambda: 900_000_000_000
             state = self.partition_state(); acquisition._state_defaults(state)
             with self.assertRaises(ProviderError):
@@ -673,7 +734,7 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
 
     def test_cooperative_stop_preserves_unfinished_fragment_and_state(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); page_root = write_v2_resume(root)
+            root = Path(folder); page_root = write_v3_resume(root)
             state = run_state(); state.update({
                 "requested_range": {"actual_first_requested_session": "2026-09-01", "actual_last_completed_session": "2026-09-03"},
                 "partitions": [{"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}],
@@ -1064,32 +1125,14 @@ class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
                 now=lambda: NOW,
                 capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "reason": "TEST", "live_qpx_active": True},
             )
+            acquisition.disk_gate = lambda: 900_000_000_000
             state = self.state()
             item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
-            original_gate = acquisition._capacity_gate
-
-            def denied_finalization(value, partition, *, finalization=False):
-                if finalization:
-                    raise CooperativeStop("retain transient evidence for validation test")
-                return original_gate(value, partition, finalization=False)
-
-            with patch.object(acquisition, "_capacity_gate", side_effect=denied_finalization):
-                with self.assertRaises(CooperativeStop):
-                    acquisition.acquire_partition(state, item)
-            page_root = root / "acquisition_state/pages/year=2026/batch=00000"
-            (page_root / "page-000001.rejections.jsonl.gz").unlink()
-            context = acquisition._partition_context(state, item)
-            page, token = acquisition._validated_resume(
-                page_root,
-                expected_request_fingerprint=context["request_fingerprint"],
-                expected_batch_fingerprint=context["descriptor"]["batch_fingerprint"],
-                descriptor=context["descriptor"],
-                provider_population_fingerprint=context["population"]["provider_population_fingerprint"],
-                population_disposition_fingerprint=context["disposition"]["population_disposition_fingerprint"],
-                exclusion_set_fingerprint=context["disposition"]["exclusion_set_fingerprint"],
-            )
-            self.assertEqual((page, token), (0, None))
-            self.assertTrue(list((root / "acquisition_state/rebuild_evidence").iterdir()))
+            acquisition.acquire_partition(state, item)
+            rejection_path = root / "rejection_evidence/year=2026/batch=00000.rejections.jsonl.gz"
+            rejection_path.unlink()
+            with self.assertRaisesRegex(RuntimeError, "Committed V3 final evidence is missing or corrupt"):
+                acquisition.acquire_partition(state, item)
 
     def test_duplicate_rejection_record_fails_closed(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -1100,34 +1143,15 @@ class HistoricalAcquisitionV3EvidenceTests(unittest.TestCase):
                 now=lambda: NOW,
                 capacity_probe=lambda _now: {"mode": "LIVE_COEXISTENCE", "reason": "TEST", "live_qpx_active": True},
             )
+            acquisition.disk_gate = lambda: 900_000_000_000
             state = self.state()
             item = {"year": 2026, "batch": 0, "symbols": ["AAA"], "asset_ids": ["a"]}
-            original_gate = acquisition._capacity_gate
-
-            def denied_finalization(value, partition, *, finalization=False):
-                if finalization:
-                    raise CooperativeStop("retain transient evidence for validation test")
-                return original_gate(value, partition, finalization=False)
-
-            with patch.object(acquisition, "_capacity_gate", side_effect=denied_finalization):
-                with self.assertRaises(CooperativeStop):
-                    acquisition.acquire_partition(state, item)
-            page_root = root / "acquisition_state/pages/year=2026/batch=00000"
-            rejection_path = page_root / "page-000001.rejections.jsonl.gz"
+            acquisition.acquire_partition(state, item)
+            rejection_path = root / "rejection_evidence/year=2026/batch=00000.rejections.jsonl.gz"
             record = gzip.decompress(rejection_path.read_bytes())
             atomic_bytes(rejection_path, gzip.compress(record + record, mtime=0))
-            context = acquisition._partition_context(state, item)
-            page, token = acquisition._validated_resume(
-                page_root,
-                expected_request_fingerprint=context["request_fingerprint"],
-                expected_batch_fingerprint=context["descriptor"]["batch_fingerprint"],
-                descriptor=context["descriptor"],
-                provider_population_fingerprint=context["population"]["provider_population_fingerprint"],
-                population_disposition_fingerprint=context["disposition"]["population_disposition_fingerprint"],
-                exclusion_set_fingerprint=context["disposition"]["exclusion_set_fingerprint"],
-            )
-            self.assertEqual((page, token), (0, None))
-            self.assertTrue(list((root / "acquisition_state/rebuild_evidence").iterdir()))
+            with self.assertRaisesRegex(RuntimeError, "Committed V3 rejection-evidence checksum mismatch"):
+                acquisition.acquire_partition(state, item)
 
     def test_old_checkpoint_quarantines_only_incomplete_partition(self):
         with tempfile.TemporaryDirectory() as folder:
