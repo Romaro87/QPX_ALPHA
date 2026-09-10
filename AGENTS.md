@@ -38,6 +38,12 @@ FOCUSED TESTS + AUTOMATIC LARGE REGRESSION BUNDLE.
 
 Do not reinterpret this rule into another standing broad-test requirement.
 
+### Directly affected contract tests
+
+When a production interface, evidence contract, state schema, or governed behavior changes, update every directly affected test and fixture in the same change. The change is incomplete while any of them remain stale or failing.
+
+Before completion, identify the directly affected test call sites and fixtures, then run and require passage of the focused tests and directly affected test modules required by QPX_TEST_SCOPE_RULE_V1. This does not authorize broad regression suites merely because a shared contract changed; classify unrelated failures separately and do not silently fold them into the current task.
+
 ---
 
 ## QPX_PRE_CODE_GATE_V1 - BINDING STANDING RULE
