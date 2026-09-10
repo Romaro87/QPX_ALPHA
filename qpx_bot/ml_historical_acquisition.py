@@ -65,6 +65,10 @@ LEGACY_ACQUISITION_PROVENANCE_VERSION = "QPX_ML_HISTORICAL_15M_V2"
 LEGACY_PROVIDER_INPUT_SEMANTIC_VERSION = "ALPACA_SIP_RAW_15M_HISTORICAL_V1"
 REJECTION_EVIDENCE_SCHEMA_VERSION = 1
 PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION = 1
+OBSERVATIONAL_COVERAGE_SCHEMA_VERSION = 1
+CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION = 2
+CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 1
+CORPORATE_ACTION_SEMANTIC_VERSION = "ALPACA_CORPORATE_ACTIONS_HISTORICAL_V2"
 BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
@@ -153,6 +157,22 @@ def atomic_bytes(path: Path, encoded: bytes) -> None:
 
 def atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
     atomic_bytes(path, json.dumps(payload, indent=2, sort_keys=True, allow_nan=False).encode() + b"\n")
+
+
+def atomic_content_addressed_json(
+    directory: Path, identity: str, payload: Mapping[str, Any], *, label: str,
+) -> Path:
+    path = directory / f"{identity}.json"
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Existing {label} evidence is corrupt.") from exc
+        if existing != dict(payload):
+            raise RuntimeError(f"Content-addressed {label} evidence conflicts.")
+    else:
+        atomic_json(path, payload)
+    return path
 
 
 def calculate_range(now: datetime | None = None) -> dict[str, str]:
@@ -873,7 +893,7 @@ def aggregate_bars(rows: Iterable[Mapping[str, str]], period: str) -> list[dict[
     return result
 
 
-def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, acquired_at: datetime) -> dict[str, Any]:
+def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, _acquired_at: datetime) -> dict[str, Any]:
     """Preserve provider facts without inventing unavailable causal dates."""
     action_id = str(raw.get("id", "")).strip()
     symbol = str(raw.get("symbol", "")).strip().upper()
@@ -887,11 +907,124 @@ def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, acquire
         "record_date": raw.get("record_date"), "payable_date": raw.get("payable_date"),
         "process_date": raw.get("process_date"), "old_symbol": raw.get("old_symbol"),
         "new_symbol": raw.get("new_symbol"), "rate": raw.get("rate"),
-        "cash": raw.get("cash"), "acquired_at_utc": acquired_at.astimezone(timezone.utc).isoformat(),
+        "cash": raw.get("cash"),
         "raw_provider_fingerprint": fingerprint(raw),
     }
     result["provenance_fingerprint"] = fingerprint(result)
     return result
+
+
+def observational_coverage_evidence(
+    state: Mapping[str, Any], population: Mapping[str, Any], *,
+    calendar_fingerprint: str = FROZEN_CALENDAR_CONTENT_FINGERPRINT,
+) -> dict[str, Any]:
+    """Build derived bar coverage without mutating provider identity authority."""
+    known_ids = {member["provider_asset_id"] for member in population["members"]}
+    observed = state.get("observed_ranges", {})
+    if not isinstance(observed, Mapping) or any(asset_id not in known_ids for asset_id in observed):
+        raise RuntimeError("Observed coverage contains an unknown provider identity.")
+    records: list[dict[str, Any]] = []
+    for asset_id in sorted(known_ids):
+        value = observed.get(asset_id)
+        if value is None:
+            first = last = None
+        elif (
+            not isinstance(value, (list, tuple)) or len(value) != 2
+            or not all(isinstance(item, str) and item for item in value)
+        ):
+            raise RuntimeError("Observed coverage range is malformed.")
+        else:
+            first, last = value
+            try:
+                first_at, last_at = datetime.fromisoformat(first), datetime.fromisoformat(last)
+            except ValueError as exc:
+                raise RuntimeError("Observed coverage timestamp is malformed.") from exc
+            if (
+                first_at.tzinfo is None or last_at.tzinfo is None
+                or first_at > last_at
+            ):
+                raise RuntimeError("Observed coverage range is invalid.")
+        records.append({
+            "provider_asset_id": asset_id,
+            "first_observed_bar": first,
+            "last_observed_bar": last,
+        })
+    core = {
+        "schema_version": OBSERVATIONAL_COVERAGE_SCHEMA_VERSION,
+        "security_master_fingerprint": population["security_master_fingerprint"],
+        "provider_population_fingerprint": population["provider_population_fingerprint"],
+        "frozen_calendar_fingerprint": calendar_fingerprint,
+        "records": records,
+    }
+    return {**core, "observational_coverage_fingerprint": fingerprint(core)}
+
+
+def corporate_action_identity_resolution(
+    records: Iterable[Mapping[str, Any]], population: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Resolve provider events only through deterministic provider symbol facts."""
+    by_symbol: dict[str, list[str]] = {}
+    for member in population["members"]:
+        by_symbol.setdefault(member["canonical_symbol"], []).append(
+            member["provider_asset_id"]
+        )
+    resolutions: list[dict[str, Any]] = []
+    excluded_ids: set[str] = set()
+    for record in sorted(records, key=lambda item: str(item["provider_event_id"])):
+        symbols = sorted({
+            str(record.get(key) or "").strip().upper()
+            for key in ("symbol", "old_symbol", "new_symbol")
+            if str(record.get(key) or "").strip()
+        })
+        candidates = sorted({
+            asset_id for symbol in symbols for asset_id in by_symbol.get(symbol, ())
+        })
+        unambiguous = {
+            values[0] for symbol in symbols
+            if len(values := by_symbol.get(symbol, ())) == 1
+        }
+        if len(unambiguous) == 1 and all(
+            len(by_symbol.get(symbol, ())) <= 1 for symbol in symbols
+        ):
+            provider_asset_id = next(iter(unambiguous))
+            outcome = "RESOLVED_PROVIDER_IDENTITY"
+        else:
+            provider_asset_id = None
+            outcome = "UNRESOLVED_CORPORATE_ACTION_IDENTITY"
+            excluded_ids.update(candidates)
+        core = {
+            "schema_version": CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION,
+            "provider_event_id": record["provider_event_id"],
+            "outcome": outcome,
+            "provider_asset_id": provider_asset_id,
+            "evidence_symbols": symbols,
+            "excluded_provider_asset_ids": candidates if provider_asset_id is None else [],
+            "bounded_dates": sorted({
+                str(record.get(key)) for key in (
+                    "announcement_or_observation_date", "ex_or_effective_date",
+                    "record_date", "payable_date", "process_date",
+                ) if record.get(key)
+            }),
+            "security_master_fingerprint": population["security_master_fingerprint"],
+            "provider_population_fingerprint": population["provider_population_fingerprint"],
+            "corporate_action_provenance_fingerprint": record["provenance_fingerprint"],
+        }
+        resolutions.append({**core, "resolution_fingerprint": fingerprint(core)})
+    core = {
+        "schema_version": CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION,
+        "security_master_fingerprint": population["security_master_fingerprint"],
+        "provider_population_fingerprint": population["provider_population_fingerprint"],
+        "records": resolutions,
+        "resolved_count": sum(
+            item["outcome"] == "RESOLVED_PROVIDER_IDENTITY" for item in resolutions
+        ),
+        "unresolved_count": sum(
+            item["outcome"] == "UNRESOLVED_CORPORATE_ACTION_IDENTITY"
+            for item in resolutions
+        ),
+        "excluded_provider_asset_ids": sorted(excluded_ids),
+    }
+    return {**core, "identity_resolution_fingerprint": fingerprint(core)}
 
 
 class Acquisition:
@@ -1878,13 +2011,23 @@ class Acquisition:
         self._finalize_downloaded_partition(state, item)
 
     def acquire_corporate_actions(self, state: dict[str, Any]) -> None:
-        """Acquire all supported action types once after bar partitions complete."""
+        """Acquire and bind complete provider and stable-identity action evidence."""
         requested = state["requested_range"]
         params = {
             "types": ",".join(CA_TYPES), "start": requested["requested_start"],
             "end": requested["requested_end"], "limit": "1000", "sort": "asc",
         }
-        token = None; page = 0; records: dict[str, dict[str, Any]] = {}
+        request_core = {
+            "provider": PROVIDER,
+            "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
+            "params": params,
+        }
+        request_fp = fingerprint(request_core)
+        token = None
+        seen_tokens: set[str] = set()
+        page = 0
+        records: dict[str, dict[str, Any]] = {}
+        pages: list[dict[str, Any]] = []
         while True:
             request = dict(params)
             if token: request["page_token"] = token
@@ -1892,37 +2035,114 @@ class Acquisition:
             payload = self.client.request(CORPORATE_ACTION_URL, request)
             if not isinstance(payload, dict) or not isinstance(payload.get("corporate_actions", {}), dict):
                 raise ProviderError("Malformed corporate-actions response.", systemic=True)
+            page_event_ids: list[str] = []
             for collection, values in payload["corporate_actions"].items():
-                if not isinstance(values, list): continue
+                if not isinstance(values, list):
+                    raise ProviderError("Malformed corporate-action collection.", systemic=True)
                 action_type = collection.removesuffix("s")
+                if action_type not in CA_TYPES:
+                    if values:
+                        raise ProviderError(
+                            f"Unsupported corporate-action collection: {collection}",
+                            systemic=True,
+                        )
+                    continue
                 for raw in values:
-                    if not isinstance(raw, Mapping): continue
+                    if not isinstance(raw, Mapping):
+                        raise ProviderError("Malformed corporate-action event.", systemic=True)
                     normalized = normalize_corporate_action(raw, action_type, self.now())
                     key = normalized["provider_event_id"]
-                    if key in records and records[key] != normalized:
-                        raise RuntimeError(f"Corporate-action identity conflict: {key}")
+                    if key in records:
+                        raise RuntimeError(f"Duplicate corporate-action provider event id: {key}")
                     records[key] = normalized
-            page += 1; token = payload.get("next_page_token")
+                    page_event_ids.append(key)
+            next_token = payload.get("next_page_token")
+            if next_token is not None and (not isinstance(next_token, str) or not next_token):
+                raise ProviderError("Malformed corporate-action page token.", systemic=True)
+            if next_token is not None and next_token in seen_tokens:
+                raise ProviderError("Repeated corporate-action page token.", systemic=True)
+            page += 1
+            page_core = {
+                "page": page,
+                "request_fingerprint": request_fp,
+                "input_page_token": token,
+                "terminal_page": next_token is None,
+                "next_page_token_fingerprint": (
+                    fingerprint({"page_token": next_token}) if next_token else None
+                ),
+                "provider_event_ids": sorted(page_event_ids),
+                "provider_payload_fingerprint": fingerprint(payload),
+            }
+            pages.append({**page_core, "page_evidence_fingerprint": fingerprint(page_core)})
+            if next_token is not None:
+                seen_tokens.add(next_token)
+            token = next_token
             self.sync_provider_counts(state)
             state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
             if not token: break
-        path = self.root / "corporate_actions" / "alpaca_us_equity_actions.jsonl.gz"
-        lines = b"".join(canonical_bytes(records[key]) + b"\n" for key in sorted(records))
-        atomic_bytes(path, gzip.compress(lines, mtime=0))
-        manifest = {"schema_version": SCHEMA_VERSION, "provider": PROVIDER, "requested_start": requested["requested_start"], "requested_end": requested["requested_end"], "supported_types": list(CA_TYPES), "event_count": len(records), "sha256": sha256_path(path), "pages": page, "completed_at_utc": self.now().isoformat()}
-        manifest["manifest_fingerprint"] = fingerprint(manifest); atomic_json(path.with_suffix(path.suffix + ".manifest.json"), manifest)
+        ordered = [records[key] for key in sorted(records)]
+        action_fp = fingerprint(ordered)
+        path = self.root / "corporate_actions" / "artifacts" / f"{action_fp}.jsonl.gz"
+        atomic_bytes(path, encode_gzip_jsonl(ordered))
+        population = self._provider_population()
+        resolution = corporate_action_identity_resolution(ordered, population)
+        resolution_fp = resolution["identity_resolution_fingerprint"]
+        resolution_path = atomic_content_addressed_json(
+            self.root / "corporate_actions" / "identity_resolution",
+            resolution_fp,
+            resolution,
+            label="corporate-action identity-resolution",
+        )
+        manifest_core = {
+            "schema_version": CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION,
+            "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
+            "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+            "provider": PROVIDER,
+            "requested_start": requested["requested_start"],
+            "requested_end": requested["requested_end"],
+            "supported_types": list(CA_TYPES),
+            "request_fingerprint": request_fp,
+            "event_count": len(ordered),
+            "artifact_sha256": sha256_path(path),
+            "corporate_action_artifact_fingerprint": action_fp,
+            "page_count": page,
+            "page_evidence": pages,
+            "terminal_page_token": None,
+            "security_master_fingerprint": population["security_master_fingerprint"],
+            "provider_population_fingerprint": population["provider_population_fingerprint"],
+            "identity_resolution_fingerprint": resolution_fp,
+            "identity_resolution_sha256": sha256_path(resolution_path),
+        }
+        manifest = {**manifest_core, "manifest_fingerprint": fingerprint(manifest_core)}
+        manifest_path = atomic_content_addressed_json(
+            self.root / "corporate_actions" / "manifests",
+            manifest["manifest_fingerprint"],
+            manifest,
+            label="corporate-action manifest",
+        )
+        state["corporate_action_artifact_fingerprint"] = action_fp
+        state["corporate_action_manifest_fingerprint"] = manifest["manifest_fingerprint"]
+        state["corporate_action_identity_resolution_fingerprint"] = resolution_fp
+        state["corporate_action_artifact_path"] = str(path.relative_to(self.root))
+        state["corporate_action_manifest_path"] = str(manifest_path.relative_to(self.root))
+        state["corporate_action_identity_resolution_path"] = str(
+            resolution_path.relative_to(self.root)
+        )
         state["corporate_action_status"] = "COMPLETE"
 
     def finalize(self, state: dict[str, Any]) -> None:
-        master_path = self.root / "security_master" / "alpaca_us_equity_assets.json.gz"
-        master = json.loads(gzip.decompress(master_path.read_bytes()))
-        for asset in master["assets"]:
-            observed = state.get("observed_ranges", {}).get(asset["provider_asset_id"])
-            if observed: asset["first_observed_bar"], asset["last_observed_bar"] = observed
-            asset["provenance_fingerprint"] = fingerprint({k: v for k, v in asset.items() if k != "provenance_fingerprint"})
-        master["manifest_fingerprint"] = fingerprint({k: v for k, v in master.items() if k != "manifest_fingerprint"})
-        atomic_bytes(master_path, gzip.compress(json.dumps(master, sort_keys=True, separators=(",", ":")).encode(), mtime=0))
-        atomic_json(master_path.with_suffix(master_path.suffix + ".manifest.json"), {"sha256": sha256_path(master_path), "security_count": len(master["assets"]), "active_count": sum(i["active"] for i in master["assets"]), "inactive_count": sum(not i["active"] for i in master["assets"]), "provenance_fingerprint": master["manifest_fingerprint"]})
+        population = self._provider_population()
+        coverage = observational_coverage_evidence(state, population)
+        coverage_path = atomic_content_addressed_json(
+            self.root / "manifests" / "observational_coverage",
+            coverage["observational_coverage_fingerprint"],
+            coverage,
+            label="observational-coverage",
+        )
+        state["observational_coverage_fingerprint"] = coverage[
+            "observational_coverage_fingerprint"
+        ]
+        state["observational_coverage_path"] = str(coverage_path.relative_to(self.root))
         state["status"] = "COMPLETE"; state["stage"] = "COMPLETE"; state["current_partition"] = None
         state["training_eligibility"] = "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE"; state["completed_at_utc"] = self.now().isoformat()
 

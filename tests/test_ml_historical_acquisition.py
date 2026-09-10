@@ -19,7 +19,8 @@ from qpx_bot.ml_historical_acquisition import (
     Acquisition, AlpacaHistoricalClient, CooperativeStop, ProviderError, RateGovernor, aggregate_bars, atomic_bytes,
     atomic_json, batch_descriptor, build_security_master, calculate_range,
     canonical_provider_asset_id, classify_bar, encode_gzip_csv, fingerprint, initial_estimate,
-    classify_transport_error, load_provider_population, normalize_corporate_action,
+    classify_transport_error, corporate_action_identity_resolution,
+    load_provider_population, normalize_corporate_action, observational_coverage_evidence,
     page_evidence, partition_population_disposition, read_gzip_csv, request_identity, sha256_path,
     coexistence_capacity, status, validate_bar,
 )
@@ -108,6 +109,29 @@ class RejectedTokenClient(FakeClient):
         if params.get("page_token"):
             raise ProviderError("expired page token", status=400)
         return {"bars": {}, "next_page_token": None}
+
+
+class CorporateActionClient(FakeClient):
+    def __init__(self, *, duplicate=False):
+        super().__init__()
+        self.duplicate = duplicate
+
+    def request(self, url, params):
+        self.request_count += 1
+        self.calls.append((url, dict(params)))
+        if params.get("page_token") == "page-2":
+            return {
+                "corporate_actions": {
+                    "cash_dividends": [{"id": "event-1" if self.duplicate else "event-2", "symbol": "AAA", "ex_date": "2021-01-04"}],
+                },
+                "next_page_token": None,
+            }
+        return {
+            "corporate_actions": {
+                "name_changes": [{"id": "event-1", "symbol": "AAA", "effective_date": "2020-01-02"}],
+            },
+            "next_page_token": "page-2",
+        }
 
 
 def resume_identity(symbols=("AAA",), asset_ids=("a",)):
@@ -651,28 +675,117 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
     def test_finalize_reports_complete_without_training_qualification(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            master = {
-                "schema_version": 1,
-                "provider": "alpaca",
-                "assets": build_security_master([asset()], [asset("id-z", "ZZZ", "inactive")], NOW),
-            }
-            master_path = root / "security_master/alpaca_us_equity_assets.json.gz"
-            atomic_bytes(
-                master_path,
-                gzip.compress(
-                    json.dumps(master, sort_keys=True, separators=(",", ":")).encode(),
-                    mtime=0,
+            master_path = write_security_master(
+                root,
+                build_security_master(
+                    [asset()], [asset("id-z", "ZZZ", "inactive")], NOW
                 ),
             )
-            state = {"observed_ranges": {}}
+            master_before = master_path.read_bytes()
+            state = {
+                "observed_ranges": {
+                    "id-a": [
+                        "2026-09-01T09:30:00-04:00",
+                        "2026-09-03T15:45:00-04:00",
+                    ]
+                }
+            }
             acquisition = Acquisition(root, FakeClient(), now=lambda: NOW)
             acquisition.finalize(state)
+            self.assertEqual(master_path.read_bytes(), master_before)
+            coverage_path = root / state["observational_coverage_path"]
+            coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                coverage["observational_coverage_fingerprint"],
+                state["observational_coverage_fingerprint"],
+            )
             self.assertEqual(state["status"], "COMPLETE")
             self.assertEqual(state["stage"], "COMPLETE")
             self.assertEqual(
                 state["training_eligibility"],
                 "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE",
             )
+
+    def test_coverage_changes_do_not_change_provider_population_identity(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset()], [], NOW))
+            population = load_provider_population(root)
+            first = observational_coverage_evidence({"observed_ranges": {}}, population)
+            second = observational_coverage_evidence({
+                "observed_ranges": {"id-a": [
+                    "2026-09-01T09:30:00-04:00", "2026-09-03T15:45:00-04:00",
+                ]},
+            }, population)
+            self.assertNotEqual(
+                first["observational_coverage_fingerprint"],
+                second["observational_coverage_fingerprint"],
+            )
+            self.assertEqual(
+                first["provider_population_fingerprint"],
+                second["provider_population_fingerprint"],
+            )
+
+    def test_corporate_action_identity_resolution_never_guesses(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(
+                root,
+                build_security_master(
+                    [asset("a", "AAA"), asset("d1", "DUP"), asset("d2", "DUP")],
+                    [], NOW,
+                ),
+            )
+            population = load_provider_population(root)
+            records = [
+                normalize_corporate_action({"id": "one", "symbol": "AAA"}, "name_change", NOW),
+                normalize_corporate_action({"id": "two", "symbol": "DUP"}, "cash_dividend", NOW),
+            ]
+            result = corporate_action_identity_resolution(records, population)
+            by_id = {item["provider_event_id"]: item for item in result["records"]}
+            self.assertEqual(by_id["one"]["provider_asset_id"], "a")
+            self.assertEqual(by_id["two"]["outcome"], "UNRESOLVED_CORPORATE_ACTION_IDENTITY")
+            self.assertEqual(by_id["two"]["excluded_provider_asset_ids"], ["d1", "d2"])
+
+    def test_corporate_action_pagination_and_artifacts_are_complete(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset()], [], NOW))
+            state = {
+                "requested_range": {"requested_start": "2016-09-03", "requested_end": "2026-09-03"},
+                "api_request_count": 0, "retry_count": 0,
+            }
+            client = CorporateActionClient()
+            acquisition = Acquisition(
+                root, client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET", "live_qpx_active": False},
+            )
+            acquisition._state_defaults(state)
+            acquisition.acquire_corporate_actions(state)
+            manifest = json.loads((root / state["corporate_action_manifest_path"]).read_text())
+            self.assertEqual(manifest["page_count"], 2)
+            self.assertEqual(manifest["event_count"], 2)
+            self.assertFalse(manifest["page_evidence"][0]["terminal_page"])
+            self.assertTrue(manifest["page_evidence"][1]["terminal_page"])
+            self.assertIsNone(manifest["terminal_page_token"])
+            self.assertEqual(state["corporate_action_status"], "COMPLETE")
+
+    def test_duplicate_corporate_action_provider_id_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset()], [], NOW))
+            state = {
+                "requested_range": {"requested_start": "2016-09-03", "requested_end": "2026-09-03"},
+                "api_request_count": 0, "retry_count": 0,
+            }
+            acquisition = Acquisition(
+                root, CorporateActionClient(duplicate=True), now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET", "live_qpx_active": False},
+            )
+            acquisition._state_defaults(state)
+            with self.assertRaisesRegex(RuntimeError, "Duplicate corporate-action"):
+                acquisition.acquire_corporate_actions(state)
+            self.assertNotEqual(state.get("corporate_action_status"), "COMPLETE")
 
     def test_status_preserves_complete_not_qualified_state(self):
         with tempfile.TemporaryDirectory() as folder:
