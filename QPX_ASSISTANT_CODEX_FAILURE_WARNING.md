@@ -63,6 +63,9 @@ So the root cause is straightforward: **an over-conservative design decision dur
 
 This warning does NOT replace AGENTS.md or existing QPX governance.
 
+Both ChatGPT and Codex must treat `AGENTS.md` and
+`QPX_CONTEXT_CONTINUITY_RULE.md` as completion criteria, not optional context.
+
 It exists because ChatGPT and Codex have repeatedly FAILED TO FOLLOW the
 governance already present.
 

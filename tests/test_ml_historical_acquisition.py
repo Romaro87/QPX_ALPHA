@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from qpx_bot.ml_historical_acquisition import (
     ACQUISITION_PROVENANCE_VERSION, ADJUSTMENT, BAR_COLUMNS, BAR_OUTCOMES, BARS_URL,
+    CA_TYPES,
     CHECKPOINT_SCHEMA_VERSION, DEFAULT_ROOT, FEED, LIVE_REQUESTS_PER_MINUTE, PAGE_LIMIT,
     LEGACY_PROVIDER_INPUT_SEMANTIC_VERSION, PROVIDER_INPUT_SEMANTIC_VERSION,
     QUALIFIED_FROZEN_ROOT, TIMEFRAME,
@@ -22,7 +23,8 @@ from qpx_bot.ml_historical_acquisition import (
     classify_transport_error, corporate_action_identity_resolution,
     encode_gzip_jsonl,
     load_provider_population, normalize_corporate_action, observational_coverage_evidence,
-    page_evidence, partition_population_disposition, read_gzip_csv, request_identity, sha256_path,
+    page_evidence, partition_population_disposition, read_gzip_csv, read_gzip_jsonl,
+    request_identity, sha256_path,
     coexistence_capacity, status, validate_bar,
 )
 from qpx_bot.historical_market_calendar import FROZEN_CALENDAR_CONTENT_FINGERPRINT, load_frozen_historical_calendar
@@ -114,13 +116,16 @@ class RejectedTokenClient(FakeClient):
 
 
 class CorporateActionClient(FakeClient):
-    def __init__(self, *, duplicate=False):
+    def __init__(self, *, duplicate=False, payloads=None):
         super().__init__()
         self.duplicate = duplicate
+        self.payloads = list(payloads) if payloads is not None else None
 
     def request(self, url, params):
         self.request_count += 1
         self.calls.append((url, dict(params)))
+        if self.payloads is not None:
+            return self.payloads.pop(0)
         if params.get("page_token") == "page-2":
             return {
                 "corporate_actions": {
@@ -511,6 +516,21 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
         action = normalize_corporate_action({"id": "e", "symbol": "AAA", "ex_date": "2020-01-02", "record_date": "2020-01-03", "payable_date": "2020-01-04", "process_date": "2020-01-05"}, "cash_dividend", NOW)
         self.assertEqual(action["ex_or_effective_date"], "2020-01-02"); self.assertEqual(action["process_date"], "2020-01-05")
 
+    def test_corporate_action_symbol_evidence_is_optional_and_canonical(self):
+        action = normalize_corporate_action(
+            {"id": "event", "old_symbol": " old ", "new_symbol": " new "},
+            "name_change", NOW,
+        )
+        self.assertIsNone(action["symbol"])
+        self.assertEqual(action["old_symbol"], "OLD")
+        self.assertEqual(action["new_symbol"], "NEW")
+        with self.assertRaisesRegex(ValueError, "provider event id"):
+            normalize_corporate_action({"new_symbol": "AAA"}, "name_change", NOW)
+        with self.assertRaisesRegex(ValueError, "symbol must be canonical text"):
+            normalize_corporate_action(
+                {"id": "event", "symbol": ["AAA"]}, "name_change", NOW,
+            )
+
     def test_corporate_action_dates_fail_closed_when_not_canonical(self):
         with self.assertRaises(ValueError):
             normalize_corporate_action(
@@ -877,6 +897,34 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             self.assertEqual(by_id["two"]["outcome"], "UNRESOLVED_CORPORATE_ACTION_IDENTITY")
             self.assertEqual(by_id["two"]["excluded_provider_asset_ids"], ["d1", "d2"])
 
+    def test_corporate_action_old_and_new_symbols_resolve_without_primary_symbol(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(
+                root,
+                build_security_master(
+                    [asset("a", "AAA"), asset("d1", "DUP"), asset("d2", "DUP")],
+                    [], NOW,
+                ),
+            )
+            population = load_provider_population(root)
+            resolved = corporate_action_identity_resolution([
+                normalize_corporate_action(
+                    {"id": "resolved", "new_symbol": "AAA"}, "name_change", NOW,
+                ),
+            ], population)["records"][0]
+            ambiguous = corporate_action_identity_resolution([
+                normalize_corporate_action(
+                    {"id": "ambiguous", "old_symbol": "DUP", "effective_date": "2021-01-04"},
+                    "name_change", NOW,
+                ),
+            ], population)["records"][0]
+            self.assertEqual(resolved["outcome"], "RESOLVED_PROVIDER_IDENTITY")
+            self.assertEqual(resolved["provider_asset_id"], "a")
+            self.assertEqual(ambiguous["outcome"], "UNRESOLVED_CORPORATE_ACTION_IDENTITY")
+            self.assertEqual(ambiguous["excluded_provider_asset_ids"], ["d1", "d2"])
+            self.assertEqual(ambiguous["bounded_dates"], ["2021-01-04"])
+
     def test_corporate_action_pagination_and_artifacts_are_complete(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -899,6 +947,45 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             self.assertTrue(manifest["page_evidence"][1]["terminal_page"])
             self.assertIsNone(manifest["terminal_page_token"])
             self.assertEqual(state["corporate_action_status"], "COMPLETE")
+            self.assertEqual(client.calls[0][1]["region"], "us")
+            self.assertEqual(client.calls[0][1]["data_quality"], "complete")
+
+    def test_corporate_action_without_primary_symbol_and_capital_gains_are_collected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset()], [], NOW))
+            state = {
+                "requested_range": {"requested_start": "2016-09-03", "requested_end": "2026-09-03"},
+                "api_request_count": 0, "retry_count": 0,
+            }
+            client = CorporateActionClient(payloads=[{
+                "corporate_actions": {
+                    "capital_gains_distributions": [{
+                        "id": "gain-event", "new_symbol": "AAA",
+                        "ex_date": "2021-01-04",
+                    }],
+                    "reorganizations": [{"id": "unbounded-event", "process_date": "2021-01-05"}],
+                },
+                "next_page_token": None,
+            }])
+            acquisition = Acquisition(
+                root, client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET", "live_qpx_active": False},
+            )
+            acquisition._state_defaults(state)
+            acquisition.acquire_corporate_actions(state)
+            records = read_gzip_jsonl(root / state["corporate_action_artifact_path"])
+            resolution = json.loads(
+                (root / state["corporate_action_identity_resolution_path"]).read_text()
+            )
+            self.assertIn("capital_gains_distribution", CA_TYPES)
+            self.assertEqual(len(records), 2)
+            by_id = {item["provider_event_id"]: item for item in resolution["records"]}
+            self.assertEqual(by_id["gain-event"]["outcome"], "RESOLVED_PROVIDER_IDENTITY")
+            self.assertEqual(
+                by_id["unbounded-event"]["outcome"],
+                "UNRESOLVED_CORPORATE_ACTION_IDENTITY",
+            )
 
     def test_duplicate_corporate_action_provider_id_fails_closed(self):
         with tempfile.TemporaryDirectory() as folder:

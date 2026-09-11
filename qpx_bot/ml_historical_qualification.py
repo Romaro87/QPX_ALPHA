@@ -47,7 +47,7 @@ from qpx_bot.paper_state import read_checksummed_state
 
 
 QUALIFICATION_SCHEMA_VERSION = 1
-QUALIFICATION_SEMANTIC_VERSION = "QPX_ML_HISTORICAL_QUALIFICATION_V1"
+QUALIFICATION_SEMANTIC_VERSION = "QPX_ML_HISTORICAL_QUALIFICATION_V2"
 LEGACY_AUDIT_SCHEMA_VERSION = 1
 PROVIDER_SCOPED_V1_IDENTITY = "ALPACA_ENUMERATED_US_EQUITY_PROVIDER_POPULATION_V1"
 MISSINGNESS_POLICY = "UNAVAILABLE_OBSERVATION_UNKNOWN_REASON"
@@ -551,8 +551,10 @@ def _validate_corporate_actions(root: Path, state: Mapping[str, Any], population
     expected_resolution = corporate_action_identity_resolution(records, population)
     unresolved_unbounded = any(
         record.get("outcome") == "UNRESOLVED_CORPORATE_ACTION_IDENTITY"
-        and not record.get("excluded_provider_asset_ids")
-        and not record.get("bounded_dates")
+        and (
+            not record.get("excluded_provider_asset_ids")
+            or not record.get("bounded_dates")
+        )
         for record in resolution.get("records", ())
     )
     if (

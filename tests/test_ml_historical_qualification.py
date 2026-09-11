@@ -276,6 +276,28 @@ class HistoricalQualificationTests(unittest.TestCase):
             self.assertEqual(result["content"]["result"], "NOT_TRAINING_ELIGIBLE")
             self.assertIn("CORPORATE_ACTION_EVIDENCE_INVALID", result["content"]["reasons"])
 
+    def test_date_only_unresolved_corporate_identity_is_not_security_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.fixture(root, corporate_actions={
+                "reorganizations": [{
+                    "id": "date-only-event", "process_date": "2021-01-04",
+                }],
+            })
+            result = qualify_historical_dataset(root, observed_at=NOW)
+            self.assertEqual(result["content"]["result"], "NOT_TRAINING_ELIGIBLE")
+            self.assertIn("CORPORATE_ACTION_EVIDENCE_INVALID", result["content"]["reasons"])
+
+    def test_security_only_unresolved_corporate_identity_is_not_time_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.fixture(root, corporate_actions={
+                "reorganizations": [{"id": "security-only-event", "symbol": "DUP"}],
+            })
+            result = qualify_historical_dataset(root, observed_at=NOW)
+            self.assertEqual(result["content"]["result"], "NOT_TRAINING_ELIGIBLE")
+            self.assertIn("CORPORATE_ACTION_EVIDENCE_INVALID", result["content"]["reasons"])
+
     def test_ambiguous_corporate_identity_is_excluded_without_guessing(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

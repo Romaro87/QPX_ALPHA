@@ -66,9 +66,9 @@ LEGACY_PROVIDER_INPUT_SEMANTIC_VERSION = "ALPACA_SIP_RAW_15M_HISTORICAL_V1"
 REJECTION_EVIDENCE_SCHEMA_VERSION = 1
 PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION = 1
 OBSERVATIONAL_COVERAGE_SCHEMA_VERSION = 1
-CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION = 2
+CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION = 3
 CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 1
-CORPORATE_ACTION_SEMANTIC_VERSION = "ALPACA_CORPORATE_ACTIONS_HISTORICAL_V2"
+CORPORATE_ACTION_SEMANTIC_VERSION = "ALPACA_CORPORATE_ACTIONS_HISTORICAL_V3"
 BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
@@ -96,6 +96,7 @@ CA_TYPES = (
     "cash_merger", "stock_merger", "stock_and_cash_merger", "unit_split",
     "cash_dividend", "redemption", "name_change", "worthless_removal",
     "rights_distribution", "contract_adjustment", "partial_call", "reorganization",
+    "capital_gains_distribution",
 )
 BAR_COLUMNS = (
     "provider_asset_id", "observation_symbol", "market_timestamp",
@@ -898,9 +899,20 @@ def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, _acquir
     if action_type not in CA_TYPES:
         raise ValueError("Corporate action type is unsupported.")
     action_id = str(raw.get("id", "")).strip()
-    symbol = str(raw.get("symbol", "")).strip().upper()
-    if not action_id or not symbol:
-        raise ValueError("Corporate action requires authoritative id and symbol.")
+    if not action_id:
+        raise ValueError("Corporate action requires authoritative provider event id.")
+
+    def optional_symbol(name: str) -> str | None:
+        value = raw.get(name)
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f"Corporate action {name} must be canonical text.")
+        return value.strip().upper() or None
+
+    symbol = optional_symbol("symbol")
+    old_symbol = optional_symbol("old_symbol")
+    new_symbol = optional_symbol("new_symbol")
     date_values: dict[str, str | None] = {}
     for output_name, source_names in {
         "announcement_or_observation_date": ("announcement_date",),
@@ -924,8 +936,8 @@ def normalize_corporate_action(raw: Mapping[str, Any], action_type: str, _acquir
         "provider_event_id": action_id, "action_type": action_type,
         "symbol": symbol, "provider": PROVIDER,
         **date_values,
-        "old_symbol": raw.get("old_symbol"),
-        "new_symbol": raw.get("new_symbol"), "rate": raw.get("rate"),
+        "old_symbol": old_symbol,
+        "new_symbol": new_symbol, "rate": raw.get("rate"),
         "cash": raw.get("cash"),
         "raw_provider_fingerprint": fingerprint(raw),
     }
@@ -2033,7 +2045,8 @@ class Acquisition:
         requested = state["requested_range"]
         params = {
             "types": ",".join(CA_TYPES), "start": requested["requested_start"],
-            "end": requested["requested_end"], "limit": "1000", "sort": "asc",
+            "end": requested["requested_end"], "region": "us",
+            "data_quality": "complete", "limit": "1000", "sort": "asc",
         }
         request_core = {
             "provider": PROVIDER,

@@ -59,13 +59,30 @@ The purpose of this rule is to prevent another QPX context-loss event from forci
 
 **DO NOT REINTERPRET. DO NOT INVENT MISSING HISTORY.**
 
+## Existing rules are completion criteria
+
+Existing QPX rules and governed contracts are acceptance criteria for ChatGPT
+QPX work. Before issuing implementation/Codex instructions or declaring a task
+complete, identify and apply the relevant existing rules. Retrieve and verify
+the higher-level rule when a local assumption conflicts with it.
+
+When fixing a known defect class, check semantically affected sibling paths and
+downstream consumers, including validators, qualifiers, persistence, runtime
+entry points, tests, and fixtures; do not stop at the immediate file. Reuse
+existing governed mechanisms and do not create more governance to compensate
+for ignoring existing governance. If a tool or platform limitation prevents
+compliance, state it immediately instead of silently substituting a weaker
+workflow.
+
 <!-- QPX_PER_PUSH_RECOVERY_RULE_20260811 -->
 ## PER-PUSH RECOVERY PROMPT RULE
 **STATUS: USER_CONFIRMED — 2026-08-11**
 Every QPX push must include a freshly updated `QPX_RECOVERY_PROMPT.md`.
 Substantive milestones also update `QPX_RECOVERY_DECISION_LEDGER.md`.
 Never use `git add .` for this purpose and never silently stage unrelated work.
-Verify local HEAD equals remote main after every push.
+After every push, verify local HEAD equals the authorized remote push target.
+For review-branch work, verify that governed review branch and leave `main`
+untouched.
 This rule does not replace the five-exchange context-length warning.
 Prefer terminal-created files and Git checkpoints over browser downloads or browser refreshes.
 

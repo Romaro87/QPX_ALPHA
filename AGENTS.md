@@ -38,11 +38,23 @@ FOCUSED TESTS + AUTOMATIC LARGE REGRESSION BUNDLE.
 
 Do not reinterpret this rule into another standing broad-test requirement.
 
+Existing QPX rules and governed semantic contracts are acceptance criteria, not
+background reading. A local precondition or obsolete implementation assumption
+cannot override a higher-level governed contract. "Directly affected" is
+determined by semantic impact, not only imports or the file being edited.
+
 ### Directly affected contract tests
 
 When a production interface, evidence contract, state schema, or governed behavior changes, update every directly affected test and fixture in the same change. The change is incomplete while any of them remain stale or failing.
 
 Before completion, identify the directly affected test call sites and fixtures, then run and require passage of the focused tests and directly affected test modules required by QPX_TEST_SCOPE_RULE_V1. This does not authorize broad regression suites merely because a shared contract changed; classify unrelated failures separately and do not silently fold them into the current task.
+
+For a known defect class, inspect directly affected sibling ingestion/processing
+paths, downstream validators and qualifiers, persistence/evidence consumers,
+runtime entry points, tests, and fixtures for the obsolete assumption. Reuse any
+existing governed uncertainty, failure, exclusion, recovery, or authority
+mechanism instead of inventing parallel behavior. Do not create another process
+rule to compensate for failure to follow an existing rule.
 
 ---
 
@@ -98,7 +110,11 @@ Every Codex completion report for implementation work must include:
 
 RISK CLASS: LOW | MEDIUM | HIGH
 PRE-CODE GATE: SATISFIED | NOT REQUIRED | VIOLATED
+RULE COMPLIANCE: PASS | VIOLATED
+DIRECTLY AFFECTED SURFACES CHECKED: <concise list>
 
-If violated, do not represent the task as complete.
+If an applicable rule is contradicted, skipped, or only partly implemented, the
+task is incomplete even when focused tests pass. If rule compliance or the
+pre-code gate is violated, do not represent the task as complete.
 
 ---
