@@ -143,3 +143,12 @@
 - **VERIFIED_ARTIFACT:** Page-1 SHA256: `a5ee1dad88a8ec810080adeb6a9073069d79a0b76a9b7d799f8200f6e7b6acd4`.
 - **VERIFIED_ARTIFACT:** Historical reservoir remained 7370 partitions and 383082447 rows.
 - **TRAINING AUTHORITY:** Unchanged; training is not authorized.
+
+## 2026-09-11T13:09:31-05:00 — Correction and actual CA restart/resume runtime proof
+
+- **CORRECTION:** The earlier runtime statement attached to the durable-page source correction did not independently prove page-1-to-page-2 restart continuation because 349 validated old-format provider pages had already been migrated into durable bundles before that observation.
+- **VERIFIED_ARTIFACT / RUNTIME:** after an explicit process stop/restart, terminal durable pages 1-364 remained byte-identical and QPX recovered to corporate-action COMPLETE without creating another provider page.
+- **VERIFIED_ARTIFACT:** The frozen pre-restart durable chain contained 364 pages with chain SHA256 `d3c6b985aa263c6f8d5ce96baf846c041e154336a26182163684bb9ef97920d0`.
+- **VERIFIED_ARTIFACT:** Pre-existing durable pages remained byte-identical across the explicit restart.
+- **VERIFIED_ARTIFACT:** Historical reservoir remained 7370 partitions and 383082447 rows.
+- **TRAINING AUTHORITY:** Unchanged; training remains unauthorized.

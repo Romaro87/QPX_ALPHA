@@ -1654,3 +1654,11 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **VERIFIED_ARTIFACT:** Page-1 SHA256 `a5ee1dad88a8ec810080adeb6a9073069d79a0b76a9b7d799f8200f6e7b6acd4`.
 - **VERIFIED_ARTIFACT:** Historical bars remained 7370 partitions / 383082447 rows.
 - **TRAINING:** Not authorized.
+
+## Actual Corporate-Action Restart Proof — 2026-09-11T13:09:31-05:00
+
+- **CORRECTION:** The prior page-1/page-2 observation was not sufficient restart evidence because the first 349 durable bundles had been created by validated migration before the restart.
+- **VERIFIED_ARTIFACT / RUNTIME:** after an explicit process stop/restart, terminal durable pages 1-364 remained byte-identical and QPX recovered to corporate-action COMPLETE without creating another provider page.
+- **VERIFIED_ARTIFACT:** Frozen durable chain before restart: 364 pages; SHA256 `d3c6b985aa263c6f8d5ce96baf846c041e154336a26182163684bb9ef97920d0`.
+- **VERIFIED_ARTIFACT:** Protected historical reservoir remained 7370 partitions / 383082447 rows.
+- **TRAINING:** Not authorized.

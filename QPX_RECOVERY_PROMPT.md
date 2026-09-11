@@ -488,3 +488,15 @@ Corporate-action acquisition now persists each successful provider page as a sel
 Page-1 SHA256: `a5ee1dad88a8ec810080adeb6a9073069d79a0b76a9b7d799f8200f6e7b6acd4`.
 
 Historical reservoir remains 7370 partitions and 383082447 rows. Training remains unauthorized.
+
+## 2026-09-11T13:09:31-05:00 — Actual corporate-action restart/resume proof
+
+Correction: the earlier page-1/page-2 runtime statement was not sufficient proof because 349 validated legacy pages had already been migrated before that restart observation.
+
+**VERIFIED RUNTIME:** after an explicit process stop/restart, terminal durable pages 1-364 remained byte-identical and QPX recovered to corporate-action COMPLETE without creating another provider page.
+
+Frozen pre-restart durable chain: 364 pages.
+Chain SHA256: `d3c6b985aa263c6f8d5ce96baf846c041e154336a26182163684bb9ef97920d0`.
+
+Historical reservoir remains 7370 partitions and 383082447 rows.
+Training remains unauthorized.
