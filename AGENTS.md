@@ -1,4 +1,12 @@
 
+# MANDATORY FIRST STEP — QPX CODEX COMPLIANCE PROMPT
+
+Before interpreting, planning, or acting on **any** task in this repository,
+read and apply [`QPX_CODEX_COMPLIANCE_PROMPT.md`](QPX_CODEX_COMPLIANCE_PROMPT.md).
+Its pre-action check, sequencing rules, evidence standards, completion audit,
+and reporting requirements are binding acceptance criteria. Merely mentioning
+or linking the prompt without applying it does not satisfy this requirement.
+
 ---
 
 ## QPX_TEST_SCOPE_RULE_V1 - BINDING STANDING RULE

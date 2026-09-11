@@ -431,3 +431,15 @@ first page; verify the new staged page/checkpoint and, if another transient erro
 occurs, verify restart requests the saved next-page token rather than page 1.
 Then validate terminal CA evidence before calendar repair and independent
 qualification. Do not start training.
+
+## Mandatory Codex compliance prompt — 2026-09-11
+
+**USER_REQUIREMENT / VERIFIED_REPO:** `QPX_CODEX_COMPLIANCE_PROMPT.md` is now a
+binding pre-task process for QPX Codex work. `AGENTS.md` points to it as the
+mandatory first step before interpreting, planning, or acting on any repository
+task. It requires governed sequencing, proportional testing, exact runtime
+evidence, per-push continuity, honest incomplete/blocked reporting, and a
+mandatory completion audit.
+
+**NEXT EXACT STEP:** Every future QPX task must begin by loading the compliance
+prompt through the `AGENTS.md` pointer and applying it as acceptance criteria.

@@ -1606,3 +1606,14 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   durable page/checkpoint identity, and prove a later retry resumes from its
   next token. Then validate terminal CA artifacts before calendar repair and
   independent qualification.
+
+## Binding Codex Compliance Prompt — 2026-09-11
+
+- **USER_REQUIREMENT:** Add the corrective compliance prompt to Git and require
+  a pointer to it before every task.
+- **VERIFIED_REPO:** `QPX_CODEX_COMPLIANCE_PROMPT.md` governs Codex's pre-action
+  checks, sequencing, directly affected scope, evidence, Git/continuity,
+  completion audit, and reporting. `AGENTS.md` makes reading and applying it the
+  mandatory first step for every repository task.
+- **VERIFIED_REPO:** This strengthens application of existing QPX governance; it
+  does not authorize broader tests, additional gates, or parallel bureaucracy.

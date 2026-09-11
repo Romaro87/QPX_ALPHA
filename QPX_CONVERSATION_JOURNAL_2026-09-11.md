@@ -89,3 +89,14 @@
 - **NEXT EXACT ACTION:** When Alpaca returns a page, validate the staged page and
   checkpoint count/fingerprints, then verify any subsequent retry resumes from
   the preserved next-page token. Do not start training.
+
+## 2026-09-11 — Binding corrective Codex process
+
+- **USER_REQUIREMENT:** Put the corrective compliance prompt into Git and make
+  it mandatory before any future QPX task.
+- **VERIFIED_REPO:** Added `QPX_CODEX_COMPLIANCE_PROMPT.md` and a mandatory
+  first-step pointer at the top of `AGENTS.md`. The prompt requires exact rule
+  application, sequencing, proportional tests, runtime proof, honest status,
+  same-push continuity, and completion auditing.
+- **RUNTIME:** No service or runtime state was changed for this documentation-
+  only governance task.
