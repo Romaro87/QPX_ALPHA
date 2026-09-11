@@ -335,3 +335,44 @@ Focused lifecycle/V3/calendar-repair tests passed 38/38. Continue to apply
 hardening into a new blocker. Preserve downloaded evidence and use the existing
 capacity/coexistence arbitration when separately authorized to resume historical
 work.
+
+<!-- QPX_SEPTEMBER11_CORPORATE_ACTION_IDENTITY_RESTORE -->
+# SEPTEMBER 11 CORPORATE-ACTION IDENTITY RESTORE
+
+**VERIFIED_REPO:** Work continues on
+`qpx-shadow-matrix-v1-review-2026-08-12`. The prior remote review HEAD was
+`e0371a70b06328df5edcbd1b423048ca9b57de6b`; the corporate-action/rule
+implementation commit is `b184d18423fcb842800faeae758a6a46ac591c3f`.
+Main remains protected.
+
+**VERIFIED_ARTIFACT:** Historical bars are complete and preserved at
+7,370/7,370 partitions and 383,082,447 rows. The former corporate-action run
+failed at the obsolete normalizer precondition with
+`ValueError: Corporate action requires authoritative id and symbol.` The exact
+offending raw provider record remains **UNKNOWN / UNRECOVERED**.
+
+**VERIFIED_REPO:** Provider event ID remains mandatory, but primary `symbol` is
+optional. `symbol`, `old_symbol`, and `new_symbol` normalize independently and
+flow to the existing no-guess stable-identity resolver. Corporate-action
+evidence is schema 3 / `ALPACA_CORPORATE_ACTIONS_HISTORICAL_V3`; requests bind
+`region=us`, `data_quality=complete`, and include
+`capital_gains_distribution`. Qualification V2 accepts an unresolved event as
+bounded only when both excluded provider IDs and bounded dates exist.
+
+**VERIFIED_ARTIFACT:** The directly affected acquisition and qualification
+modules passed 116/116 focused tests; changed production modules compiled and
+`git diff --check` passed. Existing QPX rules and governed contracts are now
+explicit completion criteria in `AGENTS.md` and the continuity rule.
+
+**VERIFIED_ARTIFACT:** The existing acquisition service resumed with PID 451384,
+skipped all completed bars, and successfully paginated real corporate actions
+under `LIVE_COEXISTENCE`. At 2026-09-11 11:17 CDT it was alive and cooperatively
+yielding for `CLEAN_V2_DECISION_WINDOW`; corporate-action status remained
+`PENDING`, so final event and identity-resolution counts were not yet
+authoritative. Training remains unauthorized.
+
+**NEXT EXACT STEP:** Observe completion of the already-running corporate-action
+stage; validate committed CA artifact/manifest and resolved, unresolved-bounded,
+and unresolved-unbounded counts. Then proceed through the already-governed
+calendar repair and independent historical qualification path. Do not start
+training from acquisition completion.

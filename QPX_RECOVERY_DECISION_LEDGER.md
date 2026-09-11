@@ -1514,3 +1514,41 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   `year=2026/batch=00187` had already finalized before this correction: 6,888 of
   7,370 partitions complete, 358,407,648 rows, zero pending finalizations, and
   valid latest-manifest integrity. No runtime evidence was changed.
+
+## Corporate-Action Identity Acquisition and Rule Application — 2026-09-11
+
+- **VERIFIED_REPO:** Review branch predecessor was
+  `e0371a70b06328df5edcbd1b423048ca9b57de6b`; implementation commit is
+  `b184d18423fcb842800faeae758a6a46ac591c3f`.
+- **VERIFIED_ARTIFACT:** All 7,370 bar partitions and 383,082,447 rows remained
+  preserved. The failed acquisition stage was `CORPORATE_ACTIONS`, with
+  `ValueError: Corporate action requires authoritative id and symbol.`
+- **UNKNOWN / UNRECOVERED:** The exact raw provider event that triggered the
+  old exception was not persisted/recovered; do not invent its field shape.
+- **VERIFIED_REPO:** The obsolete mandatory-primary-symbol gate was removed.
+  Provider event ID remains mandatory; `symbol`, `old_symbol`, and `new_symbol`
+  are independently normalized optional evidence and the existing resolver
+  owns stable-identity resolution without guessing.
+- **VERIFIED_REPO:** Corporate-action evidence schema advanced to 3 and semantic
+  identity to `ALPACA_CORPORATE_ACTIONS_HISTORICAL_V3`. Requests explicitly bind
+  `region=us` and `data_quality=complete`, and support
+  `capital_gains_distribution`. Bar acquisition identities did not change.
+- **VERIFIED_REPO:** Historical qualification semantic identity advanced to
+  `QPX_ML_HISTORICAL_QUALIFICATION_V2`; unresolved corporate identity is bounded
+  only when both provider-ID candidates and bounded dates are nonempty.
+- **VERIFIED_ARTIFACT:** Directly affected acquisition and qualification modules
+  passed 116/116 focused tests; changed Python modules compiled and diff checks
+  passed. Acquisition still cannot issue `TRAINING_ELIGIBLE`.
+- **VERIFIED_ARTIFACT:** The service was resumed from completed bars with PID
+  451384. It successfully paginated the current provider contract in governed
+  live coexistence without bar redownload, then yielded normally for a protected
+  Clean-V2 decision window. At the 2026-09-11 11:17 CDT checkpoint, corporate
+  actions remained `PENDING`; final identity counts were not yet authoritative.
+- **USER_REQUIREMENT / VERIFIED_REPO:** Existing QPX rules are now explicit
+  acceptance criteria for Codex and ChatGPT. Semantic siblings and downstream
+  consumers define directly affected scope; existing governed mechanisms must
+  be reused, and rule compliance is mandatory in completion reports.
+- **NEXT EXACT STEP:** Let the existing service finish corporate-action evidence,
+  verify its manifest and resolved/bounded/unbounded identity counts, then follow
+  the governed calendar-repair and independent qualification sequence. Training
+  remains unauthorized.
