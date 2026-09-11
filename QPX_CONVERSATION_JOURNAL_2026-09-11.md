@@ -47,3 +47,19 @@
 - **NEXT EXACT ACTION:** Commit/push only the review branch, restart the existing
   acquisition service through systemd to load the correction, verify bars remain
   7,370/7,370 and 383,082,447 rows, and allow corporate actions to continue.
+
+### Runtime result
+
+- **VERIFIED_REPO:** Capacity correction commit
+  `a864b1048ee826c8ee127f457b72aac3012dbcbf` was pushed to the review branch.
+- **VERIFIED_ARTIFACT:** The restarted service loaded the correction and reported
+  `LIVE_COEXISTENCE`; it did not remain blocked for
+  `CLEAN_V2_DECISION_WINDOW`. Bar evidence remained 7,370/7,370 and 383,082,447
+  rows.
+- **VERIFIED_ARTIFACT:** Alpaca corporate-action requests then received repeated
+  HTTP 504 `backend request timeout`, exhausted existing bounded retries, and
+  entered the configured systemd auto-restart path. Corporate actions remain
+  `PENDING`; no training started.
+- **NEXT EXACT ACTION:** Let the existing retry path continue when provider
+  service recovers; validate final CA artifacts/identity counts before the
+  governed calendar-repair and independent-qualification steps.

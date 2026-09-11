@@ -1571,3 +1571,15 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   correction is committed/pushed, verify it loads the correction without bar
   redownload, and allow corporate-action acquisition to continue under actual
   capacity arbitration. Training remains unauthorized.
+
+### Runtime load verification
+
+- **VERIFIED_ARTIFACT:** Correction commit
+  `a864b1048ee826c8ee127f457b72aac3012dbcbf` was pushed to the review branch.
+  The systemd service loaded the corrected code, preserved 7,370/7,370 bar
+  partitions and 383,082,447 rows, and reported `LIVE_COEXISTENCE` rather than
+  `CLEAN_V2_DECISION_WINDOW` blocking.
+- **VERIFIED_ARTIFACT:** Subsequent corporate-action attempts encountered Alpaca
+  HTTP 504 `backend request timeout` and exhausted the existing bounded request
+  retries. Systemd entered its existing `Restart=on-failure` recovery; corporate
+  actions remain `PENDING`, and no training began.

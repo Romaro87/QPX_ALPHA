@@ -391,3 +391,15 @@ tests after this correction.
 the correction commit so it loads the new capacity decision, while preserving
 7,370 completed bar partitions and 383,082,447 rows. Then let corporate-action
 pagination finish; do not start training.
+
+**VERIFIED_ARTIFACT RUNTIME UPDATE:** Commit
+`a864b1048ee826c8ee127f457b72aac3012dbcbf` was pushed and loaded by the existing
+service. It reported `LIVE_COEXISTENCE`, not a clock-only decision-window stop,
+with all 7,370 partitions and 383,082,447 rows preserved. Alpaca then repeatedly
+returned HTTP 504 `backend request timeout`; bounded retries exhausted and the
+existing systemd `Restart=on-failure` recovery remained active. Corporate
+actions are still `PENDING`; training is unauthorized.
+
+**NEXT EXACT STEP:** Allow the existing service retry path to resume corporate
+actions when Alpaca responds, then validate the atomic CA evidence and identity
+counts before calendar repair and independent qualification.
