@@ -362,8 +362,12 @@ def coexistence_capacity(moment: datetime) -> dict[str, Any]:
         return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_NOT_ACTIVE_OR_UNKNOWN", **common}
     market = moment.astimezone(EASTERN)
     seconds_after_quarter = ((market.minute % 15) * 60) + market.second
-    if seconds_after_quarter < LIVE_DECISION_PROTECTION_SECONDS:
-        return {"mode": "PROTECTED_DECISION_WINDOW", "reason": "CLEAN_V2_DECISION_WINDOW", **common}
+    common.update({
+        "clean_v2_decision_window": (
+            seconds_after_quarter < LIVE_DECISION_PROTECTION_SECONDS
+        ),
+        "seconds_after_decision_boundary": seconds_after_quarter,
+    })
     provider_state = _clean_provider_state()
     if market.time().replace(tzinfo=None) >= wall_time(9, 45) and provider_state != "HEALTHY":
         return {"mode": "WAITING_FOR_LIVE_CAPACITY", "reason": "CLEAN_V2_PROVIDER_NOT_HEALTHY", "clean_v2_provider_state": provider_state, **common}

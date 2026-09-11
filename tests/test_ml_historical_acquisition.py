@@ -777,6 +777,50 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
         unit = (Path(__file__).parents[1] / "deploy/qpx-ml-historical-acquisition.service").read_text()
         self.assertIn("TimeoutStopSec=90", unit)
 
+    @patch("qpx_bot.ml_historical_acquisition._latest_clean_cycle_evidence", return_value={"lag_seconds": 30.0, "observed_at_utc": "2026-09-04T14:01:00+00:00"})
+    @patch("qpx_bot.ml_historical_acquisition._proc_io_pressure", return_value=0.0)
+    @patch("qpx_bot.ml_historical_acquisition._proc_available_memory", return_value=8_000_000_000)
+    @patch("qpx_bot.ml_historical_acquisition._clean_provider_state", return_value="HEALTHY")
+    @patch("qpx_bot.ml_historical_acquisition._clean_service_state", return_value="active")
+    def test_decision_window_alone_allows_low_rate_live_coexistence(self, *_patches):
+        moment = datetime(2026, 9, 4, 14, 1, tzinfo=timezone.utc)
+        with patch("qpx_bot.ml_historical_acquisition.os.getloadavg", return_value=(1.0, 1.0, 1.0)):
+            result = coexistence_capacity(moment)
+        self.assertEqual(result["mode"], "LIVE_COEXISTENCE")
+        self.assertEqual(
+            result["historical_request_ceiling_per_minute"],
+            LIVE_REQUESTS_PER_MINUTE,
+        )
+        self.assertTrue(result["clean_v2_decision_window"])
+
+    @patch("qpx_bot.ml_historical_acquisition._proc_available_memory", return_value=1)
+    @patch("qpx_bot.ml_historical_acquisition._clean_provider_state", return_value="HEALTHY")
+    @patch("qpx_bot.ml_historical_acquisition._clean_service_state", return_value="active")
+    def test_decision_window_still_yields_for_resource_pressure(self, *_patches):
+        result = coexistence_capacity(
+            datetime(2026, 9, 4, 14, 1, tzinfo=timezone.utc)
+        )
+        self.assertEqual(result["mode"], "WAITING_FOR_LIVE_CAPACITY")
+        self.assertEqual(result["reason"], "MEMORY_PRESSURE")
+
+    def test_live_provider_capacity_exhaustion_still_yields(self):
+        with tempfile.TemporaryDirectory() as folder:
+            client = FakeClient()
+            client.request_count = 1
+            client.rate_limit = 200
+            client.rate_limit_remaining = 100
+            acquisition = Acquisition(
+                Path(folder), client,
+                capacity_probe=lambda _now: {
+                    "mode": "LIVE_COEXISTENCE", "live_qpx_active": True,
+                },
+            )
+            result = acquisition._capacity_assessment(provider_request=True)
+            self.assertEqual(result["mode"], "WAITING_FOR_LIVE_CAPACITY")
+            self.assertEqual(
+                result["reason"], "PROVIDER_CAPACITY_RESERVED_FOR_CLEAN_V2",
+            )
+
     @patch("qpx_bot.ml_historical_acquisition._latest_clean_cycle_evidence", return_value={"lag_seconds": 181.0, "observed_at_utc": "2026-09-04T14:05:00+00:00"})
     @patch("qpx_bot.ml_historical_acquisition._proc_io_pressure", return_value=0.0)
     @patch("qpx_bot.ml_historical_acquisition._proc_available_memory", return_value=8_000_000_000)

@@ -376,3 +376,18 @@ stage; validate committed CA artifact/manifest and resolved, unresolved-bounded,
 and unresolved-unbounded counts. Then proceed through the already-governed
 calendar repair and independent historical qualification path. Do not start
 training from acquisition completion.
+
+## September 11 coexistence correction
+
+**USER_CONFIRMED / VERIFIED_REPO:** The Clean-V2 decision-window clock is
+telemetry, not an unconditional historical stop. Safe historical work continues
+at the governed low live rate whenever actual provider capacity, Clean-V2
+health/latency, and host resources permit it. Existing provider reservation,
+resource pressure, attributable degradation, 429/session latch, and finalization
+rules remain intact. The directly affected acquisition module passed 104/104
+tests after this correction.
+
+**NEXT EXACT STEP:** The existing service must be restarted through systemd after
+the correction commit so it loads the new capacity decision, while preserving
+7,370 completed bar partitions and 383,082,447 rows. Then let corporate-action
+pagination finish; do not start training.

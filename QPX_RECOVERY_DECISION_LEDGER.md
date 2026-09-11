@@ -1552,3 +1552,22 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   verify its manifest and resolved/bounded/unbounded identity counts, then follow
   the governed calendar-repair and independent qualification sequence. Training
   remains unauthorized.
+
+## Clock-Only Clean-V2 Decision-Window Stop Removed — 2026-09-11
+
+- **USER_CONFIRMED:** Clean-V2 has provider priority, not exclusivity. Merely
+  being within four minutes after a 15-minute boundary cannot reduce historical
+  capacity to zero when actual provider capacity and live health are available.
+- **VERIFIED_REPO:** `coexistence_capacity()` now retains decision-window timing
+  as telemetry and continues through its existing provider-health,
+  memory/load/I/O, decision-latency, capacity-reserve, degradation-attribution,
+  429, and safety-latch controls. Safe overlap remains limited to the governed
+  low live historical rate.
+- **VERIFIED_ARTIFACT:** The directly affected acquisition module passed 104/104
+  focused tests, including decision-window capacity, low-rate coexistence,
+  resource pressure, provider exhaustion, live degradation, and existing
+  finalization/recovery behavior. Production compilation and diff checks passed.
+- **NEXT EXACT STEP:** Restart the existing acquisition service after this
+  correction is committed/pushed, verify it loads the correction without bar
+  redownload, and allow corporate-action acquisition to continue under actual
+  capacity arbitration. Training remains unauthorized.

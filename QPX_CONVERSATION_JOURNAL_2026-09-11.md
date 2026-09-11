@@ -32,3 +32,18 @@
 - **NEXT EXACT ACTION:** Verify the already-running corporate-action stage's
   atomic completion and identity counts, then continue the governed calendar
   repair/independent qualification sequence. Training remains unauthorized.
+
+## 2026-09-11 — Clock-only decision-window capacity correction
+
+- **USER_CORRECTION:** `CLEAN_V2_DECISION_WINDOW` awareness must not by itself
+  block historical requests. Clean-V2 receives actual needed capacity; healthy
+  historical work may consume the remainder at the existing low live rate.
+- **VERIFIED_REPO:** The unconditional `PROTECTED_DECISION_WINDOW` return was
+  removed. Decision-window timing remains telemetry while existing provider,
+  host-resource, live-latency/degradation, 429, and safety-latch decisions remain
+  authoritative.
+- **VERIFIED_ARTIFACT:** `tests.test_ml_historical_acquisition` passed 104/104;
+  the changed module compiled and `git diff --check` passed.
+- **NEXT EXACT ACTION:** Commit/push only the review branch, restart the existing
+  acquisition service through systemd to load the correction, verify bars remain
+  7,370/7,370 and 383,082,447 rows, and allow corporate actions to continue.
