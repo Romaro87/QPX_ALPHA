@@ -71,6 +71,8 @@ CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 1
 CORPORATE_ACTION_SEMANTIC_VERSION = "ALPACA_CORPORATE_ACTIONS_HISTORICAL_V3"
 CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION = 1
 CORPORATE_ACTION_CHECKPOINT_SCHEMA_VERSION = 1
+CORPORATE_ACTION_DURABLE_PAGE_SCHEMA_VERSION = 1
+CORPORATE_ACTION_PROGRESS_SCHEMA_VERSION = 1
 BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
@@ -2050,292 +2052,623 @@ class Acquisition:
         """Acquire and bind complete provider and stable-identity action evidence."""
         requested = state["requested_range"]
         params = {
-            "types": ",".join(CA_TYPES), "start": requested["requested_start"],
-            "end": requested["requested_end"], "region": "us",
-            "data_quality": "complete", "limit": "1000", "sort": "asc",
+            "types": ",".join(CA_TYPES),
+            "start": requested["requested_start"],
+            "end": requested["requested_end"],
+            "region": "us",
+            "data_quality": "complete",
+            "limit": "1000",
+            "sort": "asc",
         }
         request_core = {
             "provider": PROVIDER,
-            "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
+            "corporate_action_semantic_version":
+                CORPORATE_ACTION_SEMANTIC_VERSION,
             "params": params,
         }
         request_fp = fingerprint(request_core)
-        staging_parent = self.root / "acquisition_state" / "corporate_actions"
-        staging_root = staging_parent / request_fp
-        if staging_parent.exists() and any(
-            path.is_dir() and path.name != request_fp
-            for path in staging_parent.iterdir()
-        ):
-            raise RuntimeError("Corporate-action staged request identity mismatch.")
-        checkpoint_path = staging_root / "checkpoint.json"
-        checkpoint_checksum = checkpoint_path.with_suffix(".sha256")
+
+        # Successfully acquired provider pages are durable evidence.
+        # RAM is only a working buffer.
+        durable_root = (
+            self.root / "corporate_actions" / "pages" / request_fp
+        )
+        progress_path = durable_root / "progress.json"
+
         records: dict[str, dict[str, Any]] = {}
         pages: list[dict[str, Any]] = []
-        token: str | None = None
+        bundle_fingerprints: list[str] = []
         seen_tokens: set[str] = set()
-        if checkpoint_path.exists() or checkpoint_checksum.exists() or staging_root.exists():
-            if not checkpoint_path.exists() or not checkpoint_checksum.exists():
-                raise RuntimeError("Corporate-action checkpoint is incomplete or corrupt.")
-            try:
-                checkpoint = json.loads(read_checksummed_state(
-                    checkpoint_path, checkpoint_checksum,
-                    label="Corporate-action acquisition checkpoint",
-                ))
-            except (OSError, ValueError, json.JSONDecodeError) as exc:
-                raise RuntimeError("Corporate-action checkpoint is corrupt.") from exc
-            checkpoint_core = {
-                key: value for key, value in checkpoint.items()
-                if key != "checkpoint_fingerprint"
-            }
-            if (
-                checkpoint.get("schema_version") != CORPORATE_ACTION_CHECKPOINT_SCHEMA_VERSION
-                or checkpoint.get("corporate_action_semantic_version") != CORPORATE_ACTION_SEMANTIC_VERSION
-                or checkpoint.get("corporate_action_evidence_schema_version") != CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION
-                or checkpoint.get("acquisition_provenance_version") != ACQUISITION_PROVENANCE_VERSION
-                or checkpoint.get("request_core") != request_core
-                or checkpoint.get("request_fingerprint") != request_fp
-                or checkpoint.get("checkpoint_fingerprint") != fingerprint(checkpoint_core)
-                or checkpoint.get("completed_page_count") != len(checkpoint.get("page_evidence_fingerprints", ()))
-            ):
-                raise RuntimeError("Corporate-action checkpoint identity mismatch.")
-            page_count = int(checkpoint["completed_page_count"])
-            expected_files = {
-                staging_root / f"page-{index:06d}.jsonl.gz"
-                for index in range(1, page_count + 1)
-            }
-            actual_files = set(staging_root.glob("page-*.jsonl.gz"))
-            actual_manifests = set(staging_root.glob("page-*.manifest.json"))
-            if actual_files != expected_files or len(actual_manifests) != page_count:
-                raise RuntimeError("Corporate-action staged page set is inconsistent.")
-            expected_input_token: str | None = None
-            for index in range(1, page_count + 1):
-                page_path = staging_root / f"page-{index:06d}.jsonl.gz"
-                manifest_path = staging_root / f"page-{index:06d}.manifest.json"
-                try:
-                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                    staged_records = read_gzip_jsonl(page_path)
-                except (OSError, ValueError, json.JSONDecodeError) as exc:
-                    raise RuntimeError("Corporate-action staged page is corrupt.") from exc
-                manifest_core = {
-                    key: value for key, value in manifest.items()
-                    if key != "staging_manifest_fingerprint"
-                }
-                page_evidence = manifest.get("page_evidence")
-                if not isinstance(page_evidence, dict):
-                    raise RuntimeError("Corporate-action staged page evidence is malformed.")
-                page_core = {
-                    key: value for key, value in page_evidence.items()
-                    if key != "page_evidence_fingerprint"
-                }
-                if (
-                    manifest.get("schema_version") != CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION
-                    or manifest.get("request_fingerprint") != request_fp
-                    or manifest.get("page") != index
-                    or manifest.get("artifact_sha256") != sha256_path(page_path)
-                    or manifest.get("records_fingerprint") != fingerprint(staged_records)
-                    or manifest.get("record_count") != len(staged_records)
-                    or manifest.get("staging_manifest_fingerprint") != fingerprint(manifest_core)
-                    or page_evidence.get("page") != index
-                    or page_evidence.get("request_fingerprint") != request_fp
-                    or page_evidence.get("input_page_token") != expected_input_token
-                    or page_evidence.get("page_evidence_fingerprint") != fingerprint(page_core)
-                    or page_evidence.get("provider_event_ids")
-                    != sorted(record.get("provider_event_id") for record in staged_records)
-                    or checkpoint["page_evidence_fingerprints"][index - 1]
-                    != page_evidence.get("page_evidence_fingerprint")
-                ):
-                    raise RuntimeError("Corporate-action staged page validation failed.")
-                for record in staged_records:
-                    event_id = record.get("provider_event_id")
-                    if not isinstance(event_id, str) or not event_id or event_id in records:
-                        raise RuntimeError(
-                            f"Duplicate or invalid corporate-action provider event id: {event_id}"
-                        )
-                    records[event_id] = record
-                pages.append(page_evidence)
-                expected_input_token = manifest.get("next_page_token")
-                if expected_input_token is not None and (
-                    not isinstance(expected_input_token, str) or not expected_input_token
-                ):
-                    raise RuntimeError("Corporate-action staged page token is malformed.")
-                if expected_input_token is not None:
-                    if expected_input_token in seen_tokens:
-                        raise RuntimeError("Repeated corporate-action staged page token.")
-                    seen_tokens.add(expected_input_token)
-                expected_next_fingerprint = (
-                    fingerprint({"page_token": expected_input_token})
-                    if expected_input_token else None
+        token: str | None = None
+
+        # Each page file is one atomic recovery unit.  The page chain is
+        # authoritative.  progress.json is reconstructible metadata.
+        page_paths = (
+            sorted(durable_root.glob("page-*.json"))
+            if durable_root.exists()
+            else []
+        )
+
+        for index, page_path in enumerate(page_paths, 1):
+            if page_path.name != f"page-{index:06d}.json":
+                raise RuntimeError(
+                    "Corporate-action durable page sequence is non-contiguous."
                 )
-                if page_evidence.get("next_page_token_fingerprint") != expected_next_fingerprint:
-                    raise RuntimeError("Corporate-action staged token identity mismatch.")
-            token = checkpoint.get("next_page_token")
-            if token != expected_input_token or (token is None) != bool(checkpoint.get("terminal_page")):
-                raise RuntimeError("Corporate-action checkpoint pagination boundary mismatch.")
-        page = len(pages)
-        while True:
-            if page and token is None:
-                break
-            request = dict(params)
-            if token: request["page_token"] = token
-            self._capacity_gate(state, {"year": "corporate_actions", "batch": 0})
-            payload = self.client.request(CORPORATE_ACTION_URL, request)
-            if not isinstance(payload, dict) or not isinstance(payload.get("corporate_actions", {}), dict):
-                raise ProviderError("Malformed corporate-actions response.", systemic=True)
-            page_event_ids: list[str] = []
-            for collection, values in payload["corporate_actions"].items():
-                if not isinstance(values, list):
-                    raise ProviderError("Malformed corporate-action collection.", systemic=True)
-                action_type = collection.removesuffix("s")
-                if action_type not in CA_TYPES:
-                    if values:
-                        raise ProviderError(
-                            f"Unsupported corporate-action collection: {collection}",
-                            systemic=True,
-                        )
-                    continue
-                for raw in values:
-                    if not isinstance(raw, Mapping):
-                        raise ProviderError("Malformed corporate-action event.", systemic=True)
-                    normalized = normalize_corporate_action(raw, action_type, self.now())
-                    key = normalized["provider_event_id"]
-                    if key in records:
-                        raise RuntimeError(f"Duplicate corporate-action provider event id: {key}")
-                    records[key] = normalized
-                    page_event_ids.append(key)
-            next_token = payload.get("next_page_token")
-            if next_token is not None and (not isinstance(next_token, str) or not next_token):
-                raise ProviderError("Malformed corporate-action page token.", systemic=True)
-            if next_token is not None and next_token in seen_tokens:
-                raise ProviderError("Repeated corporate-action page token.", systemic=True)
-            page += 1
-            page_core = {
-                "page": page,
-                "request_fingerprint": request_fp,
-                "input_page_token": token,
-                "terminal_page": next_token is None,
-                "next_page_token_fingerprint": (
-                    fingerprint({"page_token": next_token}) if next_token else None
-                ),
-                "provider_event_ids": sorted(page_event_ids),
-                "provider_payload_fingerprint": fingerprint(payload),
+
+            try:
+                bundle = json.loads(
+                    page_path.read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError) as exc:
+                raise RuntimeError(
+                    "Corporate-action durable page is corrupt."
+                ) from exc
+
+            if not isinstance(bundle, dict):
+                raise RuntimeError(
+                    "Corporate-action durable page is malformed."
+                )
+
+            bundle_core = {
+                key: value
+                for key, value in bundle.items()
+                if key != "bundle_fingerprint"
             }
-            page_evidence = {
-                **page_core, "page_evidence_fingerprint": fingerprint(page_core),
-            }
-            page_path = staging_root / f"page-{page:06d}.jsonl.gz"
-            atomic_bytes(page_path, encode_gzip_jsonl(
-                records[event_id] for event_id in sorted(page_event_ids)
-            ))
-            staging_core = {
-                "schema_version": CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION,
-                "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
-                "request_fingerprint": request_fp,
-                "page": page,
-                "record_count": len(page_event_ids),
-                "records_fingerprint": fingerprint([
-                    records[event_id] for event_id in sorted(page_event_ids)
-                ]),
-                "artifact_sha256": sha256_path(page_path),
-                "next_page_token": next_token,
-                "page_evidence": page_evidence,
-            }
-            atomic_json(
-                staging_root / f"page-{page:06d}.manifest.json",
-                {**staging_core, "staging_manifest_fingerprint": fingerprint(staging_core)},
+
+            page_evidence = bundle.get("page_evidence")
+            durable_records = bundle.get("records")
+
+            if (
+                not isinstance(page_evidence, dict)
+                or not isinstance(durable_records, list)
+            ):
+                raise RuntimeError(
+                    "Corporate-action durable page evidence is malformed."
+                )
+
+            next_token = bundle.get("next_page_token")
+
+            if next_token is not None and (
+                not isinstance(next_token, str)
+                or not next_token
+            ):
+                raise RuntimeError(
+                    "Corporate-action durable page token is malformed."
+                )
+
+            expected_next_fingerprint = (
+                fingerprint({"page_token": next_token})
+                if next_token
+                else None
             )
+
+            page_core = {
+                key: value
+                for key, value in page_evidence.items()
+                if key != "page_evidence_fingerprint"
+            }
+
+            provider_event_ids = [
+                record.get("provider_event_id")
+                for record in durable_records
+                if isinstance(record, dict)
+            ]
+
+            if (
+                bundle.get("schema_version")
+                != CORPORATE_ACTION_DURABLE_PAGE_SCHEMA_VERSION
+                or bundle.get("corporate_action_semantic_version")
+                != CORPORATE_ACTION_SEMANTIC_VERSION
+                or bundle.get("corporate_action_evidence_schema_version")
+                != CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION
+                or bundle.get("acquisition_provenance_version")
+                != ACQUISITION_PROVENANCE_VERSION
+                or bundle.get("request_core") != request_core
+                or bundle.get("request_fingerprint") != request_fp
+                or bundle.get("page") != index
+                or bundle.get("input_page_token") != token
+                or bundle.get("record_count") != len(durable_records)
+                or bundle.get("records_fingerprint")
+                != fingerprint(durable_records)
+                or bundle.get("bundle_fingerprint")
+                != fingerprint(bundle_core)
+                or page_evidence.get("page") != index
+                or page_evidence.get("request_fingerprint")
+                != request_fp
+                or page_evidence.get("input_page_token")
+                != token
+                or page_evidence.get(
+                    "next_page_token_fingerprint"
+                )
+                != expected_next_fingerprint
+                or page_evidence.get("terminal_page")
+                != (next_token is None)
+                or page_evidence.get("provider_event_ids")
+                != sorted(provider_event_ids)
+                or page_evidence.get(
+                    "page_evidence_fingerprint"
+                )
+                != fingerprint(page_core)
+            ):
+                raise RuntimeError(
+                    "Corporate-action durable page validation failed."
+                )
+
+            for record in durable_records:
+                if not isinstance(record, dict):
+                    raise RuntimeError(
+                        "Corporate-action durable record is malformed."
+                    )
+
+                event_id = record.get("provider_event_id")
+
+                if (
+                    not isinstance(event_id, str)
+                    or not event_id
+                    or event_id in records
+                ):
+                    raise RuntimeError(
+                        "Duplicate or invalid corporate-action "
+                        f"provider event id: {event_id}"
+                    )
+
+                records[event_id] = record
+
             pages.append(page_evidence)
+            bundle_fingerprints.append(
+                bundle["bundle_fingerprint"]
+            )
+
             if next_token is not None:
+                if next_token in seen_tokens:
+                    raise RuntimeError(
+                        "Repeated corporate-action durable page token."
+                    )
                 seen_tokens.add(next_token)
+
             token = next_token
-            checkpoint_core = {
-                "schema_version": CORPORATE_ACTION_CHECKPOINT_SCHEMA_VERSION,
-                "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
-                "corporate_action_evidence_schema_version": CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION,
-                "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+
+        page = len(pages)
+
+        def persist_progress() -> None:
+            progress_core = {
+                "schema_version":
+                    CORPORATE_ACTION_PROGRESS_SCHEMA_VERSION,
+                "corporate_action_semantic_version":
+                    CORPORATE_ACTION_SEMANTIC_VERSION,
+                "corporate_action_evidence_schema_version":
+                    CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION,
+                "acquisition_provenance_version":
+                    ACQUISITION_PROVENANCE_VERSION,
                 "request_core": request_core,
                 "request_fingerprint": request_fp,
                 "completed_page_count": page,
+                "bundle_fingerprints":
+                    list(bundle_fingerprints),
                 "page_evidence_fingerprints": [
-                    value["page_evidence_fingerprint"] for value in pages
+                    value["page_evidence_fingerprint"]
+                    for value in pages
                 ],
                 "next_page_token": token,
-                "terminal_page": token is None,
+                "terminal_page":
+                    bool(page) and token is None,
             }
-            checkpoint = {
-                **checkpoint_core,
-                "checkpoint_fingerprint": fingerprint(checkpoint_core),
+
+            progress = {
+                **progress_core,
+                "progress_fingerprint":
+                    fingerprint(progress_core),
             }
-            write_checksummed_state(
-                checkpoint_path, checkpoint_checksum,
-                json.dumps(checkpoint, indent=2, sort_keys=True, allow_nan=False).encode() + b"\n",
+
+            atomic_json(progress_path, progress)
+
+            state[
+                "corporate_action_durable_page_count"
+            ] = page
+            state[
+                "corporate_action_staged_page_count"
+            ] = 0
+            state[
+                "corporate_action_checkpoint_fingerprint"
+            ] = progress["progress_fingerprint"]
+            state[
+                "corporate_action_checkpoint_path"
+            ] = str(progress_path.relative_to(self.root))
+            state["checkpoint_at_utc"] = (
+                self.now().isoformat()
             )
-            self.sync_provider_counts(state)
-            state["corporate_action_staged_page_count"] = page
-            state["corporate_action_checkpoint_fingerprint"] = checkpoint[
-                "checkpoint_fingerprint"
+            self.save_state(state)
+
+        # A crash after the page commit but before progress/state commit is
+        # healed from the durable page chain.
+        if page:
+            persist_progress()
+        elif progress_path.exists():
+            raise RuntimeError(
+                "Corporate-action progress metadata exists "
+                "without durable page evidence."
+            )
+
+        while True:
+            if page and token is None:
+                break
+
+            request = dict(params)
+
+            if token:
+                request["page_token"] = token
+
+            self._capacity_gate(
+                state,
+                {
+                    "year": "corporate_actions",
+                    "batch": 0,
+                },
+            )
+
+            payload = self.client.request(
+                CORPORATE_ACTION_URL,
+                request,
+            )
+
+            if (
+                not isinstance(payload, dict)
+                or not isinstance(
+                    payload.get(
+                        "corporate_actions", {}
+                    ),
+                    dict,
+                )
+            ):
+                raise ProviderError(
+                    "Malformed corporate-actions response.",
+                    systemic=True,
+                )
+
+            page_records: dict[
+                str, dict[str, Any]
+            ] = {}
+
+            for collection, values in (
+                payload["corporate_actions"].items()
+            ):
+                if not isinstance(values, list):
+                    raise ProviderError(
+                        "Malformed corporate-action collection.",
+                        systemic=True,
+                    )
+
+                action_type = collection.removesuffix("s")
+
+                if action_type not in CA_TYPES:
+                    if values:
+                        raise ProviderError(
+                            "Unsupported corporate-action "
+                            f"collection: {collection}",
+                            systemic=True,
+                        )
+                    continue
+
+                for raw in values:
+                    if not isinstance(raw, Mapping):
+                        raise ProviderError(
+                            "Malformed corporate-action event.",
+                            systemic=True,
+                        )
+
+                    normalized = (
+                        normalize_corporate_action(
+                            raw,
+                            action_type,
+                            self.now(),
+                        )
+                    )
+
+                    event_id = normalized[
+                        "provider_event_id"
+                    ]
+
+                    if (
+                        event_id in records
+                        or event_id in page_records
+                    ):
+                        raise RuntimeError(
+                            "Duplicate corporate-action "
+                            "provider event id: "
+                            f"{event_id}"
+                        )
+
+                    page_records[event_id] = (
+                        normalized
+                    )
+
+            next_token = payload.get(
+                "next_page_token"
+            )
+
+            if next_token is not None and (
+                not isinstance(next_token, str)
+                or not next_token
+            ):
+                raise ProviderError(
+                    "Malformed corporate-action page token.",
+                    systemic=True,
+                )
+
+            if (
+                next_token is not None
+                and next_token in seen_tokens
+            ):
+                raise ProviderError(
+                    "Repeated corporate-action page token.",
+                    systemic=True,
+                )
+
+            next_page = page + 1
+
+            ordered_page_records = [
+                page_records[event_id]
+                for event_id in sorted(page_records)
             ]
-            state["corporate_action_checkpoint_path"] = str(
-                checkpoint_path.relative_to(self.root)
+
+            page_core = {
+                "page": next_page,
+                "request_fingerprint": request_fp,
+                "input_page_token": token,
+                "terminal_page":
+                    next_token is None,
+                "next_page_token_fingerprint": (
+                    fingerprint(
+                        {"page_token": next_token}
+                    )
+                    if next_token
+                    else None
+                ),
+                "provider_event_ids":
+                    sorted(page_records),
+                "provider_payload_fingerprint":
+                    fingerprint(payload),
+            }
+
+            page_evidence = {
+                **page_core,
+                "page_evidence_fingerprint":
+                    fingerprint(page_core),
+            }
+
+            # This single atomic file is the commit point for one completed
+            # provider page.  No subsequent provider request occurs first.
+            bundle_core = {
+                "schema_version":
+                    CORPORATE_ACTION_DURABLE_PAGE_SCHEMA_VERSION,
+                "corporate_action_semantic_version":
+                    CORPORATE_ACTION_SEMANTIC_VERSION,
+                "corporate_action_evidence_schema_version":
+                    CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION,
+                "acquisition_provenance_version":
+                    ACQUISITION_PROVENANCE_VERSION,
+                "request_core": request_core,
+                "request_fingerprint": request_fp,
+                "page": next_page,
+                "input_page_token": token,
+                "next_page_token": next_token,
+                "record_count":
+                    len(ordered_page_records),
+                "records_fingerprint":
+                    fingerprint(
+                        ordered_page_records
+                    ),
+                "records":
+                    ordered_page_records,
+                "page_evidence":
+                    page_evidence,
+            }
+
+            bundle = {
+                **bundle_core,
+                "bundle_fingerprint":
+                    fingerprint(bundle_core),
+            }
+
+            page_path = (
+                durable_root
+                / f"page-{next_page:06d}.json"
             )
-            state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
-            if not token: break
-        ordered = [records[key] for key in sorted(records)]
+
+            if page_path.exists():
+                raise RuntimeError(
+                    "Corporate-action durable page "
+                    "already exists at the next boundary."
+                )
+
+            atomic_json(page_path, bundle)
+
+            records.update(page_records)
+            pages.append(page_evidence)
+            bundle_fingerprints.append(
+                bundle["bundle_fingerprint"]
+            )
+            page = next_page
+
+            if next_token is not None:
+                seen_tokens.add(next_token)
+
+            token = next_token
+
+            self.sync_provider_counts(state)
+            persist_progress()
+
+            state[
+                "last_historical_activity_at_utc"
+            ] = self.now().isoformat()
+
+            if token is None:
+                break
+
+        # Terminal output is reconstructed from durable page evidence.
+        ordered = [
+            records[key]
+            for key in sorted(records)
+        ]
+
         action_fp = fingerprint(ordered)
-        path = self.root / "corporate_actions" / "artifacts" / f"{action_fp}.jsonl.gz"
-        atomic_bytes(path, encode_gzip_jsonl(ordered))
+
+        path = (
+            self.root
+            / "corporate_actions"
+            / "artifacts"
+            / f"{action_fp}.jsonl.gz"
+        )
+
+        atomic_bytes(
+            path,
+            encode_gzip_jsonl(ordered),
+        )
+
         population = self._provider_population()
-        resolution = corporate_action_identity_resolution(ordered, population)
-        resolution_fp = resolution["identity_resolution_fingerprint"]
-        resolution_path = atomic_content_addressed_json(
-            self.root / "corporate_actions" / "identity_resolution",
-            resolution_fp,
-            resolution,
-            label="corporate-action identity-resolution",
+
+        resolution = (
+            corporate_action_identity_resolution(
+                ordered,
+                population,
+            )
         )
+
+        resolution_fp = resolution[
+            "identity_resolution_fingerprint"
+        ]
+
+        resolution_path = (
+            atomic_content_addressed_json(
+                self.root
+                / "corporate_actions"
+                / "identity_resolution",
+                resolution_fp,
+                resolution,
+                label=(
+                    "corporate-action "
+                    "identity-resolution"
+                ),
+            )
+        )
+
         manifest_core = {
-            "schema_version": CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION,
-            "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
-            "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+            "schema_version":
+                CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION,
+            "corporate_action_semantic_version":
+                CORPORATE_ACTION_SEMANTIC_VERSION,
+            "acquisition_provenance_version":
+                ACQUISITION_PROVENANCE_VERSION,
             "provider": PROVIDER,
-            "requested_start": requested["requested_start"],
-            "requested_end": requested["requested_end"],
-            "supported_types": list(CA_TYPES),
-            "request_fingerprint": request_fp,
-            "event_count": len(ordered),
-            "artifact_sha256": sha256_path(path),
-            "corporate_action_artifact_fingerprint": action_fp,
-            "page_count": page,
-            "page_evidence": pages,
-            "terminal_page_token": None,
-            "security_master_fingerprint": population["security_master_fingerprint"],
-            "provider_population_fingerprint": population["provider_population_fingerprint"],
-            "identity_resolution_fingerprint": resolution_fp,
-            "identity_resolution_sha256": sha256_path(resolution_path),
+            "requested_start":
+                requested["requested_start"],
+            "requested_end":
+                requested["requested_end"],
+            "supported_types":
+                list(CA_TYPES),
+            "request_fingerprint":
+                request_fp,
+            "event_count":
+                len(ordered),
+            "artifact_sha256":
+                sha256_path(path),
+            "corporate_action_artifact_fingerprint":
+                action_fp,
+            "page_count":
+                page,
+            "page_evidence":
+                pages,
+            "terminal_page_token":
+                None,
+            "security_master_fingerprint":
+                population[
+                    "security_master_fingerprint"
+                ],
+            "provider_population_fingerprint":
+                population[
+                    "provider_population_fingerprint"
+                ],
+            "identity_resolution_fingerprint":
+                resolution_fp,
+            "identity_resolution_sha256":
+                sha256_path(resolution_path),
         }
-        manifest = {**manifest_core, "manifest_fingerprint": fingerprint(manifest_core)}
-        manifest_path = atomic_content_addressed_json(
-            self.root / "corporate_actions" / "manifests",
-            manifest["manifest_fingerprint"],
-            manifest,
-            label="corporate-action manifest",
+
+        manifest = {
+            **manifest_core,
+            "manifest_fingerprint":
+                fingerprint(manifest_core),
+        }
+
+        manifest_path = (
+            atomic_content_addressed_json(
+                self.root
+                / "corporate_actions"
+                / "manifests",
+                manifest[
+                    "manifest_fingerprint"
+                ],
+                manifest,
+                label=(
+                    "corporate-action manifest"
+                ),
+            )
         )
-        state["corporate_action_artifact_fingerprint"] = action_fp
-        state["corporate_action_manifest_fingerprint"] = manifest["manifest_fingerprint"]
-        state["corporate_action_identity_resolution_fingerprint"] = resolution_fp
-        state["corporate_action_artifact_path"] = str(path.relative_to(self.root))
-        state["corporate_action_manifest_path"] = str(manifest_path.relative_to(self.root))
-        state["corporate_action_identity_resolution_path"] = str(
-            resolution_path.relative_to(self.root)
+
+        state[
+            "corporate_action_artifact_fingerprint"
+        ] = action_fp
+
+        state[
+            "corporate_action_manifest_fingerprint"
+        ] = manifest["manifest_fingerprint"]
+
+        state[
+            "corporate_action_identity_resolution_fingerprint"
+        ] = resolution_fp
+
+        state[
+            "corporate_action_artifact_path"
+        ] = str(path.relative_to(self.root))
+
+        state[
+            "corporate_action_manifest_path"
+        ] = str(
+            manifest_path.relative_to(self.root)
         )
-        state["corporate_action_status"] = "COMPLETE"
-        state["corporate_action_completed_page_count"] = page
-        state["corporate_action_staged_page_count"] = 0
-        state["corporate_action_checkpoint_fingerprint"] = None
-        state["corporate_action_checkpoint_path"] = None
+
+        state[
+            "corporate_action_identity_resolution_path"
+        ] = str(
+            resolution_path.relative_to(
+                self.root
+            )
+        )
+
+        state[
+            "corporate_action_status"
+        ] = "COMPLETE"
+
+        state[
+            "corporate_action_completed_page_count"
+        ] = page
+
+        state[
+            "corporate_action_durable_page_count"
+        ] = page
+
+        state[
+            "corporate_action_staged_page_count"
+        ] = 0
+
+        # Do not delete acquired provider-page evidence.
+        persist_progress()
+
         self.sync_provider_counts(state)
-        state["checkpoint_at_utc"] = self.now().isoformat()
+        state["checkpoint_at_utc"] = (
+            self.now().isoformat()
+        )
         self.save_state(state)
-        shutil.rmtree(staging_root)
 
     def finalize(self, state: dict[str, Any]) -> None:
         population = self._provider_population()
@@ -2458,7 +2791,7 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     active_bytes = max(0, state.get("bytes_stored", 0) - state.get("active_measurement_bytes_baseline", 0))
     active_rate = active_rows / active_seconds
     remaining = state["partitions_total"] - state["partitions_complete"]
-    payload = {k: state.get(k) for k in ("status", "operating_mode", "historical_request_ceiling_per_minute", "historical_concurrency", "live_qpx_detected_active", "clean_v2_service_state", "live_capacity_reason", "live_capacity_recheck_seconds", "live_session_yield_date", "live_session_latch_reason", "last_historical_activity_at_utc", "coexistence_journal_events", "provider_average_request_latency_seconds", "provider_rate_limit", "provider_rate_limit_remaining", "provider_rate_limit_reset", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "corporate_action_staged_page_count", "corporate_action_completed_page_count", "corporate_action_checkpoint_fingerprint", "corporate_action_checkpoint_path", "morning_deadline")}
+    payload = {k: state.get(k) for k in ("status", "operating_mode", "historical_request_ceiling_per_minute", "historical_concurrency", "live_qpx_detected_active", "clean_v2_service_state", "live_capacity_reason", "live_capacity_recheck_seconds", "live_session_yield_date", "live_session_latch_reason", "last_historical_activity_at_utc", "coexistence_journal_events", "provider_average_request_latency_seconds", "provider_rate_limit", "provider_rate_limit_remaining", "provider_rate_limit_reset", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "corporate_action_durable_page_count", "corporate_action_staged_page_count", "corporate_action_completed_page_count", "corporate_action_checkpoint_fingerprint", "corporate_action_checkpoint_path", "morning_deadline")}
     systemd_state = "UNKNOWN"
     try:
         import subprocess

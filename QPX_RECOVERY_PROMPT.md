@@ -478,3 +478,13 @@ A load for the immediately preceding prompt never carries forward.
 
 **NEXT EXACT STEP:** Reload the complete current prompt after every user message
 before responding or acting on that message.
+
+## 2026-09-11T13:03:59-05:00 — Corporate-action durability correction accepted
+
+Corporate-action acquisition now persists each successful provider page as a self-contained atomic durable bundle before requesting another page. Restart position is reconstructed from durable page evidence rather than depending on separately timed page/manifest/checkpoint writes. Acquired provider pages remain retained after terminal aggregation.
+
+**REAL RUNTIME PROOF:** real CA page 1 survived restart and acquisition resumed forward to real page 2.
+
+Page-1 SHA256: `a5ee1dad88a8ec810080adeb6a9073069d79a0b76a9b7d799f8200f6e7b6acd4`.
+
+Historical reservoir remains 7370 partitions and 383082447 rows. Training remains unauthorized.

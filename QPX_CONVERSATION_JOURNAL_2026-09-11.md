@@ -131,3 +131,15 @@
   including continuations, corrections, interruptions, status requests, and
   short follow-ups; a prior prompt's read never carries forward.
 - **RUNTIME:** No service, provider, training, or data state was touched.
+
+## 2026-09-11T13:03:59-05:00 — Corporate-action durable-page recovery corrected
+
+- **USER_REQUIREMENT:** Successfully acquired corporate-action provider pages are durable governed evidence. RAM is working state only.
+- **VERIFIED_REPO:** Each completed provider page is now committed as one self-contained atomic durable bundle before any later provider request.
+- **VERIFIED_REPO:** The durable page chain owns restart position. Progress metadata is reconstructible and cannot strand a completed page.
+- **VERIFIED_REPO:** Terminal aggregation retains acquired provider pages.
+- **VERIFIED_ARTIFACT:** Focused historical-acquisition and directly affected historical-qualification tests passed; Python compilation and git diff validation passed.
+- **VERIFIED_ARTIFACT / RUNTIME:** real CA page 1 survived restart and acquisition resumed forward to real page 2.
+- **VERIFIED_ARTIFACT:** Page-1 SHA256: `a5ee1dad88a8ec810080adeb6a9073069d79a0b76a9b7d799f8200f6e7b6acd4`.
+- **VERIFIED_ARTIFACT:** Historical reservoir remained 7370 partitions and 383082447 rows.
+- **TRAINING AUTHORITY:** Unchanged; training is not authorized.

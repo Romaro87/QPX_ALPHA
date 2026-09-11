@@ -1645,3 +1645,12 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **VERIFIED_REPO:** The rule applies to tasks, continuations, corrections,
   clarifications, interruptions, status requests, objections, approvals, and
   one-line follow-ups. A preceding prompt's load cannot satisfy the next prompt.
+
+## Corporate-action durable page authority — 2026-09-11T13:03:59-05:00
+
+- **USER_REQUIREMENT:** Provider failures, retry exhaustion, process death, and restart must not erase successfully acquired provider pages or force their reacquisition.
+- **VERIFIED_REPO:** Atomic self-contained CA provider-page bundles are durable recovery authority; progress metadata is derived state.
+- **VERIFIED_ARTIFACT / RUNTIME:** real CA page 1 survived restart and acquisition resumed forward to real page 2.
+- **VERIFIED_ARTIFACT:** Page-1 SHA256 `a5ee1dad88a8ec810080adeb6a9073069d79a0b76a9b7d799f8200f6e7b6acd4`.
+- **VERIFIED_ARTIFACT:** Historical bars remained 7370 partitions / 383082447 rows.
+- **TRAINING:** Not authorized.
