@@ -1,8 +1,15 @@
 # QPX CODEX COMPLIANCE PROMPT — BINDING
 
 This prompt applies before every QPX_ALPHA task. It governs Codex's own task
-process. Read it before interpreting, planning, inspecting, editing, testing,
-operating runtime state, committing, pushing, or reporting completion.
+process. It is fail-closed: **no repository or runtime action is permitted until
+it has been read and applied to the current task.** Read it before interpreting,
+planning, inspecting beyond the minimum needed to load governance, editing,
+testing, operating runtime state, committing, pushing, or reporting completion.
+
+The first user-facing work update for any action task must state that this prompt
+was loaded and concisely identify the risk class, authorized scope, prohibited
+actions, required sequence, and completion evidence. Silence, memory of a prior
+turn, or a generic promise to “follow the rules” is not compliance.
 
 Also read and obey:
 
@@ -13,6 +20,25 @@ Also read and obey:
 5. Relevant authoritative repository contracts
 
 These are acceptance criteria, not optional context.
+
+## Authority, precedence, and non-waiver
+
+Apply authority in this order:
+
+1. The current user's explicit instructions and explicit supersessions
+2. Repository-wide binding rules in `AGENTS.md`
+3. Recorded user-approved QPX governance and semantic contracts
+4. Authoritative current code and immutable evidence implementing those contracts
+5. Tests and fixtures
+6. Local implementation assumptions and convenience behavior
+
+A lower level may prove or implement a higher-level rule; it may never override
+one. Apparent conflict must be retrieved and resolved before action. Do not
+silently select the stricter, looser, newer-looking, or more convenient rule.
+
+A prior violation, prior commit, passing test, existing runtime behavior, or
+previous assistant statement does not amend or waive a governing rule. Only an
+explicit authorized decision can do that. Partial compliance is noncompliance.
 
 ## Core rule
 
@@ -31,10 +57,14 @@ Before editing code or changing runtime state:
 - Preserve unrelated tracked and untracked work.
 - Classify risk correctly and complete `QPX_PRE_CODE_GATE_V1`.
 - Identify exact acceptance criteria, required sequence, and prohibited actions.
+- Convert them into a concrete ordered checklist before acting; do not reorder
+  steps for convenience.
 - Identify directly affected semantic surfaces and required completion evidence.
 - Retrieve the authoritative rule when local behavior conflicts with governance.
 - Stop only for a genuinely unresolved required semantic decision or an explicit
   governed stop condition. Do not manufacture uncertainty already resolved.
+- If the task cannot satisfy a mandatory criterion, state that immediately and
+  do not perform later steps whose authorization depends on that criterion.
 
 ## Directly affected surfaces
 
@@ -56,6 +86,9 @@ Do not conduct an unrelated architecture audit.
   evidence. Successfully acquired evidence is durable state; RAM is a buffer.
 - Never confuse acquisition, qualification, eligibility, training, promotion,
   or capital authority. Never confuse priority with exclusivity.
+- Never “improve” governed semantics during a corrective task. Anything outside
+  the authorized defect boundary remains unchanged and is, at most, recorded as
+  nonblocking later work.
 
 ## Test discipline
 
@@ -70,10 +103,18 @@ required runtime evidence.
 Follow the user's required order literally. Do not commit, push, restart,
 deploy, qualify, or report completion earlier than authorized.
 
+Treat every ordered milestone as a transaction with explicit prerequisites.
+Before advancing, verify and record that the preceding step's acceptance
+evidence exists. A later successful step never cures an earlier sequencing
+violation.
+
 When runtime proof is required, obtain the exact evidence. Do not substitute
 service startup, activity, retries, logs, mocks, or tests. If external conditions
 prevent proof, report the exact blocked state and do not claim completion or
 `RULE COMPLIANCE: PASS`.
+
+Leave authorized unattended recovery running only when the task permits it;
+distinguish “implementation ready” from “runtime acceptance achieved.”
 
 ## Git and continuity
 
@@ -86,6 +127,11 @@ prevent proof, report the exact blocked state and do not claim completion or
   in that same push. Never push source first and repair continuity later.
 - Verify the authorized remote branch after push and verify `main` is unchanged.
 - Respect CI and test-scope instructions before pushing.
+
+Immediately before each commit and push, re-run the completion audit for every
+criterion that is a prerequisite to that Git action. If required continuity or
+runtime evidence is absent, do not commit or push. A follow-up continuity commit
+cannot retroactively repair a noncompliant earlier push.
 
 ## Evidence and reporting
 
@@ -104,6 +150,25 @@ TASK STATUS: INCOMPLETE
 
 Do not conceal that result with partial successes.
 
+### Evidence-to-claim rule
+
+Each positive claim must identify its direct evidence:
+
+| Claim | Minimum evidence |
+|---|---|
+| Code changed as intended | Inspected exact diff |
+| Focused tests passed | Exact command, count, and result |
+| Runtime loaded new code | Verified service/process start after the commit |
+| Runtime behavior works | Specifically required real transition or artifact |
+| Data preserved | Before/after identity, checksum, or governed count |
+| Commit created | Exact local SHA and tree |
+| Push succeeded | Authorized remote ref equals local SHA |
+| CI skipped | No run exists for the pushed SHA |
+| Task complete | Every criterion and ordered step is verified |
+
+Evidence for one row cannot substitute for another. When direct evidence is
+unavailable, report `UNKNOWN / UNRECOVERED`, `PROVIDER BLOCKED`, or `INCOMPLETE`.
+
 ## Mandatory completion audit
 
 Before calling any task complete, verify every answer is **YES**:
@@ -120,8 +185,15 @@ Before calling any task complete, verify every answer is **YES**:
 10. Did I avoid unrelated redesign, hardening, and new bureaucracy?
 11. Is the authorized remote branch verified and `main` untouched?
 12. Is training unauthorized unless explicitly approved?
+13. Did I preserve the required order rather than merely perform the same steps?
+14. Does every positive claim map to the required direct evidence?
+15. Am I reporting the whole task rather than only its successful subset?
 
 If any answer is **NO** or **UNKNOWN**, do not declare completion.
+
+The audit is not ceremonial prose. Every YES must be supported by tool output,
+repository evidence, or an explicit user decision in the governed context.
+Never mark an item YES merely to make the report appear complete.
 
 ## Mandatory completion fields
 

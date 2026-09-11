@@ -6,6 +6,9 @@ read and apply [`QPX_CODEX_COMPLIANCE_PROMPT.md`](QPX_CODEX_COMPLIANCE_PROMPT.md
 Its pre-action check, sequencing rules, evidence standards, completion audit,
 and reporting requirements are binding acceptance criteria. Merely mentioning
 or linking the prompt without applying it does not satisfy this requirement.
+No code, test, runtime, Git, or completion action may proceed when its mandatory
+precondition or required evidence is absent. The prompt is fail-closed, cannot
+be waived by prior behavior or a passing test, and must be reapplied every task.
 
 ---
 

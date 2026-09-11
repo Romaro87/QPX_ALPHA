@@ -4,6 +4,11 @@
 
 This rule applies to every ChatGPT conversation used to develop, operate, research, debug, document, or plan QPX_ALPHA.
 
+Before any QPX task, ChatGPT and Codex must follow the mandatory pointer in
+`AGENTS.md` and apply `QPX_CODEX_COMPLIANCE_PROMPT.md`. That prompt is fail-closed
+task procedure: unmet prerequisites prevent dependent actions, and partial
+success cannot be reported as whole-task compliance.
+
 ## Early warning
 
 The assistant must warn the user **about five messages/exchanges before the conversation is likely to reach its usable context-length limit**, to the extent that remaining context can reasonably be estimated.

@@ -443,3 +443,15 @@ mandatory completion audit.
 
 **NEXT EXACT STEP:** Every future QPX task must begin by loading the compliance
 prompt through the `AGENTS.md` pointer and applying it as acceptance criteria.
+
+## Adamantine compliance hardening — 2026-09-11
+
+**USER_REQUIREMENT / VERIFIED_REPO:** The mandatory compliance prompt is now
+explicitly fail-closed. It defines authority precedence and non-waiver, requires
+an ordered pre-action checklist, prevents dependent actions when a prerequisite
+is absent, maps positive claims to minimum direct evidence, and requires the
+completion audit immediately before gated Git/completion actions. Later success
+or a follow-up continuity commit cannot retroactively cure a violation.
+
+**NEXT EXACT STEP:** Apply the hardened prompt before every task and do not
+advance past any unmet prerequisite.

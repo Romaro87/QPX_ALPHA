@@ -1617,3 +1617,14 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   mandatory first step for every repository task.
 - **VERIFIED_REPO:** This strengthens application of existing QPX governance; it
   does not authorize broader tests, additional gates, or parallel bureaucracy.
+
+## Adamantine Compliance Enforcement — 2026-09-11
+
+- **USER_REQUIREMENT:** Harden the existing Codex compliance process to prevent
+  recurrence of the recorded violations.
+- **VERIFIED_REPO:** The prompt now explicitly defines fail-closed authority
+  precedence, non-waiver, ordered prerequisites, evidence required for positive
+  claims, same-push continuity, and mandatory audits before gated Git or
+  completion actions.
+- **VERIFIED_REPO:** `AGENTS.md`, the continuity rule, and the existing warning
+  point to the same mechanism. No parallel governance framework was created.

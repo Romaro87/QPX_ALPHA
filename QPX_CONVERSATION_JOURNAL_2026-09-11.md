@@ -100,3 +100,15 @@
   same-push continuity, and completion auditing.
 - **RUNTIME:** No service or runtime state was changed for this documentation-
   only governance task.
+
+## 2026-09-11 — Adamantine compliance hardening
+
+- **USER_REQUIREMENT:** Harden the binding corrective prompt to adamantine
+  levels.
+- **VERIFIED_REPO:** The existing prompt now fails closed before action, states
+  authority precedence and non-waiver, requires ordered prerequisite checks,
+  prohibits retroactive cure of sequencing/push violations, and maps every
+  positive completion claim to minimum direct evidence.
+- **VERIFIED_REPO:** Existing `AGENTS.md`, continuity, warning, recovery, and
+  ledger surfaces were strengthened consistently; no new framework was added.
+- **RUNTIME:** No service, provider, training, or data state was touched.

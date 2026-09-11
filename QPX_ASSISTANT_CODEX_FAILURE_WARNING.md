@@ -65,6 +65,9 @@ This warning does NOT replace AGENTS.md or existing QPX governance.
 
 Both ChatGPT and Codex must treat `AGENTS.md` and
 `QPX_CONTEXT_CONTINUITY_RULE.md` as completion criteria, not optional context.
+They must also load and apply `QPX_CODEX_COMPLIANCE_PROMPT.md` before every task;
+its sequencing, evidence-to-claim, and completion-audit requirements are
+fail-closed and cannot be satisfied retroactively.
 
 It exists because ChatGPT and Codex have repeatedly FAILED TO FOLLOW the
 governance already present.
