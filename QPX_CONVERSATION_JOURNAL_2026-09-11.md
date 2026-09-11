@@ -63,3 +63,29 @@
 - **NEXT EXACT ACTION:** Let the existing retry path continue when provider
   service recovers; validate final CA artifacts/identity counts before the
   governed calendar-repair and independent-qualification steps.
+
+## 2026-09-11 — Durable corporate-action pagination recovery
+
+- **USER_REQUIREMENT:** Restore the existing persistence rule: a successfully
+  validated corporate-action page is durable state and must survive transient
+  provider failure, process exit, and service restart without reacquisition.
+- **VERIFIED_REPO:** Commit `8ec5ed3` adds atomic deterministic staged page
+  evidence and a checksummed pagination checkpoint bound to the exact request,
+  semantic/schema identities, page sequence, tokens, integrity, and provider
+  event IDs. Restart validates and reconstructs from persisted evidence before
+  requesting only the first unfinished page. Terminal artifacts remain the
+  products of complete validated pagination.
+- **VERIFIED_ARTIFACT:** `python3 -m unittest
+  tests.test_ml_historical_acquisition tests.test_ml_historical_qualification`
+  passed 123/123. `qpx_bot/ml_historical_acquisition.py` compiled and
+  `git diff --check` passed.
+- **VERIFIED_ARTIFACT:** The existing systemd service loaded the new commit.
+  The completed reservoir remains 7,370/7,370 partitions and 383,082,447 rows;
+  training remains unauthorized.
+- **VERIFIED_ARTIFACT / PROVIDER BLOCKED:** Alpaca returned repeated HTTP 504
+  `backend request timeout` responses before the first CA page succeeded. The
+  service remains in governed recovery, corporate actions are `PENDING`, and no
+  real durable page-progress claim is made.
+- **NEXT EXACT ACTION:** When Alpaca returns a page, validate the staged page and
+  checkpoint count/fingerprints, then verify any subsequent retry resumes from
+  the preserved next-page token. Do not start training.

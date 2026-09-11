@@ -403,3 +403,31 @@ actions are still `PENDING`; training is unauthorized.
 **NEXT EXACT STEP:** Allow the existing service retry path to resume corporate
 actions when Alpaca responds, then validate the atomic CA evidence and identity
 counts before calendar repair and independent qualification.
+
+## September 11 durable corporate-action page recovery
+
+**VERIFIED_REPO:** Commit `8ec5ed3` restores the standing rule that every
+successfully validated provider page is durable before the next request.
+Corporate-action pages, provenance, token continuity, and a checksummed
+request-bound checkpoint are persisted atomically; restart reconstructs the
+working set from that evidence and resumes at the first unfinished page.
+Corrupt, stale, contradictory, or duplicate-ID evidence fails closed. Terminal
+artifacts remain committed only after complete validated pagination.
+
+**VERIFIED_ARTIFACT:** The directly affected acquisition and qualification
+modules passed 123/123 focused tests. The acquisition module compiled and
+`git diff --check` passed. All 7,370 bar partitions and 383,082,447 rows remain
+unchanged; training remains unauthorized.
+
+**VERIFIED_ARTIFACT / PROVIDER BLOCKED:** The existing service loaded commit
+`8ec5ed3` through its normal systemd restart path. Alpaca continued returning
+HTTP 504 `backend request timeout` before the first corporate-action page, so no
+real staged page exists yet and runtime acquisition success is not claimed.
+The service remains in its governed retry/restart path with corporate actions
+`PENDING`.
+
+**NEXT EXACT STEP:** Let the existing service continue until Alpaca returns the
+first page; verify the new staged page/checkpoint and, if another transient error
+occurs, verify restart requests the saved next-page token rather than page 1.
+Then validate terminal CA evidence before calendar repair and independent
+qualification. Do not start training.

@@ -1583,3 +1583,26 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   HTTP 504 `backend request timeout` and exhausted the existing bounded request
   retries. Systemd entered its existing `Restart=on-failure` recovery; corporate
   actions remain `PENDING`, and no training began.
+
+## Durable Corporate-Action Page Recovery — 2026-09-11
+
+- **USER_REQUIREMENT:** Successfully acquired provider evidence is durable
+  state; RAM is only a working buffer. A transient failure or restart must not
+  erase or reacquire an already validated corporate-action page.
+- **VERIFIED_REPO:** Commit `8ec5ed3` atomically persists each normalized CA
+  page plus its provenance before the next provider request and advances a
+  checksummed, exact-request-bound pagination checkpoint. Resume validates the
+  complete page/token/event-ID chain and reconstructs terminal output solely
+  from persisted pages. Mismatch, corruption, or duplicate IDs fail closed.
+- **VERIFIED_ARTIFACT:** Directly affected acquisition and qualification tests
+  passed 123/123; production compilation and diff checks passed. Bar evidence
+  remains 7,370/7,370 partitions and 383,082,447 rows.
+- **VERIFIED_ARTIFACT / PROVIDER BLOCKED:** After the corrected service was
+  loaded, Alpaca still returned HTTP 504 before page 1 completed. No real CA
+  page/checkpoint was created, so durable runtime acquisition success remains
+  unproven and is not claimed. Corporate actions remain `PENDING`; training is
+  unauthorized.
+- **NEXT EXACT STEP:** Observe the first successful real CA page, validate its
+  durable page/checkpoint identity, and prove a later retry resumes from its
+  next token. Then validate terminal CA artifacts before calendar repair and
+  independent qualification.
