@@ -4,12 +4,15 @@
 
 This rule applies to every ChatGPT conversation used to develop, operate, research, debug, document, or plan QPX_ALPHA.
 
-Before any QPX task, ChatGPT and Codex must follow the mandatory pointer in
+After every individual QPX user prompt/message and before responding or acting,
+ChatGPT and Codex must follow the mandatory pointer in
 `AGENTS.md` and load the entire current `QPX_CODEX_COMPLIANCE_PROMPT.md` from its
 first byte through EOF. Summaries, excerpts, cached memory, prior-turn reads, and
 truncated output do not satisfy this requirement. That prompt is fail-closed task
 procedure: unmet prerequisites prevent dependent actions, and partial success
 cannot be reported as whole-task compliance.
+No previous prompt's read carries forward, including for continuations,
+corrections, interruptions, status requests, or short follow-ups.
 
 ## Early warning
 

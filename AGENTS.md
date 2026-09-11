@@ -1,7 +1,9 @@
 
 # MANDATORY FIRST STEP — QPX CODEX COMPLIANCE PROMPT
 
-Before interpreting, planning, or acting on **any** task in this repository,
+After **every individual user prompt/message** received while this repository is
+in scope—even a conversational message that does not mention QPX—and before
+interpreting, responding, planning, or acting on that prompt,
 read and apply the **entire current file, first byte through EOF**:
 [`QPX_CODEX_COMPLIANCE_PROMPT.md`](QPX_CODEX_COMPLIANCE_PROMPT.md).
 Its pre-action check, sequencing rules, evidence standards, completion audit,
@@ -10,8 +12,11 @@ or linking the prompt without applying it does not satisfy this requirement.
 No code, test, runtime, Git, or completion action may proceed when its mandatory
 precondition or required evidence is absent. The prompt is fail-closed, cannot
 be waived by prior behavior or a passing test, and must be reapplied every task.
+A prompt is the unit of reapplication, not a multi-message task or turn.
 A summary, excerpt, search hit, cached copy, remembered content, prior-turn read,
 or truncated output is not compliance. Continue paginated reads until EOF.
+A read performed for the preceding prompt never carries forward to the next one,
+including a continuation, correction, interruption, status request, or follow-up.
 
 ---
 

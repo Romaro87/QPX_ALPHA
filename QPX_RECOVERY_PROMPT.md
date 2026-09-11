@@ -466,3 +466,15 @@ positively reached, and the first work update must say the complete load occurre
 
 **NEXT EXACT STEP:** On every task, load the full current prompt through EOF
 before any action beyond the minimum needed to locate and read governance.
+
+## Every individual prompt requires a fresh complete load — 2026-09-11
+
+**USER_REQUIREMENT / VERIFIED_REPO:** From this point forward, every individual
+QPX user prompt/message independently requires a fresh full load of
+`QPX_CODEX_COMPLIANCE_PROMPT.md` from first byte through EOF before any response
+or action. This includes continuations, corrections, clarifications,
+interruptions, status requests, objections, approvals, and one-line follow-ups.
+A load for the immediately preceding prompt never carries forward.
+
+**NEXT EXACT STEP:** Reload the complete current prompt after every user message
+before responding or acting on that message.

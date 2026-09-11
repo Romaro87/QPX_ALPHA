@@ -1637,3 +1637,11 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   prior-turn read, or truncated output is explicitly insufficient.
 - **VERIFIED_REPO:** The completion audit now requires affirmative evidence that
   the entire prompt was loaded for the current task.
+
+## Fresh Complete Load After Every User Prompt — 2026-09-11
+
+- **USER_REQUIREMENT:** The complete compliance prompt must be freshly loaded
+  after each and every user prompt from here forward.
+- **VERIFIED_REPO:** The rule applies to tasks, continuations, corrections,
+  clarifications, interruptions, status requests, objections, approvals, and
+  one-line follow-ups. A preceding prompt's load cannot satisfy the next prompt.

@@ -1,20 +1,26 @@
 # QPX CODEX COMPLIANCE PROMPT — BINDING
 
-This prompt applies before every QPX_ALPHA task. It governs Codex's own task
+This prompt applies after every individual user prompt/message received from
+this point forward whenever QPX_ALPHA is in scope, even when the message itself
+is only conversational or does not mention QPX. It governs Codex's own response
 process. It is fail-closed: **no repository or runtime action is permitted until
-it has been read and applied to the current task.** Read it before interpreting,
+it has been read and applied to the current prompt.** Read it before interpreting,
 planning, inspecting beyond the minimum needed to load governance, editing,
 testing, operating runtime state, committing, pushing, or reporting completion.
 
-“Read” means load this **entire file from the first byte through EOF on every
-task**. A summary, excerpt, partial read, search result, cached copy, remembered
-content, prior-turn read, or truncated tool output does not qualify. If one tool
+“Read” means load this **entire file from the first byte through EOF after every
+individual user prompt and before responding or acting on that prompt**. This
+includes new tasks, continuations, corrections, clarifications, interruptions,
+status requests, approvals, objections, and one-line follow-ups. A summary,
+excerpt, partial read, search result, cached copy, remembered content, prior-turn
+read, or truncated tool output does not qualify. If one tool
 call truncates or paginates the file, continue reading successive ranges until
 EOF is positively reached. Do not act until the complete current worktree
-version has been loaded.
+version has been loaded. A full read performed for the immediately preceding
+prompt does not satisfy the next prompt.
 
-The first user-facing work update for any action task must state that this prompt
-was loaded **completely through EOF** and concisely identify the risk class,
+The first user-facing work update after each action prompt must state that this
+prompt was loaded **completely through EOF** and concisely identify the risk class,
 authorized scope, prohibited actions, required sequence, and completion evidence.
 Silence, memory of a prior turn, a partial load, or a generic promise to “follow
 the rules” is not compliance.
@@ -59,7 +65,7 @@ implementation detail never outranks a governed QPX contract.
 
 ## Pre-action check
 
-Before editing code or changing runtime state:
+Before answering or acting on each user prompt:
 
 - Confirm that the entire current compliance prompt was loaded through EOF.
 - Verify repository, authorized branch, HEAD, upstream, and tracked worktree.
@@ -182,7 +188,8 @@ unavailable, report `UNKNOWN / UNRECOVERED`, `PROVIDER BLOCKED`, or `INCOMPLETE`
 
 Before calling any task complete, verify every answer is **YES**:
 
-1. Did I load this entire current prompt from first byte through EOF this task?
+1. Did I load this entire current prompt from first byte through EOF after this
+   specific user prompt?
 2. Did I follow every applicable standing rule?
 3. Did I follow the requested sequence and avoid every prohibited action?
 4. Did I inspect all directly affected semantic surfaces?

@@ -122,3 +122,12 @@
 - **VERIFIED_ARTIFACT:** The current 223-line, 9,828-byte prompt was read through
   EOF before making this documentation-only change.
 - **RUNTIME:** No service, provider, training, or data state was touched.
+
+## 2026-09-11 — Fresh compliance load after every prompt
+
+- **USER_REQUIREMENT:** From here forward forever, reload the complete current
+  compliance prompt after each individual user prompt before responding.
+- **VERIFIED_REPO:** The governing language now covers every message type,
+  including continuations, corrections, interruptions, status requests, and
+  short follow-ups; a prior prompt's read never carries forward.
+- **RUNTIME:** No service, provider, training, or data state was touched.
