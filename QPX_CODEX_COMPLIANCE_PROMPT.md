@@ -6,10 +6,18 @@ it has been read and applied to the current task.** Read it before interpreting,
 planning, inspecting beyond the minimum needed to load governance, editing,
 testing, operating runtime state, committing, pushing, or reporting completion.
 
+“Read” means load this **entire file from the first byte through EOF on every
+task**. A summary, excerpt, partial read, search result, cached copy, remembered
+content, prior-turn read, or truncated tool output does not qualify. If one tool
+call truncates or paginates the file, continue reading successive ranges until
+EOF is positively reached. Do not act until the complete current worktree
+version has been loaded.
+
 The first user-facing work update for any action task must state that this prompt
-was loaded and concisely identify the risk class, authorized scope, prohibited
-actions, required sequence, and completion evidence. Silence, memory of a prior
-turn, or a generic promise to “follow the rules” is not compliance.
+was loaded **completely through EOF** and concisely identify the risk class,
+authorized scope, prohibited actions, required sequence, and completion evidence.
+Silence, memory of a prior turn, a partial load, or a generic promise to “follow
+the rules” is not compliance.
 
 Also read and obey:
 
@@ -53,6 +61,7 @@ implementation detail never outranks a governed QPX contract.
 
 Before editing code or changing runtime state:
 
+- Confirm that the entire current compliance prompt was loaded through EOF.
 - Verify repository, authorized branch, HEAD, upstream, and tracked worktree.
 - Preserve unrelated tracked and untracked work.
 - Classify risk correctly and complete `QPX_PRE_CODE_GATE_V1`.
@@ -173,21 +182,22 @@ unavailable, report `UNKNOWN / UNRECOVERED`, `PROVIDER BLOCKED`, or `INCOMPLETE`
 
 Before calling any task complete, verify every answer is **YES**:
 
-1. Did I follow every applicable standing rule?
-2. Did I follow the requested sequence and avoid every prohibited action?
-3. Did I inspect all directly affected semantic surfaces?
-4. Did I update directly affected tests and fixtures?
-5. Did the proportionate focused tests pass?
-6. Did I obtain every specifically required runtime proof?
-7. Did I preserve all governed data and state?
-8. Did every meaningful push include required continuity in that same push?
-9. Does every completion claim have direct evidence?
-10. Did I avoid unrelated redesign, hardening, and new bureaucracy?
-11. Is the authorized remote branch verified and `main` untouched?
-12. Is training unauthorized unless explicitly approved?
-13. Did I preserve the required order rather than merely perform the same steps?
-14. Does every positive claim map to the required direct evidence?
-15. Am I reporting the whole task rather than only its successful subset?
+1. Did I load this entire current prompt from first byte through EOF this task?
+2. Did I follow every applicable standing rule?
+3. Did I follow the requested sequence and avoid every prohibited action?
+4. Did I inspect all directly affected semantic surfaces?
+5. Did I update directly affected tests and fixtures?
+6. Did the proportionate focused tests pass?
+7. Did I obtain every specifically required runtime proof?
+8. Did I preserve all governed data and state?
+9. Did every meaningful push include required continuity in that same push?
+10. Does every completion claim have direct evidence?
+11. Did I avoid unrelated redesign, hardening, and new bureaucracy?
+12. Is the authorized remote branch verified and `main` untouched?
+13. Is training unauthorized unless explicitly approved?
+14. Did I preserve the required order rather than merely perform the same steps?
+15. Does every positive claim map to the required direct evidence?
+16. Am I reporting the whole task rather than only its successful subset?
 
 If any answer is **NO** or **UNKNOWN**, do not declare completion.
 

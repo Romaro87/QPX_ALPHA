@@ -112,3 +112,13 @@
 - **VERIFIED_REPO:** Existing `AGENTS.md`, continuity, warning, recovery, and
   ledger surfaces were strengthened consistently; no new framework was added.
 - **RUNTIME:** No service, provider, training, or data state was touched.
+
+## 2026-09-11 — Entire compliance-prompt load required
+
+- **USER_REQUIREMENT:** The mandatory compliance prompt must be loaded in full.
+- **VERIFIED_REPO:** The prompt, `AGENTS.md`, continuity rule, and warning now
+  require a fresh first-byte-through-EOF read every task and reject summaries,
+  excerpts, cached memory, prior-turn reads, and truncated tool output.
+- **VERIFIED_ARTIFACT:** The current 223-line, 9,828-byte prompt was read through
+  EOF before making this documentation-only change.
+- **RUNTIME:** No service, provider, training, or data state was touched.

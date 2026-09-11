@@ -68,6 +68,8 @@ Both ChatGPT and Codex must treat `AGENTS.md` and
 They must also load and apply `QPX_CODEX_COMPLIANCE_PROMPT.md` before every task;
 its sequencing, evidence-to-claim, and completion-audit requirements are
 fail-closed and cannot be satisfied retroactively.
+The whole current file must be read through EOF every task. A summary, excerpt,
+cached memory, prior-turn read, or truncated load is not compliance.
 
 It exists because ChatGPT and Codex have repeatedly FAILED TO FOLLOW the
 governance already present.

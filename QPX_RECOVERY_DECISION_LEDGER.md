@@ -1628,3 +1628,12 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   completion actions.
 - **VERIFIED_REPO:** `AGENTS.md`, the continuity rule, and the existing warning
   point to the same mechanism. No parallel governance framework was created.
+
+## Entire Compliance Prompt Must Load — 2026-09-11
+
+- **USER_REQUIREMENT:** The entire compliance prompt must load before every task.
+- **VERIFIED_REPO:** Complete means first byte through EOF from the current
+  worktree version. A summary, excerpt, search result, cached or remembered copy,
+  prior-turn read, or truncated output is explicitly insufficient.
+- **VERIFIED_REPO:** The completion audit now requires affirmative evidence that
+  the entire prompt was loaded for the current task.

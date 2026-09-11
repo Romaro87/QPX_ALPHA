@@ -455,3 +455,14 @@ or a follow-up continuity commit cannot retroactively cure a violation.
 
 **NEXT EXACT STEP:** Apply the hardened prompt before every task and do not
 advance past any unmet prerequisite.
+
+## Complete compliance-prompt load requirement — 2026-09-11
+
+**USER_REQUIREMENT / VERIFIED_REPO:** Every QPX task must load the entire current
+`QPX_CODEX_COMPLIANCE_PROMPT.md` from its first byte through EOF before acting.
+Summaries, excerpts, searches, cached memory, prior-turn reads, and truncated or
+partially paginated output do not qualify. Reads must continue until EOF is
+positively reached, and the first work update must say the complete load occurred.
+
+**NEXT EXACT STEP:** On every task, load the full current prompt through EOF
+before any action beyond the minimum needed to locate and read governance.
