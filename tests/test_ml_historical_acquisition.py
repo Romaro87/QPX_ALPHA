@@ -125,7 +125,10 @@ class CorporateActionClient(FakeClient):
         self.request_count += 1
         self.calls.append((url, dict(params)))
         if self.payloads is not None:
-            return self.payloads.pop(0)
+            result = self.payloads.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
         if params.get("page_token") == "page-2":
             return {
                 "corporate_actions": {
@@ -1047,6 +1050,169 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Duplicate corporate-action"):
                 acquisition.acquire_corporate_actions(state)
             self.assertNotEqual(state.get("corporate_action_status"), "COMPLETE")
+
+    @staticmethod
+    def corporate_action_state():
+        return {
+            "requested_range": {
+                "requested_start": "2016-09-03", "requested_end": "2026-09-03",
+            },
+            "api_request_count": 0, "retry_count": 0,
+        }
+
+    @staticmethod
+    def corporate_action_page(event_id, *, token, symbol="AAA"):
+        return {
+            "corporate_actions": {
+                "cash_dividends": [{
+                    "id": event_id, "symbol": symbol, "ex_date": "2021-01-04",
+                }],
+            },
+            "next_page_token": token,
+        }
+
+    def test_corporate_action_checkpoint_resumes_after_transient_failure(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset()], [], NOW))
+            state = self.corporate_action_state()
+            failure = ProviderError("temporary", status=504, transient=True)
+            first_client = CorporateActionClient(payloads=[
+                self.corporate_action_page("event-1", token="page-2"), failure,
+            ])
+            first = Acquisition(
+                root, first_client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            )
+            first._state_defaults(state)
+            with self.assertRaises(ProviderError):
+                first.acquire_corporate_actions(state)
+            checkpoint_path = root / state["corporate_action_checkpoint_path"]
+            page_path = checkpoint_path.parent / "page-000001.jsonl.gz"
+            self.assertEqual(state["corporate_action_staged_page_count"], 1)
+            self.assertTrue(page_path.exists())
+            self.assertTrue(checkpoint_path.with_suffix(".sha256").exists())
+            preserved_page = page_path.read_bytes()
+
+            second_client = CorporateActionClient(payloads=[
+                self.corporate_action_page("event-2", token=None),
+            ])
+            second = Acquisition(
+                root, second_client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            )
+            second.acquire_corporate_actions(state)
+            self.assertEqual(second_client.calls[0][1]["page_token"], "page-2")
+            self.assertEqual(second_client.request_count, 1)
+            records = read_gzip_jsonl(root / state["corporate_action_artifact_path"])
+            self.assertEqual(
+                [record["provider_event_id"] for record in records],
+                ["event-1", "event-2"],
+            )
+            self.assertEqual(state["corporate_action_completed_page_count"], 2)
+            self.assertFalse(checkpoint_path.parent.exists())
+            self.assertTrue(preserved_page)
+
+    def test_repeated_corporate_action_failures_preserve_completed_pages(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset()], [], NOW))
+            state = self.corporate_action_state()
+            first = Acquisition(
+                root,
+                CorporateActionClient(payloads=[
+                    self.corporate_action_page("event-1", token="page-2"),
+                    ProviderError("temporary", status=503, transient=True),
+                ]),
+                now=lambda: NOW, capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            )
+            first._state_defaults(state)
+            with self.assertRaises(ProviderError):
+                first.acquire_corporate_actions(state)
+            checkpoint_path = root / state["corporate_action_checkpoint_path"]
+            page_path = checkpoint_path.parent / "page-000001.jsonl.gz"
+            before = (page_path.read_bytes(), checkpoint_path.read_bytes())
+            retry_client = CorporateActionClient(payloads=[
+                ProviderError("temporary again", status=502, transient=True),
+            ])
+            retry = Acquisition(
+                root, retry_client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            )
+            with self.assertRaises(ProviderError):
+                retry.acquire_corporate_actions(state)
+            self.assertEqual(retry_client.calls[0][1]["page_token"], "page-2")
+            self.assertEqual(
+                (page_path.read_bytes(), checkpoint_path.read_bytes()), before,
+            )
+
+    def test_corrupt_or_mismatched_corporate_action_resume_fails_closed(self):
+        for corrupt_target in ("checkpoint", "page", "request_identity"):
+            with self.subTest(target=corrupt_target), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                write_security_master(root, build_security_master([asset()], [], NOW))
+                state = self.corporate_action_state()
+                acquisition = Acquisition(
+                    root,
+                    CorporateActionClient(payloads=[
+                        self.corporate_action_page("event-1", token="page-2"),
+                        ProviderError("temporary", status=500, transient=True),
+                    ]),
+                    now=lambda: NOW,
+                    capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+                )
+                acquisition._state_defaults(state)
+                with self.assertRaises(ProviderError):
+                    acquisition.acquire_corporate_actions(state)
+                checkpoint_path = root / state["corporate_action_checkpoint_path"]
+                if corrupt_target == "checkpoint":
+                    atomic_bytes(checkpoint_path, b"{}\n")
+                elif corrupt_target == "page":
+                    atomic_bytes(
+                        checkpoint_path.parent / "page-000001.jsonl.gz",
+                        encode_gzip_jsonl([]),
+                    )
+                else:
+                    state["requested_range"]["requested_end"] = "2026-09-02"
+                client = CorporateActionClient(payloads=[
+                    self.corporate_action_page("event-2", token=None),
+                ])
+                resumed = Acquisition(
+                    root, client, now=lambda: NOW,
+                    capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+                )
+                with self.assertRaisesRegex(
+                    RuntimeError, "checkpoint|staged page|request identity",
+                ):
+                    resumed.acquire_corporate_actions(state)
+                self.assertEqual(client.request_count, 0)
+
+    def test_duplicate_event_id_across_durable_corporate_action_pages_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(root, build_security_master([asset()], [], NOW))
+            state = self.corporate_action_state()
+            first = Acquisition(
+                root,
+                CorporateActionClient(payloads=[
+                    self.corporate_action_page("duplicate", token="page-2"),
+                    ProviderError("temporary", status=504, transient=True),
+                ]),
+                now=lambda: NOW, capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            )
+            first._state_defaults(state)
+            with self.assertRaises(ProviderError):
+                first.acquire_corporate_actions(state)
+            second_client = CorporateActionClient(payloads=[
+                self.corporate_action_page("duplicate", token=None),
+            ])
+            second = Acquisition(
+                root, second_client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            )
+            with self.assertRaisesRegex(RuntimeError, "Duplicate corporate-action"):
+                second.acquire_corporate_actions(state)
+            self.assertEqual(state["corporate_action_staged_page_count"], 1)
 
     def test_status_preserves_complete_not_qualified_state(self):
         with tempfile.TemporaryDirectory() as folder:

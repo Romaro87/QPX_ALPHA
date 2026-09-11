@@ -69,6 +69,8 @@ OBSERVATIONAL_COVERAGE_SCHEMA_VERSION = 1
 CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION = 3
 CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 1
 CORPORATE_ACTION_SEMANTIC_VERSION = "ALPACA_CORPORATE_ACTIONS_HISTORICAL_V3"
+CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION = 1
+CORPORATE_ACTION_CHECKPOINT_SCHEMA_VERSION = 1
 BATCH_SIZE = 50
 PAGE_LIMIT = 10_000
 REQUESTS_PER_MINUTE = 120
@@ -2058,12 +2060,121 @@ class Acquisition:
             "params": params,
         }
         request_fp = fingerprint(request_core)
-        token = None
-        seen_tokens: set[str] = set()
-        page = 0
+        staging_parent = self.root / "acquisition_state" / "corporate_actions"
+        staging_root = staging_parent / request_fp
+        if staging_parent.exists() and any(
+            path.is_dir() and path.name != request_fp
+            for path in staging_parent.iterdir()
+        ):
+            raise RuntimeError("Corporate-action staged request identity mismatch.")
+        checkpoint_path = staging_root / "checkpoint.json"
+        checkpoint_checksum = checkpoint_path.with_suffix(".sha256")
         records: dict[str, dict[str, Any]] = {}
         pages: list[dict[str, Any]] = []
+        token: str | None = None
+        seen_tokens: set[str] = set()
+        if checkpoint_path.exists() or checkpoint_checksum.exists() or staging_root.exists():
+            if not checkpoint_path.exists() or not checkpoint_checksum.exists():
+                raise RuntimeError("Corporate-action checkpoint is incomplete or corrupt.")
+            try:
+                checkpoint = json.loads(read_checksummed_state(
+                    checkpoint_path, checkpoint_checksum,
+                    label="Corporate-action acquisition checkpoint",
+                ))
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                raise RuntimeError("Corporate-action checkpoint is corrupt.") from exc
+            checkpoint_core = {
+                key: value for key, value in checkpoint.items()
+                if key != "checkpoint_fingerprint"
+            }
+            if (
+                checkpoint.get("schema_version") != CORPORATE_ACTION_CHECKPOINT_SCHEMA_VERSION
+                or checkpoint.get("corporate_action_semantic_version") != CORPORATE_ACTION_SEMANTIC_VERSION
+                or checkpoint.get("corporate_action_evidence_schema_version") != CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION
+                or checkpoint.get("acquisition_provenance_version") != ACQUISITION_PROVENANCE_VERSION
+                or checkpoint.get("request_core") != request_core
+                or checkpoint.get("request_fingerprint") != request_fp
+                or checkpoint.get("checkpoint_fingerprint") != fingerprint(checkpoint_core)
+                or checkpoint.get("completed_page_count") != len(checkpoint.get("page_evidence_fingerprints", ()))
+            ):
+                raise RuntimeError("Corporate-action checkpoint identity mismatch.")
+            page_count = int(checkpoint["completed_page_count"])
+            expected_files = {
+                staging_root / f"page-{index:06d}.jsonl.gz"
+                for index in range(1, page_count + 1)
+            }
+            actual_files = set(staging_root.glob("page-*.jsonl.gz"))
+            actual_manifests = set(staging_root.glob("page-*.manifest.json"))
+            if actual_files != expected_files or len(actual_manifests) != page_count:
+                raise RuntimeError("Corporate-action staged page set is inconsistent.")
+            expected_input_token: str | None = None
+            for index in range(1, page_count + 1):
+                page_path = staging_root / f"page-{index:06d}.jsonl.gz"
+                manifest_path = staging_root / f"page-{index:06d}.manifest.json"
+                try:
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    staged_records = read_gzip_jsonl(page_path)
+                except (OSError, ValueError, json.JSONDecodeError) as exc:
+                    raise RuntimeError("Corporate-action staged page is corrupt.") from exc
+                manifest_core = {
+                    key: value for key, value in manifest.items()
+                    if key != "staging_manifest_fingerprint"
+                }
+                page_evidence = manifest.get("page_evidence")
+                if not isinstance(page_evidence, dict):
+                    raise RuntimeError("Corporate-action staged page evidence is malformed.")
+                page_core = {
+                    key: value for key, value in page_evidence.items()
+                    if key != "page_evidence_fingerprint"
+                }
+                if (
+                    manifest.get("schema_version") != CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION
+                    or manifest.get("request_fingerprint") != request_fp
+                    or manifest.get("page") != index
+                    or manifest.get("artifact_sha256") != sha256_path(page_path)
+                    or manifest.get("records_fingerprint") != fingerprint(staged_records)
+                    or manifest.get("record_count") != len(staged_records)
+                    or manifest.get("staging_manifest_fingerprint") != fingerprint(manifest_core)
+                    or page_evidence.get("page") != index
+                    or page_evidence.get("request_fingerprint") != request_fp
+                    or page_evidence.get("input_page_token") != expected_input_token
+                    or page_evidence.get("page_evidence_fingerprint") != fingerprint(page_core)
+                    or page_evidence.get("provider_event_ids")
+                    != sorted(record.get("provider_event_id") for record in staged_records)
+                    or checkpoint["page_evidence_fingerprints"][index - 1]
+                    != page_evidence.get("page_evidence_fingerprint")
+                ):
+                    raise RuntimeError("Corporate-action staged page validation failed.")
+                for record in staged_records:
+                    event_id = record.get("provider_event_id")
+                    if not isinstance(event_id, str) or not event_id or event_id in records:
+                        raise RuntimeError(
+                            f"Duplicate or invalid corporate-action provider event id: {event_id}"
+                        )
+                    records[event_id] = record
+                pages.append(page_evidence)
+                expected_input_token = manifest.get("next_page_token")
+                if expected_input_token is not None and (
+                    not isinstance(expected_input_token, str) or not expected_input_token
+                ):
+                    raise RuntimeError("Corporate-action staged page token is malformed.")
+                if expected_input_token is not None:
+                    if expected_input_token in seen_tokens:
+                        raise RuntimeError("Repeated corporate-action staged page token.")
+                    seen_tokens.add(expected_input_token)
+                expected_next_fingerprint = (
+                    fingerprint({"page_token": expected_input_token})
+                    if expected_input_token else None
+                )
+                if page_evidence.get("next_page_token_fingerprint") != expected_next_fingerprint:
+                    raise RuntimeError("Corporate-action staged token identity mismatch.")
+            token = checkpoint.get("next_page_token")
+            if token != expected_input_token or (token is None) != bool(checkpoint.get("terminal_page")):
+                raise RuntimeError("Corporate-action checkpoint pagination boundary mismatch.")
+        page = len(pages)
         while True:
+            if page and token is None:
+                break
             request = dict(params)
             if token: request["page_token"] = token
             self._capacity_gate(state, {"year": "corporate_actions", "batch": 0})
@@ -2108,11 +2219,64 @@ class Acquisition:
                 "provider_event_ids": sorted(page_event_ids),
                 "provider_payload_fingerprint": fingerprint(payload),
             }
-            pages.append({**page_core, "page_evidence_fingerprint": fingerprint(page_core)})
+            page_evidence = {
+                **page_core, "page_evidence_fingerprint": fingerprint(page_core),
+            }
+            page_path = staging_root / f"page-{page:06d}.jsonl.gz"
+            atomic_bytes(page_path, encode_gzip_jsonl(
+                records[event_id] for event_id in sorted(page_event_ids)
+            ))
+            staging_core = {
+                "schema_version": CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION,
+                "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
+                "request_fingerprint": request_fp,
+                "page": page,
+                "record_count": len(page_event_ids),
+                "records_fingerprint": fingerprint([
+                    records[event_id] for event_id in sorted(page_event_ids)
+                ]),
+                "artifact_sha256": sha256_path(page_path),
+                "next_page_token": next_token,
+                "page_evidence": page_evidence,
+            }
+            atomic_json(
+                staging_root / f"page-{page:06d}.manifest.json",
+                {**staging_core, "staging_manifest_fingerprint": fingerprint(staging_core)},
+            )
+            pages.append(page_evidence)
             if next_token is not None:
                 seen_tokens.add(next_token)
             token = next_token
+            checkpoint_core = {
+                "schema_version": CORPORATE_ACTION_CHECKPOINT_SCHEMA_VERSION,
+                "corporate_action_semantic_version": CORPORATE_ACTION_SEMANTIC_VERSION,
+                "corporate_action_evidence_schema_version": CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION,
+                "acquisition_provenance_version": ACQUISITION_PROVENANCE_VERSION,
+                "request_core": request_core,
+                "request_fingerprint": request_fp,
+                "completed_page_count": page,
+                "page_evidence_fingerprints": [
+                    value["page_evidence_fingerprint"] for value in pages
+                ],
+                "next_page_token": token,
+                "terminal_page": token is None,
+            }
+            checkpoint = {
+                **checkpoint_core,
+                "checkpoint_fingerprint": fingerprint(checkpoint_core),
+            }
+            write_checksummed_state(
+                checkpoint_path, checkpoint_checksum,
+                json.dumps(checkpoint, indent=2, sort_keys=True, allow_nan=False).encode() + b"\n",
+            )
             self.sync_provider_counts(state)
+            state["corporate_action_staged_page_count"] = page
+            state["corporate_action_checkpoint_fingerprint"] = checkpoint[
+                "checkpoint_fingerprint"
+            ]
+            state["corporate_action_checkpoint_path"] = str(
+                checkpoint_path.relative_to(self.root)
+            )
             state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
             if not token: break
         ordered = [records[key] for key in sorted(records)]
@@ -2164,6 +2328,14 @@ class Acquisition:
             resolution_path.relative_to(self.root)
         )
         state["corporate_action_status"] = "COMPLETE"
+        state["corporate_action_completed_page_count"] = page
+        state["corporate_action_staged_page_count"] = 0
+        state["corporate_action_checkpoint_fingerprint"] = None
+        state["corporate_action_checkpoint_path"] = None
+        self.sync_provider_counts(state)
+        state["checkpoint_at_utc"] = self.now().isoformat()
+        self.save_state(state)
+        shutil.rmtree(staging_root)
 
     def finalize(self, state: dict[str, Any]) -> None:
         population = self._provider_population()
@@ -2238,7 +2410,17 @@ class Acquisition:
         else:
             self._drain_pending_finalizations(state)
             state["stage"] = "CORPORATE_ACTIONS"; state["status"] = "RUNNING"; state["current_partition"] = "corporate_actions"; self.save_state(state)
-            self.acquire_corporate_actions(state); self.finalize(state)
+            corporate_item = {"year": "corporate_actions", "batch": 0}
+            while state.get("corporate_action_status") != "COMPLETE":
+                try:
+                    self.acquire_corporate_actions(state)
+                except ProviderError as exc:
+                    if not exc.transient:
+                        raise
+                    if not self._wait_for_network(state, corporate_item, exc):
+                        break
+            if state.get("corporate_action_status") == "COMPLETE":
+                self.finalize(state)
         if max_partitions is not None and completed_now >= max_partitions:
             state["status"] = "PARTIAL"; state["stop_reason"] = "BOUNDED_RUN_COMPLETE"
         self.sync_provider_counts(state); state["checkpoint_at_utc"] = self.now().isoformat(); self.save_state(state)
@@ -2276,7 +2458,7 @@ def status(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     active_bytes = max(0, state.get("bytes_stored", 0) - state.get("active_measurement_bytes_baseline", 0))
     active_rate = active_rows / active_seconds
     remaining = state["partitions_total"] - state["partitions_complete"]
-    payload = {k: state.get(k) for k in ("status", "operating_mode", "historical_request_ceiling_per_minute", "historical_concurrency", "live_qpx_detected_active", "clean_v2_service_state", "live_capacity_reason", "live_capacity_recheck_seconds", "live_session_yield_date", "live_session_latch_reason", "last_historical_activity_at_utc", "coexistence_journal_events", "provider_average_request_latency_seconds", "provider_rate_limit", "provider_rate_limit_remaining", "provider_rate_limit_reset", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "morning_deadline")}
+    payload = {k: state.get(k) for k in ("status", "operating_mode", "historical_request_ceiling_per_minute", "historical_concurrency", "live_qpx_detected_active", "clean_v2_service_state", "live_capacity_reason", "live_capacity_recheck_seconds", "live_session_yield_date", "live_session_latch_reason", "last_historical_activity_at_utc", "coexistence_journal_events", "provider_average_request_latency_seconds", "provider_rate_limit", "provider_rate_limit_remaining", "provider_rate_limit_reset", "requested_range", "provider", "feed", "adjustment", "security_count", "active_count", "inactive_count", "partitions_total", "partitions_complete", "rows_15m", "bytes_stored", "api_request_count", "retry_count", "failure_count", "transient_outage_count", "transient_outage_seconds", "provider_retry_count", "bad_symbol_failure_count", "hard_failure_count", "outage_started_at_utc", "last_successful_request_at_utc", "next_retry_at_utc", "transient_failure_type", "transient_failure_message", "network_retry_attempt_count", "outage_backoff_level", "current_partition", "checkpoint_at_utc", "survivorship_status", "training_eligibility", "corporate_action_status", "corporate_action_staged_page_count", "corporate_action_completed_page_count", "corporate_action_checkpoint_fingerprint", "corporate_action_checkpoint_path", "morning_deadline")}
     systemd_state = "UNKNOWN"
     try:
         import subprocess
