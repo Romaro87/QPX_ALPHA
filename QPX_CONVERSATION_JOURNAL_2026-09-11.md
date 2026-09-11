@@ -152,3 +152,32 @@
 - **VERIFIED_ARTIFACT:** Pre-existing durable pages remained byte-identical across the explicit restart.
 - **VERIFIED_ARTIFACT:** Historical reservoir remained 7370 partitions and 383082447 rows.
 - **TRAINING AUTHORITY:** Unchanged; training remains unauthorized.
+
+## 2026-09-11 — Corporate-action name-change lineage correction
+
+- **USER_REQUIREMENT:** Resolve or bound corporate-action identities using only
+  authoritative same-security alias evidence. For Alpaca, only explicit
+  `name_change` old/new-symbol evidence creates lineage; merger, spin-off,
+  reorganization, and other event aliases do not.
+- **VERIFIED_ARTIFACT:** Mechanical classification of the original 69,063
+  dated/security-unbounded events found 5,413 without symbol evidence and
+  63,650 with symbols but no direct provider-population match. Name-change-only
+  traversal produced 10,358 unique anchors, 621 multiple-ID anchors, and 58,084
+  records with no anchor.
+- **VERIFIED_REPO:** The existing resolver was extended deterministically and
+  the evidence identity advanced to schema 2 / semantic
+  `ALPACA_PROVIDER_REPORTED_SYMBOL_LINEAGE_V2`. Direct matches, reuse,
+  competing components, cycles, non-name-change aliases, bounded ambiguity,
+  and unbounded fail-closed behavior have focused coverage.
+- **VERIFIED_ARTIFACT:** Real resolution fingerprint
+  `3e97e6aeafb3815e0fe6380df2b78c428abe1ff28ef5ced42be114e1bb32591a`;
+  manifest fingerprint
+  `857a39e00bf690e89933be731e4fa18e0e2b7bd55ddeb6a768ab6d66db4b4e39`.
+  Final counts: 299,477 resolved, 63,671 unresolved, 5,587 bounded unresolved,
+  and 58,084 unbounded.
+- **VERIFIED_ARTIFACT:** Eight focused tests passed; Python compilation and
+  diff checks passed. No provider request, CA reacquisition, bar mutation,
+  calendar repair, qualification, or training occurred.
+- **NEXT EXACT STEP:** Supply authoritative provider identity evidence for the
+  remaining 58,084 events or govern their treatment. Do not weaken the existing
+  security-and-time qualification boundary.

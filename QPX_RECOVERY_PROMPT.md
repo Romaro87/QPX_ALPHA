@@ -500,3 +500,31 @@ Chain SHA256: `d3c6b985aa263c6f8d5ce96baf846c041e154336a26182163684bb9ef97920d0`
 
 Historical reservoir remains 7370 partitions and 383082447 rows.
 Training remains unauthorized.
+
+## 2026-09-11 — Provider-reported name-change lineage qualification checkpoint
+
+**USER_REQUIREMENT / VERIFIED_REPO:** Corporate-action identity qualification
+may traverse only explicit provider `name_change` old/new-symbol evidence as a
+same-security lineage. Merger, spin-off, reorganization, distribution, and
+other action types do not create same-security edges merely because aliases are
+present. Unique anchored components resolve; multi-ID components retain every
+candidate; unanchored components remain unbounded.
+
+**VERIFIED_ARTIFACT:** The immutable 363,148-event archive was not reacquired.
+The corrected resolution artifact fingerprint is
+`3e97e6aeafb3815e0fe6380df2b78c428abe1ff28ef5ced42be114e1bb32591a`;
+its manifest fingerprint is
+`857a39e00bf690e89933be731e4fa18e0e2b7bd55ddeb6a768ab6d66db4b4e39`.
+Of the original 69,063 unbounded events, 10,358 became uniquely resolved, 621
+became bounded ambiguous, and 58,084 remain unbounded: 5,413 have no usable
+symbol evidence and 52,671 have no authoritative provider-population anchor
+through the complete acquired name-change lineage.
+
+**VERIFIED_ARTIFACT:** Bars remain 7,370/7,370 and 383,082,447 rows. Focused
+resolver/qualification tests passed 8/8, compilation and diff checks passed,
+and training remains unauthorized.
+
+**NEXT EXACT STEP:** Obtain authoritative provider identity evidence for the
+remaining 58,084 dated events, or an explicit governance decision for their
+treatment. Calendar repair and independent qualification remain gated and were
+not run.

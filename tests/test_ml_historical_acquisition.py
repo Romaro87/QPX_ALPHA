@@ -24,7 +24,7 @@ from qpx_bot.ml_historical_acquisition import (
     encode_gzip_jsonl,
     load_provider_population, normalize_corporate_action, observational_coverage_evidence,
     page_evidence, partition_population_disposition, read_gzip_csv, read_gzip_jsonl,
-    request_identity, sha256_path,
+    rebuild_corporate_action_identity_resolution, request_identity, sha256_path,
     coexistence_capacity, status, validate_bar,
 )
 from qpx_bot.historical_market_calendar import FROZEN_CALENDAR_CONTENT_FINGERPRINT, load_frozen_historical_calendar
@@ -972,6 +972,99 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             self.assertEqual(ambiguous["excluded_provider_asset_ids"], ["d1", "d2"])
             self.assertEqual(ambiguous["bounded_dates"], ["2021-01-04"])
 
+    def test_corporate_action_provider_reported_lineage_is_deterministic(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(
+                root,
+                build_security_master(
+                    [
+                        asset("a", "AAA"), asset("b", "BBB"),
+                        asset("d1", "DUP"), asset("d2", "DUP"),
+                    ],
+                    [], NOW,
+                ),
+            )
+            population = load_provider_population(root)
+            records = [
+                normalize_corporate_action(
+                    {"id": "edge-1", "old_symbol": "OLD", "new_symbol": "AAA"},
+                    "name_change", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "edge-2", "old_symbol": "OLDER", "new_symbol": "OLD"},
+                    "name_change", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "old-event", "symbol": "OLDER", "effective_date": "2021-01-04"},
+                    "cash_dividend", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "competing", "old_symbol": "OLD", "new_symbol": "BBB", "effective_date": "2021-01-05"},
+                    "name_change", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "cycle-1", "old_symbol": "LOOP1", "new_symbol": "LOOP2"},
+                    "name_change", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "cycle-2", "old_symbol": "LOOP2", "new_symbol": "LOOP1"},
+                    "name_change", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "cycle-event", "symbol": "LOOP1", "effective_date": "2021-01-06"},
+                    "cash_dividend", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "reuse", "symbol": "DUP", "effective_date": "2021-01-07"},
+                    "cash_dividend", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "merger-edge", "old_symbol": "MERGED", "new_symbol": "AAA"},
+                    "stock_merger", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "spin-edge", "old_symbol": "SPUN", "new_symbol": "AAA"},
+                    "spin_off", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "reorg-edge", "old_symbol": "REORG", "new_symbol": "AAA"},
+                    "reorganization", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "merger-event", "symbol": "MERGED", "effective_date": "2021-01-08"},
+                    "cash_dividend", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "spin-event", "symbol": "SPUN", "effective_date": "2021-01-08"},
+                    "cash_dividend", NOW,
+                ),
+                normalize_corporate_action(
+                    {"id": "reorg-event", "symbol": "REORG", "effective_date": "2021-01-08"},
+                    "cash_dividend", NOW,
+                ),
+            ]
+            first = corporate_action_identity_resolution(records, population)
+            second = corporate_action_identity_resolution(reversed(records), population)
+            self.assertEqual(first, second)
+            by_id = {record["provider_event_id"]: record for record in first["records"]}
+            self.assertEqual(by_id["old-event"]["outcome"], "UNRESOLVED_CORPORATE_ACTION_IDENTITY")
+            self.assertEqual(by_id["old-event"]["excluded_provider_asset_ids"], ["a", "b"])
+            self.assertEqual(by_id["reuse"]["excluded_provider_asset_ids"], ["d1", "d2"])
+            self.assertEqual(by_id["cycle-event"]["excluded_provider_asset_ids"], [])
+            for event_id in ("merger-event", "spin-event", "reorg-event"):
+                self.assertEqual(
+                    by_id[event_id]["outcome"],
+                    "UNRESOLVED_CORPORATE_ACTION_IDENTITY",
+                )
+                self.assertEqual(by_id[event_id]["excluded_provider_asset_ids"], [])
+
+            unique_records = [record for record in records if record["provider_event_id"] != "competing"]
+            unique = corporate_action_identity_resolution(unique_records, population)
+            unique_by_id = {record["provider_event_id"]: record for record in unique["records"]}
+            self.assertEqual(unique_by_id["old-event"]["outcome"], "RESOLVED_PROVIDER_IDENTITY")
+            self.assertEqual(unique_by_id["old-event"]["provider_asset_id"], "a")
+
     def test_corporate_action_pagination_and_artifacts_are_complete(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -996,6 +1089,16 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             self.assertEqual(state["corporate_action_status"], "COMPLETE")
             self.assertEqual(client.calls[0][1]["region"], "us")
             self.assertEqual(client.calls[0][1]["data_quality"], "complete")
+            artifact_path = root / state["corporate_action_artifact_path"]
+            artifact_before = artifact_path.read_bytes()
+            request_count = client.request_count
+            rebuilt = rebuild_corporate_action_identity_resolution(root, state)
+            self.assertEqual(
+                rebuilt["identity_resolution_fingerprint"],
+                state["corporate_action_identity_resolution_fingerprint"],
+            )
+            self.assertEqual(artifact_path.read_bytes(), artifact_before)
+            self.assertEqual(client.request_count, request_count)
 
     def test_corporate_action_without_primary_symbol_and_capital_gains_are_collected(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -1662,3 +1662,22 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **VERIFIED_ARTIFACT:** Frozen durable chain before restart: 364 pages; SHA256 `d3c6b985aa263c6f8d5ce96baf846c041e154336a26182163684bb9ef97920d0`.
 - **VERIFIED_ARTIFACT:** Protected historical reservoir remained 7370 partitions / 383082447 rows.
 - **TRAINING:** Not authorized.
+
+## Corporate-Action Name-Change Lineage Boundary — 2026-09-11
+
+- **USER_REQUIREMENT:** Only explicit provider `name_change` old/new-symbol
+  evidence establishes same-security symbol lineage. Other corporate-action
+  types cannot create lineage edges merely because aliases are present.
+- **VERIFIED_REPO:** Resolution schema 2 uses deterministic, order-independent
+  name-change components anchored to the immutable provider population. One
+  provider ID resolves, multiple IDs remain bounded ambiguity, and no anchor
+  remains unbounded without guessing.
+- **VERIFIED_ARTIFACT:** The corrected resolution fingerprint is
+  `3e97e6aeafb3815e0fe6380df2b78c428abe1ff28ef5ced42be114e1bb32591a`.
+  From the original 69,063 unbounded events, 10,358 resolved uniquely, 621
+  became bounded ambiguous, and 58,084 remain unbounded.
+- **VERIFIED_ARTIFACT:** The complete 363,148-event archive and 7,370-partition,
+  383,082,447-row bar reservoir were preserved; no provider request occurred.
+- **DECISION STATUS:** The security-and-time requirement remains unchanged.
+  Calendar repair and qualification remain blocked by missing authoritative
+  security scope for 58,084 records. Training is unauthorized.

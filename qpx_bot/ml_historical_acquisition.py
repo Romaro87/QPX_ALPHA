@@ -67,7 +67,10 @@ REJECTION_EVIDENCE_SCHEMA_VERSION = 1
 PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION = 1
 OBSERVATIONAL_COVERAGE_SCHEMA_VERSION = 1
 CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION = 3
-CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 1
+CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 2
+CORPORATE_ACTION_IDENTITY_RESOLUTION_SEMANTIC_VERSION = (
+    "ALPACA_PROVIDER_REPORTED_SYMBOL_LINEAGE_V2"
+)
 CORPORATE_ACTION_SEMANTIC_VERSION = "ALPACA_CORPORATE_ACTIONS_HISTORICAL_V3"
 CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION = 1
 CORPORATE_ACTION_CHECKPOINT_SCHEMA_VERSION = 1
@@ -1001,31 +1004,63 @@ def observational_coverage_evidence(
 def corporate_action_identity_resolution(
     records: Iterable[Mapping[str, Any]], population: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Resolve provider events only through deterministic provider symbol facts."""
-    by_symbol: dict[str, list[str]] = {}
+    """Resolve provider events through explicit provider-reported symbol lineage."""
+    ordered_records = sorted(records, key=lambda item: str(item["provider_event_id"]))
+    by_symbol: dict[str, set[str]] = {}
     for member in population["members"]:
-        by_symbol.setdefault(member["canonical_symbol"], []).append(
+        by_symbol.setdefault(member["canonical_symbol"], set()).add(
             member["provider_asset_id"]
         )
+
+    parent: dict[str, str] = {}
+
+    def find(symbol: str) -> str:
+        parent.setdefault(symbol, symbol)
+        while parent[symbol] != symbol:
+            parent[symbol] = parent[parent[symbol]]
+            symbol = parent[symbol]
+        return symbol
+
+    def union(left: str, right: str) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root == right_root:
+            return
+        if left_root > right_root:
+            left_root, right_root = right_root, left_root
+        parent[right_root] = left_root
+
+    for record in ordered_records:
+        old_symbol = record.get("old_symbol")
+        new_symbol = record.get("new_symbol")
+        if (
+            record.get("action_type") == "name_change"
+            and old_symbol
+            and new_symbol
+        ):
+            union(str(old_symbol), str(new_symbol))
+    for symbol in by_symbol:
+        find(symbol)
+
+    component_ids: dict[str, set[str]] = {}
+    for symbol, provider_ids in by_symbol.items():
+        component_ids.setdefault(find(symbol), set()).update(provider_ids)
+
     resolutions: list[dict[str, Any]] = []
     excluded_ids: set[str] = set()
-    for record in sorted(records, key=lambda item: str(item["provider_event_id"])):
+    for record in ordered_records:
         symbols = sorted({
             str(record.get(key) or "").strip().upper()
             for key in ("symbol", "old_symbol", "new_symbol")
             if str(record.get(key) or "").strip()
         })
         candidates = sorted({
-            asset_id for symbol in symbols for asset_id in by_symbol.get(symbol, ())
+            asset_id
+            for symbol in symbols
+            if symbol in parent
+            for asset_id in component_ids.get(find(symbol), ())
         })
-        unambiguous = {
-            values[0] for symbol in symbols
-            if len(values := by_symbol.get(symbol, ())) == 1
-        }
-        if len(unambiguous) == 1 and all(
-            len(by_symbol.get(symbol, ())) <= 1 for symbol in symbols
-        ):
-            provider_asset_id = next(iter(unambiguous))
+        if len(candidates) == 1:
+            provider_asset_id = candidates[0]
             outcome = "RESOLVED_PROVIDER_IDENTITY"
         else:
             provider_asset_id = None
@@ -1033,6 +1068,8 @@ def corporate_action_identity_resolution(
             excluded_ids.update(candidates)
         core = {
             "schema_version": CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION,
+            "identity_resolution_semantic_version":
+                CORPORATE_ACTION_IDENTITY_RESOLUTION_SEMANTIC_VERSION,
             "provider_event_id": record["provider_event_id"],
             "outcome": outcome,
             "provider_asset_id": provider_asset_id,
@@ -1051,6 +1088,8 @@ def corporate_action_identity_resolution(
         resolutions.append({**core, "resolution_fingerprint": fingerprint(core)})
     core = {
         "schema_version": CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION,
+        "identity_resolution_semantic_version":
+            CORPORATE_ACTION_IDENTITY_RESOLUTION_SEMANTIC_VERSION,
         "security_master_fingerprint": population["security_master_fingerprint"],
         "provider_population_fingerprint": population["provider_population_fingerprint"],
         "records": resolutions,
@@ -1064,6 +1103,80 @@ def corporate_action_identity_resolution(
         "excluded_provider_asset_ids": sorted(excluded_ids),
     }
     return {**core, "identity_resolution_fingerprint": fingerprint(core)}
+
+
+def rebuild_corporate_action_identity_resolution(
+    root: Path, state: dict[str, Any],
+) -> dict[str, Any]:
+    """Rebuild identity evidence from the completed immutable action archive."""
+    root = root.resolve()
+    try:
+        artifact_path = root / str(state["corporate_action_artifact_path"])
+        manifest_path = root / str(state["corporate_action_manifest_path"])
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        records = read_gzip_jsonl(artifact_path)
+    except (KeyError, OSError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Corporate-action evidence is missing or corrupt.") from exc
+    manifest_core = {
+        key: value for key, value in manifest.items()
+        if key != "manifest_fingerprint"
+    }
+    if (
+        state.get("corporate_action_status") != "COMPLETE"
+        or manifest.get("manifest_fingerprint") != fingerprint(manifest_core)
+        or manifest.get("manifest_fingerprint")
+        != state.get("corporate_action_manifest_fingerprint")
+        or manifest.get("artifact_sha256") != sha256_path(artifact_path)
+        or manifest.get("corporate_action_artifact_fingerprint")
+        != fingerprint(records)
+        or manifest.get("event_count") != len(records)
+        or len({record.get("provider_event_id") for record in records}) != len(records)
+    ):
+        raise RuntimeError("Corporate-action archive validation failed.")
+
+    population = load_provider_population(root)
+    if (
+        manifest.get("security_master_fingerprint")
+        != population["security_master_fingerprint"]
+        or manifest.get("provider_population_fingerprint")
+        != population["provider_population_fingerprint"]
+    ):
+        raise RuntimeError("Corporate-action provider-population identity mismatch.")
+
+    resolution = corporate_action_identity_resolution(records, population)
+    resolution_path = atomic_content_addressed_json(
+        root / "corporate_actions" / "identity_resolution",
+        resolution["identity_resolution_fingerprint"],
+        resolution,
+        label="corporate-action identity-resolution",
+    )
+    replacement_core = {
+        **manifest_core,
+        "identity_resolution_fingerprint":
+            resolution["identity_resolution_fingerprint"],
+        "identity_resolution_sha256": sha256_path(resolution_path),
+    }
+    replacement = {
+        **replacement_core,
+        "manifest_fingerprint": fingerprint(replacement_core),
+    }
+    replacement_path = atomic_content_addressed_json(
+        root / "corporate_actions" / "manifests",
+        replacement["manifest_fingerprint"],
+        replacement,
+        label="corporate-action manifest",
+    )
+    state["corporate_action_manifest_fingerprint"] = replacement[
+        "manifest_fingerprint"
+    ]
+    state["corporate_action_identity_resolution_fingerprint"] = resolution[
+        "identity_resolution_fingerprint"
+    ]
+    state["corporate_action_manifest_path"] = str(replacement_path.relative_to(root))
+    state["corporate_action_identity_resolution_path"] = str(
+        resolution_path.relative_to(root)
+    )
+    return resolution
 
 
 class Acquisition:
