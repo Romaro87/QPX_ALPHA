@@ -43,11 +43,12 @@ from qpx_bot.ml_historical_calendar_repair import (
     CALENDAR_REPAIR_SEMANTIC_VERSION,
     CALENDAR_REPAIR_SESSIONS,
 )
+from qpx_bot.ml_historical_identity_enrichment import load_identity_enrichment
 from qpx_bot.paper_state import read_checksummed_state
 
 
 QUALIFICATION_SCHEMA_VERSION = 1
-QUALIFICATION_SEMANTIC_VERSION = "QPX_ML_HISTORICAL_QUALIFICATION_V3"
+QUALIFICATION_SEMANTIC_VERSION = "QPX_ML_HISTORICAL_QUALIFICATION_V4"
 LEGACY_AUDIT_SCHEMA_VERSION = 1
 PROVIDER_SCOPED_V1_IDENTITY = "ALPACA_ENUMERATED_US_EQUITY_PROVIDER_POPULATION_V1"
 MISSINGNESS_POLICY = "UNAVAILABLE_OBSERVATION_UNKNOWN_REASON"
@@ -548,7 +549,19 @@ def _validate_corporate_actions(root: Path, state: Mapping[str, Any], population
     ):
         raise HistoricalQualificationError("Corporate-action artifact/manifest validation failed.")
     resolution_core = {key: value for key, value in resolution.items() if key != "identity_resolution_fingerprint"}
-    expected_resolution = corporate_action_identity_resolution(records, population)
+    identity_enrichment = None
+    if state.get("corporate_action_identity_enrichment_path"):
+        try:
+            identity_enrichment = load_identity_enrichment(
+                root, state, population, records,
+            )
+        except RuntimeError as exc:
+            raise HistoricalQualificationError(
+                "Corporate-action identity enrichment validation failed."
+            ) from exc
+    expected_resolution = corporate_action_identity_resolution(
+        records, population, identity_enrichment,
+    )
     unresolved_unbounded = any(
         record.get("outcome") == "UNRESOLVED_CORPORATE_ACTION_IDENTITY"
         and (
@@ -563,6 +576,11 @@ def _validate_corporate_actions(root: Path, state: Mapping[str, Any], population
         or resolution != expected_resolution
         or manifest.get("identity_resolution_fingerprint") != resolution["identity_resolution_fingerprint"]
         or manifest.get("identity_resolution_sha256") != sha256_path(resolution_path)
+        or manifest.get("identity_enrichment_fingerprint")
+        != (
+            identity_enrichment["identity_enrichment_fingerprint"]
+            if identity_enrichment else None
+        )
         or unresolved_unbounded
     ):
         raise HistoricalQualificationError("Corporate-action identity-resolution validation failed.")
@@ -775,6 +793,7 @@ def _qualify_historical_dataset_strict(
         "observational_coverage_fingerprint": coverage.get("observational_coverage_fingerprint") if coverage else None,
         "corporate_action_artifact_fingerprint": corporate_manifest.get("corporate_action_artifact_fingerprint") if corporate_manifest else None,
         "corporate_action_identity_resolution_fingerprint": corporate_resolution.get("identity_resolution_fingerprint") if corporate_resolution else None,
+        "corporate_action_identity_enrichment_fingerprint": corporate_resolution.get("identity_enrichment_fingerprint") if corporate_resolution else None,
         "legacy_audit_aggregate_fingerprint": _aggregate(legacy_fps),
         "v3_partition_aggregate_fingerprint": _aggregate(v3_fps),
         "calendar_repair_aggregate_fingerprint": _aggregate(repair_fps),

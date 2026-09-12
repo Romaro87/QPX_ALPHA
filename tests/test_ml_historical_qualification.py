@@ -21,6 +21,7 @@ from qpx_bot.ml_historical_acquisition import (
     sha256_path,
 )
 from qpx_bot.ml_historical_calendar_repair import HistoricalCalendarRepair
+from qpx_bot.ml_historical_identity_enrichment import acquire_identity_enrichment
 from qpx_bot.ml_historical_qualification import (
     MISSINGNESS_ATTESTATION,
     SOURCE_LEGACY,
@@ -313,6 +314,44 @@ class HistoricalQualificationTests(unittest.TestCase):
                 sum(item["eligible_row_count"] for item in result["content"]["effective_dataset_inventory"]),
                 0,
             )
+
+    def test_enriched_resolution_is_recomputed_offline_by_qualification(self) -> None:
+        class IdentityClient(FixtureClient):
+            def request(self, url, params):
+                self.request_count += 1
+                if "corporate-actions" in url:
+                    event_id = params["ids"]
+                    return {
+                        "corporate_actions": {
+                            "reorganizations": [{"id": event_id, "cusip": "ONE"}],
+                        },
+                        "next_page_token": None,
+                    }
+                if params.get("status") == "active":
+                    return [{
+                        "id": "a", "symbol": "AAA", "cusip": "ONE",
+                        "isin": "USONE", "status": "active", "class": "us_equity",
+                    }]
+                if params.get("status") == "inactive":
+                    return []
+                raise AssertionError((url, params))
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state, _item = self.fixture(root, corporate_actions={
+                "reorganizations": [{
+                    "id": "unknown-event", "process_date": "2021-01-04",
+                }],
+            })
+            acquisition = Acquisition(root, IdentityClient(), now=lambda: NOW)
+            acquisition._capacity_gate = lambda *_args, **_kwargs: None
+            acquire_identity_enrichment(acquisition, state, ["unknown-event"])
+            from qpx_bot.ml_historical_acquisition import rebuild_corporate_action_identity_resolution
+            rebuilt = rebuild_corporate_action_identity_resolution(root, state)
+            acquisition.save_state(state)
+            self.assertEqual(rebuilt["resolved_count"], 1)
+            result = qualify_historical_dataset(root, observed_at=NOW)
+            self.assertEqual(result["content"]["result"], "TRAINING_ELIGIBLE")
 
     def test_not_eligible_attestation_cannot_authorize_startup(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

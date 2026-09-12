@@ -528,3 +528,35 @@ and training remains unauthorized.
 remaining 58,084 dated events, or an explicit governance decision for their
 treatment. Calendar repair and independent qualification remain gated and were
 not run.
+
+## September 12 targeted identity enrichment completion
+
+**VERIFIED_ARTIFACT:** Targeted CUSIP/ISIN enrichment completed without
+reacquiring the 363,148-event corporate-action archive. The validated,
+state-bound enrichment fingerprint is
+`110c9231e677b2fbf2e618fd33944f7ccdac10fd20475f86a93bf7b737694c24`.
+It binds 58,084 target events, 59 durable event batches, and 14,286 durable
+CUSIP lookups. The rebuilt corporate-action identity-resolution fingerprint is
+`bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`.
+
+**VERIFIED_ARTIFACT:** Final resolution counts are 300,628 resolved, 32,623
+explicitly outside the frozen provider population, 7,399 bounded ambiguous,
+and 22,498 unresolved/unbounded. Residuals are 16,626 events with no CUSIP/ISIN,
+5,625 with no provider asset lookup result, and 247 with mixed
+matched/unresolved identity evidence. Bars remain 7,370/7,370 and 383,082,447
+rows. Focused enrichment/resolver/qualification verification passed 13/13.
+
+**USER_APPROVED:** Experimental ML training is now authorized against an
+explicitly fingerprinted snapshot of the currently available reservoir despite
+strict qualification remaining `NOT_TRAINING_ELIGIBLE`. This does not resolve
+the 22,498 identities, complete calendar repair, authorize promotion/capital,
+or weaken strict qualification.
+
+**VERIFIED_REPO / BLOCKER:** No executable ML trainer or governed complete
+training configuration currently exists. ADR-0011 deliberately leaves model
+family, training algorithm, optimizer/capsule mechanics, bankroll, permissions,
+and implementation resource limits unresolved. Do not invent them.
+
+**NEXT EXACT STEP:** Govern the missing trainer/model/training configuration,
+then implement the explicit `EXPERIMENTAL_UNQUALIFIED_TRAINING` launch boundary
+with snapshot-limit provenance and zero promotion/live/capital authority.

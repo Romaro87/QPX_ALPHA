@@ -1065,6 +1065,55 @@ class MLHistoricalAcquisitionTests(unittest.TestCase):
             self.assertEqual(unique_by_id["old-event"]["outcome"], "RESOLVED_PROVIDER_IDENTITY")
             self.assertEqual(unique_by_id["old-event"]["provider_asset_id"], "a")
 
+    def test_corporate_action_exact_identifier_enrichment_never_guesses(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_security_master(
+                root,
+                build_security_master(
+                    [asset("a", "AAA"), asset("d1", "DUP"), asset("d2", "DUP")],
+                    [], NOW,
+                ),
+            )
+            population = load_provider_population(root)
+            records = [
+                normalize_corporate_action(
+                    {"id": event_id, "effective_date": "2021-01-04"},
+                    "cash_dividend", NOW,
+                )
+                for event_id in ("unique", "multiple", "isin", "outside", "missing", "conflict")
+            ]
+            token_sets = {
+                "unique": [{"field": "cusip", "kind": "cusip", "value": "ONE", "provider_asset_ids": ["a"], "lookup_status": "PROVIDER_ASSET_MATCH"}],
+                "multiple": [{"field": "cusip", "kind": "cusip", "value": "MANY", "provider_asset_ids": ["d1", "d2"], "lookup_status": "PROVIDER_ASSET_MATCH"}],
+                "isin": [{"field": "isin", "kind": "isin", "value": "USONE", "provider_asset_ids": ["a"], "lookup_status": "PROVIDER_ASSET_MATCH"}],
+                "outside": [{"field": "cusip", "kind": "cusip", "value": "OUT", "provider_asset_ids": ["external"], "lookup_status": "PROVIDER_ASSET_MATCH"}],
+                "missing": [{"field": "cusip", "kind": "cusip", "value": "MISS", "provider_asset_ids": [], "lookup_status": "NO_PROVIDER_ASSET_LOOKUP_RESULT"}],
+                "conflict": [
+                    {"field": "cusip", "kind": "cusip", "value": "ONE", "provider_asset_ids": ["a"], "lookup_status": "PROVIDER_ASSET_MATCH"},
+                    {"field": "isin", "kind": "isin", "value": "EXT", "provider_asset_ids": ["external"], "lookup_status": "PROVIDER_ASSET_MATCH"},
+                ],
+            }
+            enrichment = {
+                "identity_enrichment_fingerprint": "enrichment",
+                "records": [
+                    {"provider_event_id": event_id, "identity_tokens": tokens}
+                    for event_id, tokens in token_sets.items()
+                ],
+            }
+            result = corporate_action_identity_resolution(records, population, enrichment)
+            by_id = {item["provider_event_id"]: item for item in result["records"]}
+            self.assertEqual(by_id["unique"]["provider_asset_id"], "a")
+            self.assertEqual(by_id["isin"]["provider_asset_id"], "a")
+            self.assertEqual(by_id["multiple"]["excluded_provider_asset_ids"], ["d1", "d2"])
+            self.assertEqual(by_id["outside"]["outcome"], "OUTSIDE_PROVIDER_POPULATION_IDENTITY")
+            self.assertEqual(by_id["outside"]["outside_provider_asset_ids"], ["external"])
+            self.assertEqual(by_id["missing"]["outcome"], "UNRESOLVED_CORPORATE_ACTION_IDENTITY")
+            self.assertEqual(by_id["missing"]["excluded_provider_asset_ids"], [])
+            self.assertEqual(by_id["conflict"]["outcome"], "UNRESOLVED_CORPORATE_ACTION_IDENTITY")
+            self.assertEqual(by_id["conflict"]["excluded_provider_asset_ids"], ["a"])
+            self.assertEqual(by_id["conflict"]["outside_provider_asset_ids"], ["external"])
+
     def test_corporate_action_pagination_and_artifacts_are_complete(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

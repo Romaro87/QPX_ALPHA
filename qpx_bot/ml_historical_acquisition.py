@@ -67,9 +67,9 @@ REJECTION_EVIDENCE_SCHEMA_VERSION = 1
 PROVIDER_POPULATION_EXCLUSION_SCHEMA_VERSION = 1
 OBSERVATIONAL_COVERAGE_SCHEMA_VERSION = 1
 CORPORATE_ACTION_EVIDENCE_SCHEMA_VERSION = 3
-CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 2
+CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION = 3
 CORPORATE_ACTION_IDENTITY_RESOLUTION_SEMANTIC_VERSION = (
-    "ALPACA_PROVIDER_REPORTED_SYMBOL_LINEAGE_V2"
+    "ALPACA_PROVIDER_REPORTED_SYMBOL_AND_EXACT_IDENTIFIER_V3"
 )
 CORPORATE_ACTION_SEMANTIC_VERSION = "ALPACA_CORPORATE_ACTIONS_HISTORICAL_V3"
 CORPORATE_ACTION_PAGE_STAGING_SCHEMA_VERSION = 1
@@ -1003,6 +1003,7 @@ def observational_coverage_evidence(
 
 def corporate_action_identity_resolution(
     records: Iterable[Mapping[str, Any]], population: Mapping[str, Any],
+    identity_enrichment: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Resolve provider events through explicit provider-reported symbol lineage."""
     ordered_records = sorted(records, key=lambda item: str(item["provider_event_id"]))
@@ -1044,6 +1045,24 @@ def corporate_action_identity_resolution(
     component_ids: dict[str, set[str]] = {}
     for symbol, provider_ids in by_symbol.items():
         component_ids.setdefault(find(symbol), set()).update(provider_ids)
+    population_ids = {
+        member["provider_asset_id"] for member in population["members"]
+    }
+
+    enrichment_fingerprint = None
+    enriched_by_event: dict[str, Mapping[str, Any]] = {}
+    if identity_enrichment is not None:
+        enrichment_fingerprint = identity_enrichment.get("identity_enrichment_fingerprint")
+        enriched_records = identity_enrichment.get("records")
+        if not isinstance(enrichment_fingerprint, str) or not isinstance(enriched_records, list):
+            raise RuntimeError("Corporate-action identity enrichment is malformed.")
+        for item in enriched_records:
+            if not isinstance(item, Mapping):
+                raise RuntimeError("Corporate-action identity enrichment record is malformed.")
+            event_id = item.get("provider_event_id")
+            if not isinstance(event_id, str) or not event_id or event_id in enriched_by_event:
+                raise RuntimeError("Corporate-action identity enrichment event identity is invalid.")
+            enriched_by_event[event_id] = item
 
     resolutions: list[dict[str, Any]] = []
     excluded_ids: set[str] = set()
@@ -1053,19 +1072,57 @@ def corporate_action_identity_resolution(
             for key in ("symbol", "old_symbol", "new_symbol")
             if str(record.get(key) or "").strip()
         })
-        candidates = sorted({
+        symbol_candidates = {
             asset_id
             for symbol in symbols
             if symbol in parent
             for asset_id in component_ids.get(find(symbol), ())
-        })
-        if len(candidates) == 1:
-            provider_asset_id = candidates[0]
+        }
+        enriched = enriched_by_event.get(record["provider_event_id"])
+        frozen_ids: set[str] = set(symbol_candidates)
+        outside_ids: set[str] = set()
+        identity_tokens: list[Mapping[str, Any]] = []
+        incomplete_identity = False
+        if enriched is not None:
+            values = enriched.get("identity_tokens")
+            if not isinstance(values, list):
+                raise RuntimeError("Corporate-action identity token evidence is malformed.")
+            for value in values:
+                if not isinstance(value, Mapping):
+                    raise RuntimeError("Corporate-action identity token evidence is malformed.")
+                provider_ids = value.get("provider_asset_ids")
+                status = value.get("lookup_status")
+                if not isinstance(provider_ids, list) or not all(
+                    isinstance(asset_id, str) and asset_id for asset_id in provider_ids
+                ):
+                    raise RuntimeError("Corporate-action identity candidates are malformed.")
+                frozen_ids.update(
+                    asset_id for asset_id in provider_ids
+                    if asset_id in population_ids
+                )
+                outside_ids.update(
+                    asset_id for asset_id in provider_ids
+                    if asset_id not in population_ids
+                )
+                if status != "PROVIDER_ASSET_MATCH":
+                    incomplete_identity = True
+                identity_tokens.append(value)
+        all_identity_ids = frozen_ids | outside_ids
+        if len(all_identity_ids) == 1 and len(frozen_ids) == 1 and not incomplete_identity:
+            provider_asset_id = next(iter(frozen_ids))
             outcome = "RESOLVED_PROVIDER_IDENTITY"
+        elif (
+            identity_tokens
+            and not frozen_ids
+            and outside_ids
+            and not incomplete_identity
+        ):
+            provider_asset_id = None
+            outcome = "OUTSIDE_PROVIDER_POPULATION_IDENTITY"
         else:
             provider_asset_id = None
             outcome = "UNRESOLVED_CORPORATE_ACTION_IDENTITY"
-            excluded_ids.update(candidates)
+            excluded_ids.update(frozen_ids)
         core = {
             "schema_version": CORPORATE_ACTION_IDENTITY_RESOLUTION_SCHEMA_VERSION,
             "identity_resolution_semantic_version":
@@ -1074,7 +1131,8 @@ def corporate_action_identity_resolution(
             "outcome": outcome,
             "provider_asset_id": provider_asset_id,
             "evidence_symbols": symbols,
-            "excluded_provider_asset_ids": candidates if provider_asset_id is None else [],
+            "excluded_provider_asset_ids": sorted(frozen_ids) if outcome == "UNRESOLVED_CORPORATE_ACTION_IDENTITY" else [],
+            "outside_provider_asset_ids": sorted(outside_ids),
             "bounded_dates": sorted({
                 str(record.get(key)) for key in (
                     "announcement_or_observation_date", "ex_or_effective_date",
@@ -1084,6 +1142,7 @@ def corporate_action_identity_resolution(
             "security_master_fingerprint": population["security_master_fingerprint"],
             "provider_population_fingerprint": population["provider_population_fingerprint"],
             "corporate_action_provenance_fingerprint": record["provenance_fingerprint"],
+            "identity_enrichment_fingerprint": enrichment_fingerprint,
         }
         resolutions.append({**core, "resolution_fingerprint": fingerprint(core)})
     core = {
@@ -1092,6 +1151,7 @@ def corporate_action_identity_resolution(
             CORPORATE_ACTION_IDENTITY_RESOLUTION_SEMANTIC_VERSION,
         "security_master_fingerprint": population["security_master_fingerprint"],
         "provider_population_fingerprint": population["provider_population_fingerprint"],
+        "identity_enrichment_fingerprint": enrichment_fingerprint,
         "records": resolutions,
         "resolved_count": sum(
             item["outcome"] == "RESOLVED_PROVIDER_IDENTITY" for item in resolutions
@@ -1143,7 +1203,11 @@ def rebuild_corporate_action_identity_resolution(
     ):
         raise RuntimeError("Corporate-action provider-population identity mismatch.")
 
-    resolution = corporate_action_identity_resolution(records, population)
+    identity_enrichment = None
+    if state.get("corporate_action_identity_enrichment_path"):
+        from qpx_bot.ml_historical_identity_enrichment import load_identity_enrichment
+        identity_enrichment = load_identity_enrichment(root, state, population, records)
+    resolution = corporate_action_identity_resolution(records, population, identity_enrichment)
     resolution_path = atomic_content_addressed_json(
         root / "corporate_actions" / "identity_resolution",
         resolution["identity_resolution_fingerprint"],
@@ -1155,6 +1219,10 @@ def rebuild_corporate_action_identity_resolution(
         "identity_resolution_fingerprint":
             resolution["identity_resolution_fingerprint"],
         "identity_resolution_sha256": sha256_path(resolution_path),
+        "identity_enrichment_fingerprint": (
+            identity_enrichment["identity_enrichment_fingerprint"]
+            if identity_enrichment else None
+        ),
     }
     replacement = {
         **replacement_core,

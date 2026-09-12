@@ -181,3 +181,55 @@
 - **NEXT EXACT STEP:** Supply authoritative provider identity evidence for the
   remaining 58,084 events or govern their treatment. Do not weaken the existing
   security-and-time qualification boundary.
+
+## 2026-09-11 — Targeted CUSIP/ISIN enrichment in progress
+
+- **USER_REQUIREMENT:** Enrich exactly the 58,084 residual corporate-action
+  provider event IDs using Alpaca ID-filter responses, current asset identity
+  evidence, and targeted CUSIP lookups; never reacquire the full archive or
+  weaken the security-and-time qualification boundary.
+- **VERIFIED_REPO:** The in-progress implementation persists each deterministic
+  event-ID batch and CUSIP lookup before the next request, resumes from validated
+  content-addressed evidence, and extends the existing resolver rather than
+  creating another identity authority.
+- **VERIFIED_ARTIFACT / RUNTIME:** All 59 event-ID batches were returned and
+  durably committed under target fingerprint
+  `50711b8675b358907bd5b4728d36eceace22809f594e6af11b31ad757031a8ce`.
+  They contain all 58,084 requested IDs exactly once. Of those events, 41,458
+  contain CUSIP evidence, 16,626 contain no CUSIP/ISIN evidence, and none of the
+  actual targeted responses contains ISIN evidence. Both active/inactive asset
+  snapshots are durable but supplied no CUSIP match for the targeted tokens.
+- **VERIFIED_ARTIFACT / RUNTIME:** At this checkpoint, 3,834 of 14,286 unique
+  targeted CUSIP lookup results are durable. The single governed worker remains
+  active under the existing off-market capacity/rate mechanism. No bars or
+  original corporate-action pages were modified, and training remains
+  unauthorized.
+- **TASK STATUS:** IN PROGRESS. The 16,626 events without any returned identity
+  token guarantee a nonzero residual; remaining CUSIP lookups continue because
+  they can still establish truthful resolved, bounded-ambiguous, or verified
+  outside-population scope for other events.
+
+## 2026-09-12 — Identity enrichment completed; experimental training authorized
+
+- **VERIFIED_ARTIFACT:** Completed enrichment fingerprint
+  `110c9231e677b2fbf2e618fd33944f7ccdac10fd20475f86a93bf7b737694c24`
+  validates against acquisition state, 58,084 targets, 59 event batches, and
+  14,286 CUSIP lookups. No enrichment reacquisition occurred.
+- **VERIFIED_ARTIFACT:** Rebuilt resolution fingerprint
+  `bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`:
+  300,628 resolved; 32,623 outside population; 7,399 bounded ambiguous; 22,498
+  unresolved/unbounded. Residuals are 16,626 no CUSIP/ISIN, 5,625
+  lookup-not-found, and 247 mixed matched/unresolved evidence.
+- **VERIFIED_ARTIFACT:** Thirteen focused enrichment/resolver/qualification
+  tests passed. Python compilation and diff checks passed. Bars remain
+  7,370/7,370 and 383,082,447 rows.
+- **USER_APPROVED:** Experimental training is authorized on the explicitly
+  limited current snapshot while strict qualification remains
+  `NOT_TRAINING_ELIGIBLE`. No promotion, live, broker, or capital authority is
+  granted.
+- **VERIFIED_REPO / BLOCKER:** No executable trainer or complete governed
+  training configuration exists. ADR-0011 leaves model, algorithm,
+  optimizer/capsule behavior, bankroll, permissions, and resource limits
+  unresolved; launching now would require prohibited invention.
+- **NEXT EXACT ACTION:** Govern those training parameters, then implement the
+  explicit unqualified-experimental launch boundary and start the detached run.

@@ -1681,3 +1681,31 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **DECISION STATUS:** The security-and-time requirement remains unchanged.
   Calendar repair and qualification remain blocked by missing authoritative
   security scope for 58,084 records. Training is unauthorized.
+
+## Targeted Corporate-Action Identity Enrichment Complete — 2026-09-12
+
+- **VERIFIED_ARTIFACT:** The content-addressed enrichment artifact is valid and
+  checksummed-state bound at fingerprint
+  `110c9231e677b2fbf2e618fd33944f7ccdac10fd20475f86a93bf7b737694c24`.
+  It covers 58,084 targets through 59 durable event batches and 14,286 durable
+  CUSIP lookups without reacquiring the original archive.
+- **VERIFIED_ARTIFACT:** Resolution fingerprint
+  `bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`
+  contains 300,628 resolved, 32,623 outside-population, 7,399 bounded ambiguous,
+  and 22,498 unresolved/unbounded events. Residuals: 16,626 no CUSIP/ISIN;
+  5,625 no provider lookup result; 247 mixed matched/unresolved evidence.
+- **VERIFIED_ARTIFACT:** Focused identity enrichment, resolver, and qualification
+  tests passed 13/13; Python compilation and `git diff --check` passed. The
+  7,370-partition, 383,082,447-row bar reservoir remains unchanged.
+- **USER_APPROVED:** Experimental ML training may begin on an explicitly
+  selected, fingerprinted snapshot despite strict historical qualification
+  remaining `NOT_TRAINING_ELIGIBLE`. This grants no promotion, live, broker,
+  capital, or automatic model-use authority and does not alter strict truth.
+- **VERIFIED_REPO / UNRESOLVED:** QPX currently has no executable trainer or
+  complete governed training configuration. ADR-0011 explicitly leaves the
+  model family, learning algorithm, optimizer/capsule mechanics, bankroll,
+  permissions, and resource limits unresolved. These values must not be
+  invented.
+- **NEXT EXACT STEP:** Obtain explicit governance for the missing training
+  configuration, then implement and launch the narrow
+  `EXPERIMENTAL_UNQUALIFIED_TRAINING` path with exact limitation provenance.
