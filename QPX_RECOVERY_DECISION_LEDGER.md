@@ -1764,3 +1764,26 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   live, promotion, or capital authority was added.
 - **NEXT EXACT STEP:** Build the DEVELOPMENT_ONLY external scripted driver and
   sterile report boundary on the proven world before any Wildcard learner.
+
+## Wildcard Completed-Boundary Reconciliation — 2026-09-12
+
+- **USER_APPROVED:** Scheduled regular-session market time, reconciled equity,
+  and dense reward advance once per completed world boundary—not once per
+  security event. A 15-minute boundary remains 15 minutes with one, 100, or
+  1,000 securities, and missing observations do not stop scheduled time.
+- **VERIFIED_REPO:** Ordinary causal events update account/order/fill/lifecycle
+  state without advancing time or reward. The external DEVELOPMENT_ONLY archive
+  driver emits exactly one `BOUNDARY_COMPLETE` event containing authoritative
+  scheduled minutes after all ordered events in the boundary.
+- **VERIFIED_REPO:** Boundary ID, open-boundary event IDs, completion count,
+  last completed ID, clock, reward state, FIFO state, and account state survive
+  the established atomic checksummed checkpoint. Duplicate, skipped, and
+  out-of-order completion fails closed across restart.
+- **VERIFIED_REPO:** Sterile factual reports are write-only relative to Wildcard
+  and use the governed 8,190 scheduled-minute cadence. Historical-to-forward
+  handoff cannot occur with an incomplete boundary.
+- **VERIFIED_ARTIFACT:** Focused Wildcard world, driver/report, and reward-policy
+  tests passed 58/58; compilation and diff checks passed. Baseline evidence and
+  strict historical qualification were not modified.
+- **NEXT EXACT STEP:** Govern/select the Wildcard learner/model family and
+  apprenticeship boundary; no learner or training authority exists yet.

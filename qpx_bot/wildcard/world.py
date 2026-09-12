@@ -22,7 +22,7 @@ from qpx_bot.wildcard.reward_policy import ApprovedRewardPolicy
 
 WORLD_SCHEMA_VERSION = 1
 WORLD_SEMANTIC_VERSION = "ADR-0012_WILDCARD_WORLD_V1"
-STATE_SCHEMA_VERSION = 1
+STATE_SCHEMA_VERSION = 2
 STARTING_CASH = Decimal("100000.00")
 INTERNAL_QUANTUM = Decimal("0.00000001")
 CASH_QUANTUM = Decimal("0.01")
@@ -121,10 +121,17 @@ class MarketEvent:
     volume: int | None = None
     regular_session_end: bool = False
     payload: Mapping[str, Any] = field(default_factory=dict)
+    world_boundary_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.event_id.strip():
             raise WorldError("Event identity cannot be empty.")
+        if self.world_boundary_id is not None and not self.world_boundary_id.strip():
+            raise WorldError("World boundary identity cannot be empty.")
+        if self.event_type == "BOUNDARY_COMPLETE":
+            minutes = self.payload.get("scheduled_market_minutes")
+            if type(minutes) is not int or minutes < 0:
+                raise WorldError("Boundary completion requires nonnegative scheduled minutes.")
         if self.event_type == "BAR":
             if not self.provider_asset_id or self.session_date is None:
                 raise WorldError("Bar requires stable asset identity and session date.")
@@ -144,7 +151,7 @@ class MarketEvent:
                 "open_price": _text(self.open_price) if self.open_price is not None else None,
                 "close_price": _text(self.close_price) if self.close_price is not None else None,
                 "volume": self.volume, "regular_session_end": self.regular_session_end,
-                "payload": dict(self.payload)}
+                "payload": dict(self.payload), "world_boundary_id": self.world_boundary_id}
 
 
 class WriteOnlyArchiveSink(Protocol):
@@ -245,8 +252,12 @@ class WildcardWorld:
         self.audit_tip = ""
         self.audit_sequence = 0
         self.rewards: list[str] = []
-        self.previous_equity = STARTING_CASH
+        self.previous_equity: Decimal | None = None
         self.scheduled_market_minutes = 0
+        self.completed_boundary_count = 0
+        self.last_completed_boundary_id: str | None = None
+        self.open_boundary_id: str | None = None
+        self.open_boundary_event_ids: list[str] = []
 
     @property
     def world_fingerprint(self) -> str:
@@ -258,6 +269,7 @@ class WildcardWorld:
             "participation_rate": _text(PARTICIPATION_RATE),
             "slippage_rate": _text(SLIPPAGE_RATE), "commission": "0",
             "fee_model": "NO_FEE_UNLESS_EXPLICIT_EFFECTIVE_DATED_RULE",
+            "reconciliation_cadence": "ONCE_PER_COMPLETED_WORLD_BOUNDARY",
             "action_space": [x.value for x in ActionType],
             "fractional_evidence": sorted((k, v.fractional_eligible,
                 v.fractional_evidence_fingerprint) for k, v in self.instruments.items()),
@@ -278,19 +290,53 @@ class WildcardWorld:
             raise WorldError("Terminal or blocked world cannot advance.")
         event = self.gateway.deliver(event)
         self.current_event = event
+        boundary_id = event.world_boundary_id or fingerprint({
+            "effective_time": event.boundary.effective_time.isoformat(),
+            "available_time": event.boundary.available_time.isoformat(),
+        })
+        if event.event_type == "BOUNDARY_COMPLETE":
+            self._complete_boundary(event, boundary_id)
+            return
+        if self.open_boundary_id is None:
+            self.open_boundary_id = boundary_id
+        elif self.open_boundary_id != boundary_id:
+            raise WorldError("A new world boundary cannot begin before completion.")
+        if event.event_id in self.open_boundary_event_ids:
+            raise WorldError("Duplicate event inside open world boundary.")
+        self.open_boundary_event_ids.append(event.event_id)
         if event.event_type == "BAR":
             self._expire_prior_day(event.session_date)
             self._fill_pending(event)
             self.last_marks[event.provider_asset_id] = (_internal(event.close_price), True)
-            self.scheduled_market_minutes += 15
             if event.regular_session_end:
                 self._expire_session(event.session_date)
         elif event.event_type == "CORPORATE_ACTION":
             if not event.payload.get("economics_supported", False):
                 self.status = WorldStatus.ACCOUNT_RECONCILIATION_BLOCKED
-        self._reconcile()
         self._audit("EVENT", {"event_id": event.event_id, "event_identity": event.identity,
                               "status": self.status.value})
+
+    def _complete_boundary(self, event: MarketEvent, boundary_id: str) -> None:
+        if boundary_id == self.last_completed_boundary_id:
+            raise WorldError("World boundary completion is duplicated.")
+        if self.open_boundary_id is not None and boundary_id != self.open_boundary_id:
+            raise WorldError("World boundary completion is out of order.")
+        if self.open_boundary_id is None:
+            self.open_boundary_id = boundary_id
+        minutes = int(event.payload["scheduled_market_minutes"])
+        self.scheduled_market_minutes += minutes
+        self._reconcile(emit_reward=True)
+        self.completed_boundary_count += 1
+        self.last_completed_boundary_id = boundary_id
+        self.open_boundary_id = None
+        self.open_boundary_event_ids = []
+        self._audit("BOUNDARY_COMPLETE", {
+            "boundary_id": boundary_id,
+            "scheduled_market_minutes": minutes,
+            "cumulative_scheduled_market_minutes": self.scheduled_market_minutes,
+            "reward_count": len(self.rewards),
+            "status": self.status.value,
+        })
 
     def act(self, action: Action) -> str | None:
         if self.status is not WorldStatus.ACTIVE or self.current_event is None:
@@ -433,7 +479,7 @@ class WildcardWorld:
             price, _ = self.last_marks[provider_asset_id]
             self.last_marks[provider_asset_id] = (price, False)
 
-    def _reconcile(self) -> None:
+    def _reconcile(self, *, emit_reward: bool = False) -> None:
         try:
             equity = self.equity()
         except WorldError:
@@ -441,7 +487,8 @@ class WildcardWorld:
             return
         if equity <= 0 or self.liabilities > self.cash + max(Decimal("0"), equity - self.cash):
             self.status = WorldStatus.FAILED_BANKRUPTCY
-        if self.reward_policy and self.previous_equity > 0 and equity > 0:
+        if (emit_reward and self.reward_policy and self.previous_equity is not None
+                and self.previous_equity > 0 and equity > 0):
             growth = self.reward_policy.content.term("growth").effective_weight
             speed = self.reward_policy.content.term("speed_bonus")
             half = Decimal(speed.parameter_mapping["half_life_scheduled_market_minutes"])
@@ -477,7 +524,13 @@ class WildcardWorld:
                 "liabilities": _text(self.liabilities), "status": self.status.value,
                 "next_sequence": self.next_sequence, "audit_tip": self.audit_tip,
                 "audit_sequence": self.audit_sequence, "scheduled_market_minutes": self.scheduled_market_minutes,
-                "previous_equity": _text(self.previous_equity), "rewards": list(self.rewards),
+                "completed_boundary_count": self.completed_boundary_count,
+                "last_completed_boundary_id": self.last_completed_boundary_id,
+                "open_boundary_id": self.open_boundary_id,
+                "open_boundary_event_ids": list(self.open_boundary_event_ids),
+                "previous_equity": (_text(self.previous_equity)
+                                    if self.previous_equity is not None else None),
+                "rewards": list(self.rewards),
                 "rng_identity": fingerprint({"world": self.world_id, "purpose": "deterministic_episode_v1"}),
                 "authority": {"promotion": "NONE", "live": "NONE", "broker": "NONE", "capital": "NONE"}}
 
@@ -513,9 +566,11 @@ class WildcardWorld:
                 last["provider_asset_id"], date.fromisoformat(last["session_date"]) if last["session_date"] else None,
                 _d(last["open_price"]) if last["open_price"] else None,
                 _d(last["close_price"]) if last["close_price"] else None,
-                last["volume"], last["regular_session_end"], last["payload"])
+                last["volume"], last["regular_session_end"], last["payload"],
+                last["world_boundary_id"])
             gateway._last_boundary = b
             gateway._seen.add(last["event_id"])
+        gateway.source_identity = payload["source_identity"]
         world.cash = _d(payload["cash"]); world.positions = {k: _d(v) for k, v in payload["positions"].items()}
         world.pending = {raw["order_id"]: Order(raw["order_id"], OrderSide(raw["side"]),
             raw["provider_asset_id"], _d(raw["remaining"]), int(raw["sequence"]),
@@ -527,5 +582,11 @@ class WildcardWorld:
         world.liabilities = _d(payload["liabilities"]); world.status = WorldStatus(payload["status"])
         world.next_sequence = int(payload["next_sequence"]); world.audit_tip = payload["audit_tip"]
         world.audit_sequence = int(payload["audit_sequence"]); world.scheduled_market_minutes = int(payload["scheduled_market_minutes"])
-        world.previous_equity = _d(payload["previous_equity"]); world.rewards = list(payload["rewards"])
+        world.completed_boundary_count = int(payload["completed_boundary_count"])
+        world.last_completed_boundary_id = payload["last_completed_boundary_id"]
+        world.open_boundary_id = payload["open_boundary_id"]
+        world.open_boundary_event_ids = list(payload["open_boundary_event_ids"])
+        world.previous_equity = (_d(payload["previous_equity"])
+                                 if payload["previous_equity"] is not None else None)
+        world.rewards = list(payload["rewards"])
         return world

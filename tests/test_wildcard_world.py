@@ -44,7 +44,17 @@ class WildcardWorldTests(unittest.TestCase):
         return MarketEvent(
             f"bar-{number}-{asset}", CausalBoundary(when, when, number), "BAR",
             asset, session or self.day, Decimal(price), Decimal(price), volume, end,
+            world_boundary_id=f"boundary-{number}",
         )
+
+    def finish(self, number: int, *, minutes=15, world=None) -> None:
+        target = world or self.world
+        when = self.start + timedelta(minutes=15 * number)
+        target.observe(MarketEvent(
+            f"complete-{number}", CausalBoundary(when, when, number + 10_000),
+            "BOUNDARY_COMPLETE", payload={"scheduled_market_minutes": minutes},
+            world_boundary_id=f"boundary-{number}",
+        ))
 
     def test_no_action_and_future_or_archive_access_are_unavailable(self) -> None:
         self.world.observe(self.bar(0))
@@ -57,6 +67,7 @@ class WildcardWorldTests(unittest.TestCase):
         self.world.observe(self.bar(0))
         oid = self.world.act(Action(ActionType.BUY, "asset-a", Decimal("20")))
         self.assertEqual(len(self.world.fills), 0)
+        self.finish(0)
         self.world.observe(self.bar(1, price="11", volume=500))
         fill = self.world.fills[0]
         self.assertEqual(fill.order_id, oid)
@@ -67,6 +78,7 @@ class WildcardWorldTests(unittest.TestCase):
     def test_insufficient_cash_never_goes_negative(self) -> None:
         self.world.observe(self.bar(0, price="100000"))
         self.world.act(Action(ActionType.BUY, "asset-a", Decimal("2")))
+        self.finish(0)
         self.world.observe(self.bar(1, price="100000", volume=1000))
         self.assertGreaterEqual(self.world.cash, 0)
         self.assertEqual(self.world.positions["asset-a"], Decimal("0.999"))
@@ -96,6 +108,7 @@ class WildcardWorldTests(unittest.TestCase):
     def test_day_order_expires_and_missing_successor_never_fills(self) -> None:
         self.world.observe(self.bar(0))
         oid = self.world.act(Action(ActionType.BUY, "asset-a", Decimal("2")))
+        self.finish(0)
         self.world.observe(self.bar(1, asset="asset-b", end=True))
         self.assertEqual(self.world.fills, [])
         self.assertNotIn(oid, self.world.pending)
@@ -116,6 +129,7 @@ class WildcardWorldTests(unittest.TestCase):
     def test_stale_holding_blocks_reconciliation_and_never_adds_buying_power(self) -> None:
         self.world.observe(self.bar(0))
         self.world.act(Action(ActionType.BUY, "asset-a", Decimal("1")))
+        self.finish(0)
         self.world.observe(self.bar(1))
         cash = self.world.buying_power()
         self.world.mark_stale("asset-a")
@@ -125,14 +139,17 @@ class WildcardWorldTests(unittest.TestCase):
 
     def test_unsupported_corporate_action_blocks_without_inventing_economics(self) -> None:
         self.world.observe(self.bar(0))
+        self.finish(0)
         when = self.start + timedelta(minutes=1)
         self.world.observe(MarketEvent("ca", CausalBoundary(when, when, 1),
-                                       "CORPORATE_ACTION", payload={"economics_supported": False}))
+                                       "CORPORATE_ACTION", payload={"economics_supported": False},
+                                       world_boundary_id="ca-boundary"))
         self.assertEqual(self.world.status, WorldStatus.ACCOUNT_RECONCILIATION_BLOCKED)
 
     def test_accounting_bankruptcy_and_economic_dead_end_are_distinct(self) -> None:
         self.world.liabilities = Decimal("100000.01")
         self.world.observe(self.bar(0))
+        self.finish(0)
         self.assertEqual(self.world.status, WorldStatus.FAILED_BANKRUPTCY)
         other = WildcardWorld(world_id="other", gateway=CausalGateway("source"),
                               instruments={"asset-a": self.instrument}, archive_sink=Sink())
@@ -151,6 +168,8 @@ class WildcardWorldTests(unittest.TestCase):
                 reward_policy=load_approved_policy(),
             )
             self.assertEqual(restored.state_payload(), self.world.state_payload())
+            self.finish(0, world=restored)
+            self.finish(0)
             restored.observe(self.bar(1))
             self.world.observe(self.bar(1))
             self.assertEqual(restored.state_payload(), self.world.state_payload())
@@ -168,6 +187,7 @@ class WildcardWorldTests(unittest.TestCase):
 
     def test_historical_to_forward_handoff_preserves_forward_boundary(self) -> None:
         self.world.observe(self.bar(0))
+        self.finish(0)
         self.gateway.handoff("forward-paper-fixture-v1")
         self.world.observe(self.bar(1))
         self.assertEqual(self.gateway.source_identity, "forward-paper-fixture-v1")
@@ -181,12 +201,14 @@ class WildcardWorldTests(unittest.TestCase):
     def test_churn_has_cost_and_reward_cannot_erase_bankruptcy(self) -> None:
         self.world.observe(self.bar(0))
         self.world.act(Action(ActionType.BUY, "asset-a", Decimal("10")))
+        self.finish(0)
         self.world.observe(self.bar(1))
         self.world.act(Action(ActionType.SELL, "asset-a", Decimal("10")))
+        self.finish(1)
         self.world.observe(self.bar(2))
         self.assertLess(self.world.equity(), Decimal("100000"))
         self.world.liabilities = Decimal("200000")
-        self.world.observe(self.bar(3))
+        self.finish(2)
         self.assertEqual(self.world.status, WorldStatus.FAILED_BANKRUPTCY)
 
 

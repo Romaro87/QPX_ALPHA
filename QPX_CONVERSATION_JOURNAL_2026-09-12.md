@@ -45,3 +45,23 @@
   relevant Python compiled and `git diff --check` passed.
 - **NEXT EXACT ACTION:** Commit/push this foundation, then add the external
   DEVELOPMENT_ONLY scripted driver and sterile report layer before any learner.
+
+## Completed-boundary cadence and DEVELOPMENT_ONLY driver/report layer
+
+- **USER_APPROVED:** Reward and scheduled market-time reconciliation occur once
+  per completed world boundary. Ordinary per-security events never advance the
+  global clock or emit dense reward.
+- **VERIFIED_REPO:** Added explicit deterministic boundary completion, external
+  archive grouping/streaming, restart-safe open/completed boundary state, and a
+  one-way sterile reporter using the 8,190 scheduled-minute cadence.
+- **VERIFIED_ARTIFACT:** One, 100, and 1,000-event fixture boundaries each
+  advance exactly 15 minutes. Missing-event and 210-minute half-day fixtures
+  honor authoritative scheduled-minute input. Restart before completion permits
+  one completion; restart after completion rejects duplication.
+- **VERIFIED_ARTIFACT:** `python3 -m unittest -v tests.test_wildcard_world
+  tests.test_wildcard_development_driver tests.test_wildcard_reward_policy`
+  passed 58/58. Python compilation and `git diff --check` passed.
+- **PRESERVATION:** Completed Baseline V1 artifacts, historical reservoir,
+  strict qualification, and zero-authority boundaries remain unchanged.
+- **NEXT EXACT ACTION:** Commit/push the completed driver/report milestone, then
+  move to the separately governed Wildcard learner/model-family decision.

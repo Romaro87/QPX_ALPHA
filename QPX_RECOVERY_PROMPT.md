@@ -624,3 +624,31 @@ learner and no promotion, live, broker, or capital authority.
 sterile reporting around this world before selecting or introducing a Wildcard
 learner. Do not confuse the completed experimental baseline with Wildcard
 apprenticeship or strict training eligibility.
+
+## September 12 completed-boundary clock/reward cadence
+
+**USER_APPROVED:** Wildcard V1 scheduled market time and reward reconciliation
+occur exactly once per completed world boundary. Individual security bars,
+corporate actions, identity events, and lifecycle events may change factual
+world state but never advance the global scheduled clock or emit dense reward.
+Universe size and missing observations cannot multiply or freeze elapsed market
+time.
+
+**VERIFIED_REPO:** The external `DEVELOPMENT_ONLY` driver owns archive grouping,
+orders each boundary's events by declared causal sequence, delivers them one at
+a time, and emits one deterministic completion carrying authoritative scheduled
+exchange minutes. Open/completed boundary identity and event IDs are included in
+the atomic world checkpoint, so recovery before completion finishes once and
+recovery after completion cannot duplicate time or reward.
+
+**VERIFIED_REPO:** The one-way sterile reporter emits factual evidence at the
+8,190 scheduled-regular-session-minute cadence, or on terminal/integrity state,
+without exposing a feedback/read path to Wildcard. Historical-to-forward source
+handoff requires a completed boundary.
+
+**VERIFIED_ARTIFACT:** Focused world, driver/report, and reward-policy tests
+passed 58/58. Changed Python files compiled and `git diff --check` passed.
+
+**NEXT EXACT STEP:** Select the governed Wildcard learner/model family and its
+apprenticeship authorization boundary. Do not introduce a learner or claim
+training authority from the DEVELOPMENT_ONLY world evidence alone.
