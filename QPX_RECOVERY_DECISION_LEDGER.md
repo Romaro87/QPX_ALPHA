@@ -1737,3 +1737,30 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   remains unchanged.
 - **NEXT EXACT STEP:** Commit/push the focused trainer implementation, then
   launch one detached low-priority CPU process and verify startup once.
+
+## Wildcard V1 Causal-World Foundation — 2026-09-12
+
+- **USER_CONFIRMED:** The completed Experimental Causal Baseline V1 run remains
+  accepted experimental research evidence. Missing `broker_authority` from its
+  committed manifest schema is not a new acceptance gate; no rerun, mutation,
+  or addendum was authorized.
+- **VERIFIED_ARTIFACT:** Run
+  `e0ad4ca03fcbbca8fe7253ca756d66b4eaae127ef3624745ffeb6888c9311d0c`
+  is checksummed `COMPLETE` after 7,370 partitions, with report fingerprint
+  `f7d9184a4e3f6d1fa44e5558a4b40b23c5e50bc29729b3d41fc1e8bd77bdf357`.
+- **USER_APPROVED:** Wildcard V1 uses Decimal scale 8 and `ROUND_HALF_EVEN`,
+  cent settlement, 0.001-share quantities, authoritative fractional-eligibility
+  evidence, monotonic FIFO order sequence, and acknowledged replace as atomic
+  cancellation plus a new-priority order. Statutory fees are applied only from
+  an authoritative deterministic effective-dated rule; no fee is invented.
+- **VERIFIED_REPO:** The smallest world foundation establishes an external
+  archive-driver/write-only-audit boundary, one-event forward-only causal
+  gateway, fresh $100,000 cash-only account, long-only DAY market orders,
+  next-event execution, 1% volume cap, partial fills, adverse 5-bps slippage,
+  stale-value/reconciliation states, accounting bankruptcy, explicit economic
+  dead end, forward-source handoff, and atomic checksummed restart equivalence.
+- **VERIFIED_ARTIFACT:** Focused world/reward verification passed 47/47;
+  compilation and diff checks passed. No learner, historical replay, broker,
+  live, promotion, or capital authority was added.
+- **NEXT EXACT STEP:** Build the DEVELOPMENT_ONLY external scripted driver and
+  sterile report boundary on the proven world before any Wildcard learner.

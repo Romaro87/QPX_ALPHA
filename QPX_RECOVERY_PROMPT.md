@@ -590,3 +590,37 @@ corporate actions, and calendar repair `NOT_RUN`.
 launch one detached `nice -n 10` CPU process, verify its PID and run manifest
 once, then return without polling. Do not start any promoted or capital-bearing
 training path.
+
+## September 12 Wildcard V1 causal-world foundation
+
+**VERIFIED_ARTIFACT:** Experimental Causal Baseline V1 run
+`e0ad4ca03fcbbca8fe7253ca756d66b4eaae127ef3624745ffeb6888c9311d0c`
+completed all 7,370 partitions. Its checksummed exit status is `COMPLETE`, final
+report fingerprint is
+`f7d9184a4e3f6d1fa44e5558a4b40b23c5e50bc29729b3d41fc1e8bd77bdf357`,
+and strict dataset status remains
+`ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`. The absent `broker_authority`
+manifest field is not part of the committed Baseline V1 schema and does not
+invalidate the run. The run was not restarted or modified.
+
+**USER_APPROVED / VERIFIED_REPO:** ADR-0012 Wildcard V1 execution physics now
+specify Decimal scale 8 with `ROUND_HALF_EVEN`, cent cash settlement, 0.001-share
+quantity precision, evidence-gated fractional execution, causal FIFO order
+sequence, replace-as-acknowledged-cancel-plus-new-order, and no statutory fee
+without an authoritative effective-dated rule. Commission remains zero,
+slippage 5 bps, and observed-volume participation 1%.
+
+**VERIFIED_REPO:** The sterile Wildcard world foundation accepts one immutable
+causal event at a time from an external driver, exposes no archive read path,
+owns a fresh $100,000 cash-only long account and DAY market-order lifecycle,
+executes no earlier than the next eligible event, and provides atomic
+checksummed restart state plus immutable write-only audit lineage. It has no ML
+learner and no promotion, live, broker, or capital authority.
+
+**VERIFIED_ARTIFACT:** Focused Wildcard world and reward-policy tests passed
+47/47; Python compilation and `git diff --check` passed.
+
+**NEXT EXACT STEP:** Extend the external DEVELOPMENT_ONLY scripted driver and
+sterile reporting around this world before selecting or introducing a Wildcard
+learner. Do not confuse the completed experimental baseline with Wildcard
+apprenticeship or strict training eligibility.
