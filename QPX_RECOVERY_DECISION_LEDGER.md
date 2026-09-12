@@ -1709,3 +1709,31 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **NEXT EXACT STEP:** Obtain explicit governance for the missing training
   configuration, then implement and launch the narrow
   `EXPERIMENTAL_UNQUALIFIED_TRAINING` path with exact limitation provenance.
+
+## Experimental Causal Baseline V1 — 2026-09-12
+
+- **USER_APPROVED:** The current task supplies the complete first experimental
+  baseline design and supersedes the formerly unresolved model/trainer details
+  only for `QPX_ML_EXPERIMENTAL_CAUSAL_BASELINE_V1`.
+- **VERIFIED_REPO:** The baseline is deterministic float64 binary logistic
+  regression with seven specified causal features, zero initialization, one
+  chronological/unshuffled online SGD pass, learning rate 0.01, no momentum,
+  replay, regularization, random initialization, or hidden layers. Only train
+  updates weights; 2025 validation and 2026-through-09-03 test are read-only.
+- **VERIFIED_REPO:** Durable recovery occurs at completed partition boundaries.
+  Checksummed checkpoints bind configuration, input snapshot, code, commit,
+  model, metrics, and content-addressed per-batch rolling feature state.
+  Completed partition data is streamed and checksum/row-count verified; no
+  historical data or qualification state is mutated.
+- **VERIFIED_ARTIFACT:** Input snapshot
+  `bcace64bb55c68de66c256c5b9ed443e6384f80904cff7debaefeb862792d595`,
+  inventory
+  `1fa355435551705b6b1aadb70af40aca65039fdc46b0ada0b98f4eb2917ad3cc`,
+  configuration
+  `cb1a68a29280a9c4faafa5e04a37667b6436f4134db6486a68d54c694d8beaf4`.
+- **AUTHORITY:** This baseline is `EXPERIMENTAL_UNQUALIFIED_TRAINING`, not
+  Historical Apprenticeship, a strategy, or a promotion candidate. Promotion,
+  live, broker, and capital authority are all `NONE`; strict qualification
+  remains unchanged.
+- **NEXT EXACT STEP:** Commit/push the focused trainer implementation, then
+  launch one detached low-priority CPU process and verify startup once.

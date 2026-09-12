@@ -560,3 +560,33 @@ and implementation resource limits unresolved. Do not invent them.
 **NEXT EXACT STEP:** Govern the missing trainer/model/training configuration,
 then implement the explicit `EXPERIMENTAL_UNQUALIFIED_TRAINING` launch boundary
 with snapshot-limit provenance and zero promotion/live/capital authority.
+
+## September 12 experimental causal baseline V1
+
+**USER_APPROVED:** `QPX_ML_EXPERIMENTAL_CAUSAL_BASELINE_V1` is the first
+executable engineering/research trainer. It is explicitly
+`EXPERIMENTAL_UNQUALIFIED_TRAINING`, not ADR-0011 Historical Apprenticeship, and
+has no promotion, live, broker, or capital authority.
+
+**VERIFIED_REPO:** The standard-library CPU trainer streams the immutable 15m
+partition inventory, creates seven causal current/past-bar features, predicts
+only the next consecutive same-session bar direction, performs one unshuffled
+online logistic-regression SGD training pass at learning rate 0.01, and keeps
+validation/test read-only. Partition checksums and row counts are verified
+during streaming. Atomic checksummed checkpoints commit only completed
+partitions and bind content-addressed per-batch feature state.
+
+**VERIFIED_ARTIFACT:** Input snapshot fingerprint is
+`bcace64bb55c68de66c256c5b9ed443e6384f80904cff7debaefeb862792d595`;
+partition-inventory fingerprint is
+`1fa355435551705b6b1aadb70af40aca65039fdc46b0ada0b98f4eb2917ad3cc`;
+configuration fingerprint is
+`cb1a68a29280a9c4faafa5e04a37667b6436f4134db6486a68d54c694d8beaf4`.
+The snapshot explicitly retains strict status
+`ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`, 22,498 unresolved/unbounded
+corporate actions, and calendar repair `NOT_RUN`.
+
+**NEXT EXACT STEP:** After the trainer commit is pushed and remote-verified,
+launch one detached `nice -n 10` CPU process, verify its PID and run manifest
+once, then return without polling. Do not start any promoted or capital-bearing
+training path.
