@@ -775,8 +775,10 @@ its existing scalar causal input, future bar/corporate-action evidence is
 denied, and checksummed restart fails if configuration identity changes.
 
 **VERIFIED_ARTIFACT:** Focused replay/configuration and directly affected
-causal/Candidate tests passed 35/35; changed Python compiled. No replay ran, no
+causal/Candidate tests passed 36/36; changed Python compiled. No replay ran, no
 strategy/qualification/runtime data changed, and no authority was granted.
+Every configurable leaf, including all eight reconstitution-policy fields, was
+mutation-tested to change the frozen configuration fingerprint.
 
 **UNKNOWN / UNRECOVERED:** The primary `CAUSALLY_RESELECTED` policy still lacks
 authoritative values for `eligibility_source`, `selection_rule`,

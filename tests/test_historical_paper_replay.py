@@ -167,26 +167,74 @@ class ReplayConfigurationTests(unittest.TestCase):
     def test_each_experiment_axis_changes_identity(self):
         original = replay_configuration_from_mapping(static_configuration()).fingerprint
         mutations = (
+            (("experiment_id",), "REPLAY.OTHER.V1"),
             (("market_data", "provider"), "POLYGON"),
             (("market_data", "feed"), "IEX"),
             (("market_data", "decision_bar_interval"), "30m"),
             (("market_data", "adjustment_mode"), "CAUSAL_SPLIT_ADJUSTED"),
+            (("market_data", "adapter_identity"), "ALPACA.SIP.REPLAY.V2"),
             (("execution", "model"), "NEXT_ELIGIBLE_1M"),
+            (("execution", "adapter_identity"), "HISTORICAL.PAPER.EXECUTION.V2"),
+            (("execution", "semantic_version"), "NEXT.OPEN.V2"),
+            (("income", "implementation_identity"), "INCOME.ROLE.V2"),
             (("income", "bootstrap_mode"), "CANONICAL_IMMEDIATE"),
+            (("income", "availability_source"), "POINT_IN_TIME.QUALIFICATION.V2"),
             (("volatility", "source"), "OTHER.PREVIOUS.SESSION"),
+            (("volatility", "adapter_identity"), "CBOE.VIX.REPLAY.V2"),
+            (("volatility", "evidence_fingerprint"), FINGERPRINT_B),
             (("universe", "identity"), "STATIC.OTHER.UNIVERSE.V1"),
+            (("universe", "manifest_reference"), "fixtures/other_universe.json"),
+            (("universe", "manifest_fingerprint"), FINGERPRINT_A),
+            (("universe", "retrospective_selection"), False),
+            (("starting_account", "configuration_identity"), "FRESH.PAPER.ACCOUNT.V2"),
+            (("starting_account", "currency"), "EUR"),
             (("starting_account", "starting_cash"), 90000.0),
+            (("contributions", "schedule_identity"), "MONTHLY.CONTRIBUTIONS.V1"),
+            (("contributions", "currency"), "EUR"),
             (("contributions", "amount"), 100.0),
+            (("strategy", "identity"), "CANDIDATE.V2"),
             (("strategy", "configuration_fingerprint"), FINGERPRINT_B),
+            (("strategy", "entry_semantics_fingerprint"), FINGERPRINT_C),
+            (("runtime", "causal_driver_version"), "CAUSAL.DRIVER.V2"),
+            (("runtime", "accounting_version"), "PAPER.ACCOUNTING.V2"),
+            (("runtime", "execution_version"), "HISTORICAL.EXECUTION.V2"),
+            (("dataset", "root_identity"), "research_data/other_snapshot"),
+            (("dataset", "snapshot_fingerprint"), FINGERPRINT_A),
+            (("dataset", "qualification_status"), "NOT_TRAINING_ELIGIBLE"),
         )
         for path, replacement in mutations:
             with self.subTest(path=path):
                 changed = static_configuration()
-                changed[path[0]][path[1]] = replacement
+                if len(path) == 1:
+                    changed[path[0]] = replacement
+                else:
+                    changed[path[0]][path[1]] = replacement
                 self.assertNotEqual(
                     replay_configuration_from_mapping(changed).fingerprint,
                     original,
                 )
+
+    def test_each_reconstitution_policy_axis_changes_identity(self):
+        baseline = reconstituted_configuration()
+        original = replay_configuration_from_mapping(baseline).fingerprint
+        for field in (
+            "eligibility_source", "selection_rule", "lookback",
+            "reselection_cadence", "evidence_cutoff", "effective_time_boundary",
+            "entry_removal_treatment",
+        ):
+            with self.subTest(field=field):
+                changed = reconstituted_configuration()
+                changed["universe"]["policy"][field] += ".ALT"
+                self.assertNotEqual(
+                    replay_configuration_from_mapping(changed).fingerprint,
+                    original,
+                )
+        changed = reconstituted_configuration()
+        changed["universe"]["policy"]["membership_count"] += 1
+        self.assertNotEqual(
+            replay_configuration_from_mapping(changed).fingerprint,
+            original,
+        )
 
     def test_static_universe_requires_explicit_evidence(self):
         payload = static_configuration()

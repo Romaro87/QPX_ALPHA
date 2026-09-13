@@ -13,8 +13,9 @@
   exclusive. Static mode requires an explicit manifest and fingerprint;
   reconstituted mode requires all eight governed policy axes. Neither mode is a
   hidden default and no historical Top-100 artifact is silently selected.
-- **VERIFIED_ARTIFACT:** Focused new and directly affected tests passed 35/35;
-  changed Python compiled. No replay, provider request, training, qualification,
+- **VERIFIED_ARTIFACT:** Focused new and directly affected tests passed 36/36;
+  changed Python compiled. Every configurable leaf was mutation-tested against
+  the frozen fingerprint. No replay, provider request, training, qualification,
   strategy mutation, or live/broker/capital action occurred.
 - **UNKNOWN / UNRECOVERED:** `eligibility_source`, `selection_rule`,
   `membership_count`, `lookback`, `reselection_cadence`, `evidence_cutoff`,

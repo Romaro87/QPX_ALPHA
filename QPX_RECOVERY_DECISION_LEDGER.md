@@ -1888,8 +1888,10 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   recovery rejects a different fingerprint.
 - **VERIFIED_ARTIFACT:** `python3 -m unittest
   tests.test_historical_paper_replay tests.test_causal_replay
-  tests.test_candidate_v1_causal tests.test_candidate_v1_config` passed 35/35.
-  `python3 -m py_compile` passed for the two new Python files.
+  tests.test_candidate_v1_causal tests.test_candidate_v1_config` passed 36/36.
+  `python3 -m py_compile` passed for the two new Python files. Mutation checks
+  prove that every configurable leaf, including each reconstitution-policy
+  field, changes the frozen experiment identity.
 - **UNKNOWN / UNRECOVERED:** Primary values remain absent for eligibility
   source/rules, selection/ranking rule, membership count, lookback, reselection
   cadence, evidence cutoff, effective-time boundary, and entry/removal
