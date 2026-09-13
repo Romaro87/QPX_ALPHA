@@ -1787,3 +1787,32 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   strict historical qualification were not modified.
 - **NEXT EXACT STEP:** Govern/select the Wildcard learner/model family and
   apprenticeship boundary; no learner or training authority exists yet.
+
+## Wildcard V1 Causal Learner and Capsule Contract — 2026-09-12
+
+- **USER_REQUIREMENT / VERIFIED_REPO:** The ADR-0011 separate high-risk review
+  selected a small GRU softmax policy for Wildcard V1. A small feed-forward
+  network is runner-up; logistic, LSTM, and large replay/attention alternatives
+  were rejected for the documented sequential-capability/complexity reasons.
+- **VERIFIED_REPO:** The model receives only fixed fingerprinted causal state
+  and reward/preference vectors plus episode-local hidden state. Action at T is
+  chosen before later events; learning occurs only after a strictly later
+  completed-boundary reward.
+- **VERIFIED_REPO:** Durable learning is an immutable, checksummed,
+  single-parent episode-terminal additive capsule. It binds complete evidence
+  and later eligibility boundaries, base/parent/result identities, experiment,
+  world, reward, state/preference/action contracts, algorithm/architecture,
+  RNG, code/environment, delta, and explicit plain-SGD optimizer destruction.
+- **VERIFIED_REPO:** Episode hidden state, pending transition, feature cache,
+  RNG, and working optimizer values are destroyed unless transformed into a
+  governed capsule. There is no raw archive path, replay buffer, mutable latest
+  model, or global optimizer.
+- **VERIFIED_ARTIFACT:** 14/14 focused learner/capsule tests passed; compile and
+  diff checks passed. All artifacts remain `DEVELOPMENT_ONLY` with promotion,
+  live, broker, and capital authority `NONE`.
+- **AUTHORITY:** No learner test grants `TRAINING_ELIGIBLE` or
+  `HISTORICAL_APPRENTICESHIP`. A separate transition remains required after an
+  independent eligible dataset decision.
+- **NEXT EXACT STEP:** Finish strict reservoir qualification, then separately
+  authorize/configure the real Wildcard apprenticeship state/action dimensions
+  before any historical learner execution.

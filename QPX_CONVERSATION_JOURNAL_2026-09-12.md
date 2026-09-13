@@ -65,3 +65,31 @@
   strict qualification, and zero-authority boundaries remain unchanged.
 - **NEXT EXACT ACTION:** Commit/push the completed driver/report milestone, then
   move to the separately governed Wildcard learner/model-family decision.
+
+## Wildcard V1 model-family review and DEVELOPMENT_ONLY capsule proof
+
+- **USER_REQUIREMENT:** Conduct ADR-0011's separate high-risk learner review;
+  freeze model family, online learning, causal capsules, optimizer handling,
+  preference conditioning, and apprenticeship authority without using the real
+  historical reservoir.
+- **VERIFIED_REPO:** ADR-0013 selects a small GRU softmax policy using
+  deterministic seeded sampling and one-boundary online reward-modulated plain
+  SGD. The small feed-forward family is runner-up. The model input is a fixed,
+  fingerprinted neutral causal state vector plus a separately fingerprinted
+  reward/preference vector.
+- **VERIFIED_REPO:** Episode-local recurrent/pending/RNG state is destroyed at
+  restart. Only immutable checksummed episode-terminal additive capsules can
+  survive; they carry complete evidence and strictly later eligibility
+  boundaries, unique parent lineage, full contract identities, parameter delta,
+  and explicit optimizer destruction.
+- **VERIFIED_ARTIFACT:** `python3 -m unittest -v
+  tests.test_wildcard_learner` passed 14/14. Python compilation and
+  `git diff --check` passed. Toy tests prove ordering, eligibility,
+  deterministic composition/restart, preference plumbing, archive absence, and
+  zero authority.
+- **PRESERVATION:** No real apprenticeship or training ran. The Baseline,
+  historical reservoir, strict qualification, Wildcard world, and main branch
+  were not modified.
+- **NEXT EXACT ACTION:** Commit/push the reviewed DEVELOPMENT_ONLY container.
+  Later, only after independent `TRAINING_ELIGIBLE` and separate authorization,
+  configure and begin real `HISTORICAL_APPRENTICESHIP`.

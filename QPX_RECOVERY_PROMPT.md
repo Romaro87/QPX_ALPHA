@@ -652,3 +652,38 @@ passed 58/58. Changed Python files compiled and `git diff --check` passed.
 **NEXT EXACT STEP:** Select the governed Wildcard learner/model family and its
 apprenticeship authorization boundary. Do not introduce a learner or claim
 training authority from the DEVELOPMENT_ONLY world evidence alone.
+
+## September 12 Wildcard V1 causal learner and capsule selection
+
+**USER_REQUIREMENT / VERIFIED_REPO:** The separate ADR-0011 high-risk model
+review selected a small GRU softmax policy as Wildcard V1's causal learner
+family. A small feed-forward network is the runner-up; linear/logistic lacks
+learned sequential state, LSTM adds unnecessary V1 surface, and large
+attention/replay models enlarge the causal archive boundary without current
+need.
+
+**VERIFIED_REPO:** ADR-0013 freezes a fixed fingerprinted neutral state vector
+plus separately fingerprinted reward/preference vector, deterministic seeded
+action sampling, one-boundary online reward-modulated plain SGD, episode-local
+hidden/pending/RNG state, and immutable episode-terminal additive capsules.
+Plain SGD has no persistent adaptive state, so capsules explicitly record
+optimizer destruction. The unique parent chain composes in ascending sequence
+and rejects corrupt, ambiguous, same-boundary, future, or cross-experiment
+learning.
+
+**VERIFIED_ARTIFACT:** The `DEVELOPMENT_ONLY` standard-library skeleton passed
+14/14 focused learner/capsule tests, including deterministic initialization,
+strict action/reward ordering, episode-memory destruction, durable capsule
+integrity, eligibility, composition, checkpoint equivalence, preference
+plumbing, archive absence, and zero authority. Python compilation and
+`git diff --check` passed.
+
+**AUTHORITY:** The current reservoir remains
+`ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`. No real Wildcard apprenticeship,
+historical training, research conclusion, promotion, broker/live use, or capital
+authority was created.
+
+**NEXT EXACT STEP:** Independently complete strict historical qualification.
+Only after `TRAINING_ELIGIBLE` and a separate user-authorized transition may an
+experiment configure the real neutral state/action dimensions and begin
+`HISTORICAL_APPRENTICESHIP`.
