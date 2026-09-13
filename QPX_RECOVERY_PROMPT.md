@@ -789,3 +789,18 @@ fails closed without all eight; none was guessed.
 **NEXT EXACT STEP:** Supply or govern those eight primary universe-policy
 values. Then create and fingerprint the primary experiment configuration before
 implementing its dependent selector or starting replay.
+
+## September 13 Assistant/Codex accountability record
+
+**USER_REQUIREMENT:** Preserve the OpenAI refund/accountability complaint as
+`QPX_ASSISTANT_CODEX_ACCOUNTABILITY_AND_REFUND_RECORD.md` and require ChatGPT
+and Codex to load it completely through EOF after every individual QPX user
+prompt/message.
+
+**VERIFIED INTENT:** This reinforces the existing compliance chain. It does not
+authorize extra tests, audits, design loops, hardening, or blockers. Its purpose
+is to prevent further waste caused by failure to follow settled QPX rules.
+
+**NEXT EXACT ACTION:** On every QPX prompt, load the complete compliance prompt
+and every mandatory file it names, including the accountability/refund record,
+before interpreting or acting.

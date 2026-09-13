@@ -30,8 +30,12 @@ Also read and obey:
 1. `AGENTS.md`
 2. `QPX_CONTEXT_CONTINUITY_RULE.md`
 3. `QPX_ASSISTANT_CODEX_FAILURE_WARNING.md`
-4. The current user task
-5. Relevant authoritative repository contracts
+4. `QPX_ASSISTANT_CODEX_ACCOUNTABILITY_AND_REFUND_RECORD.md` — load the entire
+   current file from first byte through EOF after every individual QPX user
+   prompt/message. A prior-turn read, summary, excerpt, cached copy, search hit,
+   or partial/truncated read does not qualify.
+5. The current user task
+6. Relevant authoritative repository contracts
 
 These are acceptance criteria, not optional context.
 

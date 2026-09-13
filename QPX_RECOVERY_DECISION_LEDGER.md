@@ -1902,3 +1902,15 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **NEXT EXACT ACTION:** Govern all eight primary reconstitution fields, then
   instantiate the frozen primary config and implement only the selector behavior
   that depends on those selected values.
+
+## Mandatory Assistant/Codex Accountability Read — 2026-09-13
+
+- **USER_REQUIREMENT:** The refund/accountability complaint documenting repeated
+  ChatGPT/Codex rule-following failures and wasted paid usage must be durable in
+  the repository.
+- **USER_REQUIREMENT:** ChatGPT and Codex must read the complete current
+  `QPX_ASSISTANT_CODEX_ACCOUNTABILITY_AND_REFUND_RECORD.md` after every
+  individual QPX user prompt/message.
+- **GOVERNANCE:** The existing `QPX_CODEX_COMPLIANCE_PROMPT.md` remains the
+  enforcement mechanism. This does not create a parallel process and does not
+  authorize broader testing, analysis, redesign, or hardening.

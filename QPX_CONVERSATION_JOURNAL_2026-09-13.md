@@ -24,3 +24,13 @@
 - **NEXT EXACT ACTION:** Obtain the governed values for all eight fields, create
   the frozen primary experiment config, and only then implement/run its
   dependent causal reconstitution behavior.
+
+## Assistant/Codex accountability and paid-usage failure record
+
+- **USER_REQUIREMENT:** Preserve the OpenAI refund request describing repeated
+  ChatGPT/Codex failure to follow QPX rules and the resulting waste of paid
+  Codex usage.
+- **USER_REQUIREMENT:** Make that record a complete mandatory per-prompt read for
+  both ChatGPT and Codex through the existing compliance-prompt chain.
+- **SCOPE:** Governance/documentation only. No strategy, replay, data,
+  qualification, training, broker, live, or capital semantics changed.
