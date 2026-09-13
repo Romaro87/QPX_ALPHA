@@ -714,3 +714,46 @@ passed.
 resumable module. If it is long-running, leave its durable detached worker
 active and resume from its evidence. After every applicable overlay validates,
 run the independent strict qualifier. Do not start apprenticeship or training.
+
+## September 13 strict qualification and corporate-action evidence boundary
+
+**VERIFIED_ARTIFACT:** The existing acquisition finalizer restored the canonical
+checksummed lifecycle state to `status=COMPLETE`, `stage=COMPLETE`, with
+7,370/7,370 immutable base partitions and 383,082,447 rows. Recovery used a
+network-denying client and made zero provider requests. Base partition identity
+fingerprint remains
+`4143b7eafa1ea33c74228bb9c0b0d263f8415986f01a326c319dd588f481b833`.
+
+**VERIFIED_ARTIFACT:** All 3,350 calendar-repair overlays and 4,020 durable page
+chains validate. They contain 814,962 accepted and 105,408 rejected repair rows;
+aggregate fingerprint is
+`81e3db3203ecdab2ff9ed347d4419ac1013952b32d881960f7122f9ba7e5f822`.
+
+**VERIFIED_ARTIFACT:** The complete existing identity-enrichment acquisition was
+revalidated from 58,084 durable targets with a network-denying client. Provider
+requests were zero and fingerprints reproduced exactly: enrichment
+`110c9231e677b2fbf2e618fd33944f7ccdac10fd20475f86a93bf7b737694c24`,
+resolution
+`bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`.
+The archive contains 363,148 events: 300,628 resolved, 32,623 explicitly outside
+the frozen population, 7,399 bounded unresolved, and 22,498 unresolved/unbounded.
+
+**VERIFIED_ARTIFACT:** The 22,498 residual records all have bounded dates and
+provider event IDs but no finite frozen-population candidate set. Exact classes:
+16,626 `NO_CUSIP_OR_ISIN_SUPPLIED`; 5,625
+`NO_PROVIDER_ASSET_LOOKUP_RESULT`; 247
+`MIXED_MATCH_AND_NOT_FOUND_IDENTITY_EVIDENCE`. Every residual targeted event
+response is already durable; no ISIN exists, no evidence symbol directly matches
+the frozen population, and the refetched symbols do not differ from the archive.
+
+**QUALIFICATION:** Strict qualification remains `NOT_TRAINING_ELIGIBLE`, reason
+`CORPORATE_ACTION_EVIDENCE_INVALID`, fingerprint
+`7a61e07a3f438860db00343090d440bf495984a08a5bf76bdce800e7e5d3a1d3`.
+No qualifier rule was weakened and no training/apprenticeship authority exists.
+
+**NEXT EXACT STEP:** Obtain an authorized provider-grade historical identity
+source that supplies event-specific stable provider asset identity or complete
+historical CUSIP/ISIN-to-provider-ID evidence for the 22,498 residual events.
+For the 247 mixed cases, all identity tokens must be accounted for before an
+outside-population conclusion is valid. Do not guess, waive, or introduce an
+unapproved third-party authority.

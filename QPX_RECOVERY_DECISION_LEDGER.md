@@ -1839,3 +1839,35 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **NEXT EXACT STEP:** Execute the durable six-session overlay repair against
   the completed reservoir, validate every applicable overlay, then run the
   strict qualification gate and retain its actual result.
+
+## Historical Corporate-Action Identity Evidence Boundary — 2026-09-13
+
+- **VERIFIED_ARTIFACT:** Existing acquisition finalization recovered terminal
+  checksummed state without provider access: `COMPLETE`, 7,370/7,370 base
+  partitions, 383,082,447 rows, corporate actions complete, training status
+  `ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`.
+- **VERIFIED_ARTIFACT:** Calendar repair is complete and validated: 3,350
+  overlays, 4,020 durable pages, 814,962 accepted rows, 105,408 rejected rows,
+  aggregate fingerprint
+  `81e3db3203ecdab2ff9ed347d4419ac1013952b32d881960f7122f9ba7e5f822`.
+- **VERIFIED_ARTIFACT:** Revalidation of all 58,084 durable identity-enrichment
+  targets issued zero provider requests and reproduced enrichment fingerprint
+  `110c9231e677b2fbf2e618fd33944f7ccdac10fd20475f86a93bf7b737694c24`
+  and resolution fingerprint
+  `bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`.
+- **VERIFIED_ARTIFACT:** Corporate-action counts are 363,148 total; 300,628
+  exactly resolved; 32,623 outside population; 7,399 bounded unresolved; 22,498
+  unresolved/unbounded. Residual classes are 16,626 without CUSIP/ISIN, 5,625
+  with no provider asset lookup result, and 247 with mixed matched/not-found
+  identity evidence.
+- **DECISION:** Existing qualification semantics remain binding. A bounded
+  unresolved action needs both a finite frozen-provider-ID scope and bounded
+  dates. Missing provider identity evidence cannot be waived or converted into
+  an arbitrary exclusion.
+- **VERIFIED_ARTIFACT:** Qualification remains `NOT_TRAINING_ELIGIBLE`, reason
+  `CORPORATE_ACTION_EVIDENCE_INVALID`, fingerprint
+  `7a61e07a3f438860db00343090d440bf495984a08a5bf76bdce800e7e5d3a1d3`.
+- **NEXT EXACT ACTION:** Seek explicit authorization for a provider-grade
+  historical identity authority capable of supplying the missing event-level
+  stable ID or historical CUSIP/ISIN crosswalk. Do not introduce a third-party
+  source, guess identity, start training, or weaken qualification.

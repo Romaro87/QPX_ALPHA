@@ -114,3 +114,42 @@
 - **NEXT EXACT ACTION:** Commit/push the repair recovery correction, launch the
   existing repair module against the real reservoir under governed capacity,
   and run strict qualification only after all overlays validate.
+
+## 2026-09-13 — Strict qualification reached the corporate-action evidence boundary
+
+- **USER_REQUIREMENT:** Clear only the stale lifecycle mask, then work all
+  22,498 unresolved/unbounded corporate actions through existing durable
+  evidence without guessing, waiver, blanket exclusion, reacquisition, or a new
+  identity authority.
+- **VERIFIED_ARTIFACT:** Acquisition state is terminal `COMPLETE`; 7,370 base
+  partitions and 383,082,447 rows are preserved. The provider request counter
+  stayed 333,197 and last provider success stayed
+  `2026-09-11T18:06:03.221754+00:00`.
+- **VERIFIED_ARTIFACT:** Repair validation completed for 3,350 overlays and
+  4,020 page chains. Aggregate fingerprint:
+  `81e3db3203ecdab2ff9ed347d4419ac1013952b32d881960f7122f9ba7e5f822`.
+- **COMMAND/RESULT:** Existing durable identity enrichment was reconstructed
+  with a client that raises on network access. It validated all 58,084 original
+  targets, made zero requests, and reproduced fingerprints
+  `110c9231e677b2fbf2e618fd33944f7ccdac10fd20475f86a93bf7b737694c24`
+  (enrichment) and
+  `bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`
+  (resolution).
+- **VERIFIED_ARTIFACT:** Machine-derived residual: 22,498 records, all with
+  event IDs and bounded dates, none with a finite frozen-population provider-ID
+  scope. There are 16,626 with no CUSIP/ISIN, 5,625 with no provider asset
+  lookup result, and 247 with mixed match/not-found identity evidence. All
+  targeted refetches already exist; no residual contains ISIN; refetched symbol
+  fields match the normalized archive; no residual evidence symbol directly
+  matches the frozen population.
+- **QUALIFICATION:** `NOT_TRAINING_ELIGIBLE`, exact reason
+  `CORPORATE_ACTION_EVIDENCE_INVALID`, fingerprint
+  `7a61e07a3f438860db00343090d440bf495984a08a5bf76bdce800e7e5d3a1d3`.
+- **BLOCKER:** Existing governed Alpaca/security-master evidence is exhausted.
+  Continuing requires an approved authoritative historical identity source that
+  provides event-specific stable provider asset IDs or complete historical
+  CUSIP/ISIN crosswalk evidence. The 247 mixed cases also require authoritative
+  accounting for every identity token before outside-population classification.
+- **AUTHORITY:** Training and Historical Apprenticeship remain unauthorized.
+- **NEXT EXACT ACTION:** Obtain the user's governance decision on an additional
+  provider-grade historical identity source; do not guess or weaken the gate.
