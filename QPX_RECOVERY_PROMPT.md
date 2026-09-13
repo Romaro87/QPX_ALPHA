@@ -687,3 +687,30 @@ authority was created.
 Only after `TRAINING_ELIGIBLE` and a separate user-authorized transition may an
 experiment configure the real neutral state/action dimensions and begin
 `HISTORICAL_APPRENTICESHIP`.
+
+## September 12 strict historical qualification resumption
+
+**VERIFIED_ARTIFACT:** The checksummed acquisition state remains 7,370/7,370
+partitions, 383,082,447 rows, corporate actions `COMPLETE`, and strict status
+`ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`. Corporate-action resolution
+fingerprint `bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`
+contains 300,628 resolved, 32,623 outside-population, 7,399 bounded ambiguous,
+and 22,498 unresolved/unbounded events. Calendar-repair manifests before this
+operation: zero.
+
+**VERIFIED_REPO:** The existing calendar-repair provider path had retained a
+successful page only in RAM until its whole partition overlay committed. The
+small correction now commits each self-contained accepted/rejected page and
+token/request chain atomically, reconstructs progress from durable pages,
+resumes the first unfinished page, returns already-valid terminal overlays
+without network access, and retains durable pages after assembly. Corrupt,
+mismatched, duplicate, or discontinuous evidence fails before provider access.
+
+**VERIFIED_ARTIFACT:** Focused calendar-repair and directly affected historical
+qualification tests passed 25/25. Python compilation and `git diff --check`
+passed.
+
+**NEXT EXACT STEP:** Run the real six-session repair using the committed
+resumable module. If it is long-running, leave its durable detached worker
+active and resume from its evidence. After every applicable overlay validates,
+run the independent strict qualifier. Do not start apprenticeship or training.

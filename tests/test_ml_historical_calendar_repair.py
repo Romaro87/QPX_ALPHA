@@ -9,6 +9,7 @@ from pathlib import Path
 
 from qpx_bot.ml_historical_acquisition import (
     BARS_URL,
+    ProviderError,
     atomic_bytes,
     atomic_json,
     build_security_master,
@@ -101,7 +102,32 @@ class RejectionRepairClient(RepairClient):
         return payload
 
 
+class PagedRepairClient(RepairClient):
+    def __init__(self, *, fail_second: bool = False, duplicate_second: bool = False) -> None:
+        super().__init__()
+        self.fail_second = fail_second
+        self.duplicate_second = duplicate_second
+
+    def request(self, url: str, params: dict[str, str]) -> dict[str, object]:
+        self.request_count += 1
+        self.calls.append(dict(params))
+        if url != BARS_URL:
+            raise AssertionError("unexpected endpoint")
+        if params["start"].startswith("2021-12-31"):
+            return {"bars": {"AAA": [{"t": "2021-12-31T14:30:00Z", "o": 10, "h": 12, "l": 9, "c": 11, "v": 100}]}, "next_page_token": None}
+        if params.get("page_token") == "next-june-page":
+            if self.fail_second:
+                raise ProviderError("transient page failure", status=503)
+            stamp = "2021-06-18T13:30:00Z" if self.duplicate_second else "2021-06-18T13:45:00Z"
+            return {"bars": {"AAA": [{"t": stamp, "o": 11, "h": 13, "l": 10, "c": 12, "v": 100}]}, "next_page_token": None}
+        return {"bars": {"AAA": [{"t": "2021-06-18T13:30:00Z", "o": 10, "h": 12, "l": 9, "c": 11, "v": 100}]}, "next_page_token": "next-june-page"}
+
+
 class HistoricalCalendarRepairTests(unittest.TestCase):
+    @staticmethod
+    def item() -> dict[str, object]:
+        return {"year": 2021, "batch": 0, "symbols": ["AAA", "DUP", "DUP"], "asset_ids": ["a", "d1", "d2"]}
+
     def test_repair_session_set_is_exactly_the_six_audited_false_closures(self) -> None:
         self.assertEqual(
             tuple(value.isoformat() for value in CALENDAR_REPAIR_SESSIONS),
@@ -211,6 +237,76 @@ class HistoricalCalendarRepairTests(unittest.TestCase):
             self.assertEqual(result["accepted_row_count"], 2)
             self.assertEqual(result["rejected_row_count"], 2)
             self.assertEqual(result["rejection_counts_by_category"]["INVALID_OHLC"], 2)
+
+    def test_successful_page_survives_failure_and_restart_resumes_next_page(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); _write_master(root); _write_original(root)
+            first_client = PagedRepairClient(fail_second=True)
+            repair = HistoricalCalendarRepair(
+                root, first_client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            )
+            with self.assertRaisesRegex(ProviderError, "transient page failure"):
+                repair.repair_partition({"unqueryable_symbols": []}, self.item())
+            pages = list((root / "calendar_repairs/durable_pages").rglob("page-*.json"))
+            self.assertEqual(len(pages), 1)
+            preserved = pages[0].read_bytes()
+
+            second_client = PagedRepairClient()
+            result = HistoricalCalendarRepair(
+                root, second_client, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            ).repair_partition({"unqueryable_symbols": []}, self.item())
+            self.assertEqual(second_client.calls[0].get("page_token"), "next-june-page")
+            self.assertFalse(any(
+                call["start"].startswith("2021-06-18") and "page_token" not in call
+                for call in second_client.calls
+            ))
+            self.assertEqual(pages[0].read_bytes(), preserved)
+            self.assertEqual(result["accepted_row_count"], 3)
+            self.assertEqual(result["source_row_count"], 3)
+
+            no_network = PagedRepairClient(fail_second=True)
+            repeated = HistoricalCalendarRepair(
+                root, no_network, now=lambda: NOW,
+                capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+            ).repair_partition({"unqueryable_symbols": []}, self.item())
+            self.assertEqual(repeated, result)
+            self.assertEqual(no_network.calls, [])
+
+    def test_corrupt_durable_page_fails_before_network(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); _write_master(root); _write_original(root)
+            first = PagedRepairClient(fail_second=True)
+            with self.assertRaises(ProviderError):
+                HistoricalCalendarRepair(
+                    root, first, now=lambda: NOW,
+                    capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+                ).repair_partition({"unqueryable_symbols": []}, self.item())
+            page = next((root / "calendar_repairs/durable_pages").rglob("page-*.json"))
+            corrupt = json.loads(page.read_text())
+            corrupt["accepted_rows"][0]["close"] = "999"
+            page.write_text(json.dumps(corrupt))
+            client = PagedRepairClient()
+            with self.assertRaisesRegex(RuntimeError, "identity is invalid"):
+                HistoricalCalendarRepair(
+                    root, client, now=lambda: NOW,
+                    capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+                ).repair_partition({"unqueryable_symbols": []}, self.item())
+            self.assertEqual(client.calls, [])
+
+    def test_duplicate_across_durable_pages_fails_without_damaging_first(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); _write_master(root); _write_original(root)
+            client = PagedRepairClient(duplicate_second=True)
+            with self.assertRaisesRegex(RuntimeError, "Duplicate calendar-repair observation"):
+                HistoricalCalendarRepair(
+                    root, client, now=lambda: NOW,
+                    capacity_probe=lambda _now: {"mode": "OFF_MARKET"},
+                ).repair_partition({"unqueryable_symbols": []}, self.item())
+            pages = list((root / "calendar_repairs/durable_pages").rglob("page-*.json"))
+            self.assertEqual(len(pages), 1)
+            self.assertTrue(json.loads(pages[0].read_text())["bundle_fingerprint"])
 
 
 if __name__ == "__main__":

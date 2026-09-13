@@ -93,3 +93,24 @@
 - **NEXT EXACT ACTION:** Commit/push the reviewed DEVELOPMENT_ONLY container.
   Later, only after independent `TRAINING_ELIGIBLE` and separate authorization,
   configure and begin real `HISTORICAL_APPRENTICESHIP`.
+
+## Strict historical qualification resumed
+
+- **USER_REQUIREMENT:** Complete the existing corporate-action/calendar/
+  qualification road without weakening any gate or starting apprenticeship.
+- **VERIFIED_ARTIFACT:** Before-state: 7,370/7,370 partitions, 383,082,447 rows,
+  corporate actions complete, 22,498 unresolved/unbounded identities, zero
+  calendar-repair manifests, and
+  `ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`.
+- **BLOCKING CORRECTION / VERIFIED_REPO:** The repair provider loop held page
+  success only in RAM. It now writes atomic self-contained durable page bundles
+  before advancing, validates token/request/rejection/duplicate chains on
+  restart, resumes without reacquisition, retains page evidence, and skips a
+  fully valid committed overlay.
+- **VERIFIED_ARTIFACT:** `python3 -m unittest -v
+  tests.test_ml_historical_calendar_repair
+  tests.test_ml_historical_qualification` passed 25/25. Compilation and
+  `git diff --check` passed.
+- **NEXT EXACT ACTION:** Commit/push the repair recovery correction, launch the
+  existing repair module against the real reservoir under governed capacity,
+  and run strict qualification only after all overlays validate.

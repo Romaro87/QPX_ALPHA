@@ -1816,3 +1816,26 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **NEXT EXACT STEP:** Finish strict reservoir qualification, then separately
   authorize/configure the real Wildcard apprenticeship state/action dimensions
   before any historical learner execution.
+
+## Strict Historical Qualification Resume and Durable Calendar Repair — 2026-09-12
+
+- **VERIFIED_ARTIFACT:** Starting state remains 7,370 completed partitions,
+  383,082,447 rows, corporate actions complete, and strict status
+  `ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`.
+- **VERIFIED_ARTIFACT:** Resolution fingerprint
+  `bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b`
+  retains 22,498 unresolved/unbounded corporate actions. No identity was
+  fabricated or waived. Calendar-repair manifest count was zero.
+- **VERIFIED_REPO:** Calendar-repair pages are now atomic durable authority,
+  carrying context, request/batch identity, token continuity, accepted rows,
+  categorized rejection evidence, population disposition, and fingerprints.
+  Restart reconstructs the union and resumes the first unfinished page; valid
+  pages and completed overlays are not reacquired.
+- **VERIFIED_ARTIFACT:** 9/9 repair tests and 16/16 qualification tests passed;
+  production/test compilation and diff checks passed.
+- **AUTHORITY:** Qualification remains independent. No Wildcard apprenticeship,
+  Baseline rerun, training, promotion, broker/live, or capital action is
+  authorized.
+- **NEXT EXACT STEP:** Execute the durable six-session overlay repair against
+  the completed reservoir, validate every applicable overlay, then run the
+  strict qualification gate and retain its actual result.
