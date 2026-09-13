@@ -1871,3 +1871,32 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   historical identity authority capable of supplying the missing event-level
   stable ID or historical CUSIP/ISIN crosswalk. Do not introduce a third-party
   source, guess identity, start training, or weaken qualification.
+
+## Configurable causal historical paper replay foundation — 2026-09-13
+
+- **USER_REQUIREMENT:** Build every legitimate replay choice as explicit,
+  versioned, fingerprinted experiment configuration while retaining causality,
+  accounting, provenance, restart integrity, and authority as code invariants.
+- **VERIFIED_REPO:** `qpx_bot/historical_paper_replay.py` uses the existing QPX
+  strict canonical-configuration pattern and atomic checksummed-state mechanism.
+  It defines no strategy, selector, archive reader, provider request, or broker
+  path. Candidate V1 remains behind its unchanged scalar causal contract.
+- **VERIFIED_REPO:** `STATIC_FROZEN` requires separately supplied manifest
+  evidence and cannot silently inherit Top-100. `CAUSALLY_RESELECTED` requires
+  the complete policy object and cannot use static manifest evidence. Frozen
+  configuration and adapter identities are immutable across a run; checkpoint
+  recovery rejects a different fingerprint.
+- **VERIFIED_ARTIFACT:** `python3 -m unittest
+  tests.test_historical_paper_replay tests.test_causal_replay
+  tests.test_candidate_v1_causal tests.test_candidate_v1_config` passed 35/35.
+  `python3 -m py_compile` passed for the two new Python files.
+- **UNKNOWN / UNRECOVERED:** Primary values remain absent for eligibility
+  source/rules, selection/ranking rule, membership count, lookback, reselection
+  cadence, evidence cutoff, effective-time boundary, and entry/removal
+  treatment. The dependent selector and primary replay were not started.
+- **AUTHORITY:** Training, promotion, live, broker, and capital authority remain
+  `NONE`; strict historical qualification and durable acquisition evidence were
+  not changed.
+- **NEXT EXACT ACTION:** Govern all eight primary reconstitution fields, then
+  instantiate the frozen primary config and implement only the selector behavior
+  that depends on those selected values.

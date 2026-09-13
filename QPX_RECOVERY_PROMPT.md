@@ -757,3 +757,33 @@ historical CUSIP/ISIN-to-provider-ID evidence for the 22,498 residual events.
 For the 247 mixed cases, all identity tokens must be accounted for before an
 outside-population conclusion is valid. Do not guess, waive, or introduce an
 unapproved third-party authority.
+
+## September 13 configurable causal paper-replay foundation
+
+**USER_REQUIREMENT / VERIFIED_REPO:** Historical paper replay now has one strict,
+versioned configuration boundary for market-data provider/feed and interval,
+adjustment, execution, income availability/bootstrap, volatility evidence,
+universe policy, starting account, contributions, Candidate V1 configuration,
+runtime versions, dataset identity, and zero-authority state. Canonical JSON and
+SHA-256 identify the whole frozen experiment; no behavioral field is defaulted.
+
+**VERIFIED_REPO:** Static universes require an explicit manifest reference and
+fingerprint and cannot carry reconstitution policy. Causal reconstitution
+requires all eight policy fields and cannot borrow static evidence. Adapter
+identities bind to the selected experiment, Candidate V1 still receives only
+its existing scalar causal input, future bar/corporate-action evidence is
+denied, and checksummed restart fails if configuration identity changes.
+
+**VERIFIED_ARTIFACT:** Focused replay/configuration and directly affected
+causal/Candidate tests passed 35/35; changed Python compiled. No replay ran, no
+strategy/qualification/runtime data changed, and no authority was granted.
+
+**UNKNOWN / UNRECOVERED:** The primary `CAUSALLY_RESELECTED` policy still lacks
+authoritative values for `eligibility_source`, `selection_rule`,
+`membership_count`, `lookback`, `reselection_cadence`, `evidence_cutoff`,
+`effective_time_boundary`, and `entry_removal_treatment`. The common engine
+fails closed without all eight; none was guessed.
+
+**NEXT EXACT STEP:** Supply or govern those eight primary universe-policy
+values. Then create and fingerprint the primary experiment configuration before
+implementing its dependent selector or starting replay.
