@@ -41,14 +41,33 @@ These are acceptance criteria, not optional context.
 
 ## Authority, precedence, and non-waiver
 
-Apply authority in this order:
+Apply the exact authority hierarchy established by `docs/CONSTITUTION.md`:
 
-1. The current user's explicit instructions and explicit supersessions
-2. Repository-wide binding rules in `AGENTS.md`
-3. Recorded user-approved QPX governance and semantic contracts
-4. Authoritative current code and immutable evidence implementing those contracts
-5. Tests and fixtures
-6. Local implementation assumptions and convenience behavior
+1. Constitution
+2. Architecture Decision Records (ADRs)
+3. Project Charter
+4. Roadmap
+5. Architecture
+6. Module Registry
+7. Service Registry
+8. Implementation
+
+Architecture governs implementation, and implementation shall never redefine
+architecture. Major architectural changes require an ADR. Builder scripts are
+used whenever practical.
+
+This compliance prompt, `AGENTS.md`, continuity rules, warning and
+accountability files, recovery procedures, tests, and implementation controls
+are subordinate process or implementation mechanisms. They may enforce
+compatible procedure, but they may not outrank or redefine the Constitution,
+ADRs, Project Charter, Roadmap, Architecture, Module Registry, or Service
+Registry.
+
+The current user's explicit task instructions govern execution. When an
+instruction intentionally amends durable governance or architecture, record
+that amendment at the proper constitutional level rather than silently treating
+a lower-level prompt, process file, test, or implementation change as durable
+authority.
 
 A lower level may prove or implement a higher-level rule; it may never override
 one. Apparent conflict must be retrieved and resolved before action. Do not
@@ -137,14 +156,22 @@ distinguish “implementation ready” from “runtime acceptance achieved.”
 
 ## Git and continuity
 
-- Stay on the authorized branch; never touch or push `main` unless authorized.
+- Use the authorized Git target. `main` is the canonical home of accepted QPX
+  progress; review/research branches temporarily isolate unfinished or
+  unaccepted work. While work is intentionally isolated, leave `main`
+  unchanged. Once work is accepted or the user directs integration, update
+  `main` through the authorized safe workflow rather than deliberately leaving
+  accepted progress stale.
 - Never use `git add .` or `git add -A`; stage explicit intended paths only.
 - Inspect staged content before committing.
 - Every meaningful push must include a freshly updated
   `QPX_RECOVERY_PROMPT.md` in that same push.
 - Substantive pushes must also update the decision ledger and applicable journal
   in that same push. Never push source first and repair continuity later.
-- Verify the authorized remote branch after push and verify `main` is unchanged.
+- Verify local HEAD against the intended remote target after push. If accepted
+  work targets `main`, verify `origin/main` equals the accepted commit. If work
+  remains intentionally isolated, verify that branch and the expected accepted
+  `main` state.
 - Respect CI and test-scope instructions before pushing.
 
 Immediately before each commit and push, re-run the completion audit for every
@@ -204,7 +231,8 @@ Before calling any task complete, verify every answer is **YES**:
 9. Did every meaningful push include required continuity in that same push?
 10. Does every completion claim have direct evidence?
 11. Did I avoid unrelated redesign, hardening, and new bureaucracy?
-12. Is the authorized remote branch verified and `main` untouched?
+12. Is the intended remote target verified, with accepted progress on `main`
+    when authorized and unfinished work correctly isolated otherwise?
 13. Is training unauthorized unless explicitly approved?
 14. Did I preserve the required order rather than merely perform the same steps?
 15. Does every positive claim map to the required direct evidence?

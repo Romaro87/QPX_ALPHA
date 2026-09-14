@@ -1,6 +1,16 @@
 
 # MANDATORY FIRST STEP — QPX CODEX COMPLIANCE PROMPT
 
+## CONSTITUTIONAL AUTHORITY
+
+`docs/CONSTITUTION.md` is QPX_ALPHA's highest governing document. Its authority
+order is Constitution, ADRs, Project Charter, Roadmap, Architecture, Module
+Registry, Service Registry, then Implementation. This file contains subordinate
+process rules. `QPX_TEST_SCOPE_RULE_V1` and `QPX_PRE_CODE_GATE_V1` remain
+binding only insofar as they are compatible with that higher authority; wording
+such as "until the user explicitly supersedes it" does not place `AGENTS.md`
+above the Constitution.
+
 After **every individual user prompt/message** received while this repository is
 in scope—even a conversational message that does not mention QPX—and before
 interpreting, responding, planning, or acting on that prompt,

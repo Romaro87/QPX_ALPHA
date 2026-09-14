@@ -190,17 +190,17 @@ The platform shall:
 
 # Development Methodology
 
-Every feature follows:
+Development follows:
 
 Architecture
 
 ↓
 
-ADR
+ADR when the work introduces a major architectural change
 
 ↓
 
-Builder Script
+Builder Script whenever practical
 
 ↓
 

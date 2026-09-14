@@ -4,6 +4,14 @@
 
 This rule applies to every ChatGPT conversation used to develop, operate, research, debug, document, or plan QPX_ALPHA.
 
+## Constitutional authority
+
+`docs/CONSTITUTION.md` is the highest QPX governing document. This continuity
+rule and all recovery/process material are subordinate mechanisms: they preserve
+and enforce compatible evidence and procedure but cannot outrank or redefine
+the Constitution, ADRs, Project Charter, Roadmap, Architecture, Module Registry,
+or Service Registry.
+
 After every individual QPX user prompt/message and before responding or acting,
 ChatGPT and Codex must follow the mandatory pointer in
 `AGENTS.md` and load the entire current `QPX_CODEX_COMPLIANCE_PROMPT.md` from its
@@ -90,9 +98,13 @@ workflow.
 Every QPX push must include a freshly updated `QPX_RECOVERY_PROMPT.md`.
 Substantive milestones also update `QPX_RECOVERY_DECISION_LEDGER.md`.
 Never use `git add .` for this purpose and never silently stage unrelated work.
-After every push, verify local HEAD equals the authorized remote push target.
-For review-branch work, verify that governed review branch and leave `main`
-untouched.
+After every push, verify local HEAD equals the intended remote push target.
+Accepted QPX progress belongs on `main`; review/research branches are temporary
+isolation for unfinished or unaccepted work. If accepted work is pushed to
+`main`, verify `origin/main` equals that commit. If work remains intentionally
+isolated, verify its branch and confirm `main` remains at its expected accepted
+SHA. "Leave main untouched" applies only during that unfinished/unaccepted
+isolation.
 This rule does not replace the five-exchange context-length warning.
 Prefer terminal-created files and Git checkpoints over browser downloads or browser refreshes.
 
@@ -283,7 +295,10 @@ for context preservation.
 
 Stage only explicitly intended files.
 
-After every push verify that local HEAD and remote `main` match.
+After every push, verify local HEAD against the intended remote target. For an
+accepted `main` push, verify `origin/main` equals the accepted commit. For
+unfinished work intentionally isolated on a review/research branch, verify that
+branch and confirm `main` remains at its expected accepted SHA.
 
 ## 8. Failure to write directly to Git
 

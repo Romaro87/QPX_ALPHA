@@ -22,7 +22,11 @@ Every recovered item should be treated as one of these:
 - **FUTURE_DECISION** — intentionally deferred.
 - **UNKNOWN / UNRECOVERED** — insufficient evidence. Never fill by inference.
 
-If two sources conflict, preserve both with dates and resolve only with explicit user confirmation.
+If two sources conflict, preserve both with dates and status classifications;
+never erase contradictory historical evidence merely because one source
+governs. Resolve governing conflicts through the Constitution's hierarchy.
+Explicit user decisions may intentionally amend governance, but durable
+amendments must be recorded at the proper authority level.
 
 ---
 
@@ -1914,3 +1918,25 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **GOVERNANCE:** The existing `QPX_CODEX_COMPLIANCE_PROMPT.md` remains the
   enforcement mechanism. This does not create a parallel process and does not
   authorize broader testing, analysis, redesign, or hardening.
+
+## Constitution authority and canonical main alignment — 2026-09-13
+
+- **USER_CONFIRMED:** `docs/CONSTITUTION.md` is the highest QPX governing
+  document. Governing conflicts follow its exact hierarchy: Constitution,
+  ADRs, Project Charter, Roadmap, Architecture, Module Registry, Service
+  Registry, then Implementation.
+- **USER_CONFIRMED:** Current task instructions direct authorized execution,
+  but durable governance or architecture amendments belong at the proper
+  constitutional level. Process prompts, `AGENTS.md`, continuity/warning/
+  accountability files, recovery records, tests, and implementation controls
+  are subordinate mechanisms.
+- **USER_CONFIRMED:** Accepted QPX progress is canonical on `main`.
+  Review/research branches remain temporary isolation for unfinished or
+  unaccepted work; historical statements that protected `main` describe their
+  then-current branch context and remain preserved as evidence.
+- **VERIFIED_SCOPE:** This correction changes governance text and matching
+  document builders only. It does not change strategy, replay, data, ML,
+  qualification, broker/live operation, promotion, or capital authority.
+- **NEXT EXACT ACTION:** Resume the existing ten-year ALPACA SIP Candidate V1
+  causal historical paper replay, using completed 15-minute decision cadence;
+  do not reopen legacy monthly-selector semantics.

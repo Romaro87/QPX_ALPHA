@@ -29,7 +29,15 @@ This document defines the engineering principles that guide
 every architectural and implementation decision within
 QPX_ALPHA.
 
-These principles are subordinate only to the Constitution.
+This is an Architecture-level authority. It is subordinate to:
+
+1. Constitution
+2. Architecture Decision Records (ADRs)
+3. Project Charter
+4. Roadmap
+
+It outranks lower Module Registry, Service Registry, and
+Implementation material where applicable.
 
 ---
 

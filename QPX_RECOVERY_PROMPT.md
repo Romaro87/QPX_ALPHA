@@ -10,11 +10,14 @@ Do not invent QPX history.
 
 Before changing architecture, read:
 
-1. `QPX_RECOVERY_DECISION_LEDGER.md`
-2. `QPX_CONTEXT_CONTINUITY_RULE.md`
-3. current `git status`
-4. current Git HEAD
-5. source files relevant to the next milestone
+1. `docs/CONSTITUTION.md`
+2. applicable ADRs, Project Charter, Roadmap, Architecture, Module Registry,
+   and Service Registry material in constitutional order
+3. `QPX_RECOVERY_DECISION_LEDGER.md`
+4. `QPX_CONTEXT_CONTINUITY_RULE.md`
+5. current `git status`
+6. current Git HEAD
+7. source files relevant to the next milestone
 
 Keep evidence states distinct:
 VERIFIED_REPO, VERIFIED_ARTIFACT, USER_CONFIRMED, USER_APPROVED,
@@ -53,7 +56,12 @@ For substantive milestones also update:
 
 `QPX_RECOVERY_DECISION_LEDGER.md`
 
-After every push, verify local HEAD equals the configured upstream tracking ref for the current branch. When `main` is protected and work occurs on a review/research branch, separately verify `main` and `origin/main` remain at the expected protected SHA. Do not imply that a review-branch HEAD should equal `origin/main`.
+After every push, verify local HEAD equals the intended remote target. Accepted
+QPX progress is canonical on `main`; review/research branches temporarily
+isolate unfinished or unaccepted work. For an accepted `main` push, verify
+`origin/main` equals the accepted commit. For intentionally isolated work,
+verify its branch and confirm `main` remains at its expected accepted SHA. Do
+not imply that a review-branch HEAD should equal `origin/main`.
 
 Continue warning the user roughly five exchanges before usable chat context is likely to run out.
 
@@ -804,3 +812,26 @@ is to prevent further waste caused by failure to follow settled QPX rules.
 **NEXT EXACT ACTION:** On every QPX prompt, load the complete compliance prompt
 and every mandatory file it names, including the accountability/refund record,
 before interpreting or acting.
+
+## September 13 constitutional authority and canonical main correction
+
+**USER_CONFIRMED:** `docs/CONSTITUTION.md` is QPX_ALPHA's highest governing
+document. Its hierarchy governs conflicts: Constitution, ADRs, Project Charter,
+Roadmap, Architecture, Module Registry, Service Registry, then Implementation.
+Lower process, recovery, test, and implementation controls may enforce
+compatible procedure but cannot redefine that hierarchy.
+
+**USER_CONFIRMED:** Accepted QPX progress is canonical on `main`. Older restore
+statements describing `main` as untouched or protected remain historical
+evidence of their review-branch context and are superseded as current general
+branch policy. Review/research branches remain valid temporary isolation for
+unfinished or unaccepted work.
+
+**SCOPE:** This governance correction does not alter strategy, data, ML,
+historical replay, qualification, broker/live operation, promotion, or capital
+authority. `docs/CONSTITUTION.md` and `QPX_BUILD_CONSTITUTION_V2.py` remain
+unchanged.
+
+**NEXT EXACT ACTION:** Resume the existing ten-year ALPACA SIP Candidate V1
+historical paper replay work. Candidate V1 evaluates completed 15-minute bars;
+do not reopen universe design or substitute legacy monthly-selector semantics.
