@@ -1940,3 +1940,43 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **NEXT EXACT ACTION:** Resume the existing ten-year ALPACA SIP Candidate V1
   causal historical paper replay, using completed 15-minute decision cadence;
   do not reopen legacy monthly-selector semantics.
+
+## Primary ten-year Candidate V1 causal paper replay — 2026-09-14
+
+- **USER_REQUIREMENT:** Drive the current canonical Candidate V1 paper policy
+  through the completed ten-year ALPACA SIP reservoir once, chronologically,
+  at each completed 15-minute boundary. Candidate `history_range=60d` is input
+  history, not replay duration. Legacy monthly selector paths do not govern the
+  replay clock.
+- **DECISION / VERIFIED_REPO:** The primary run binds the explicit current
+  `qpx_bot/symbols.json` manifest as a non-retrospective static configured
+  Candidate set. It does not claim reconstitution, use the Top-100 control, or
+  invent the previously ungoverned eight-field universe policy. Candidate V1
+  remains unranked and uses its authoritative `candidate_v1_policy.json`.
+- **VERIFIED_REPO:** The archive driver alone owns the reservoir. Candidate V1
+  receives detached causal scalar inputs. A signal formed at completed boundary
+  T remains pending until the next eligible 15-minute open. Replay checkpoints
+  are checksummed and locked to frozen configuration fingerprint
+  `73abd19622c37437194345992d2cdf8817585647fd4b7cd6dca6e27fb0137927`.
+- **VERIFIED_ARTIFACT:** Source root
+  `/home/ron/QPX_ALPHA/research_data/qpx_ml_historical_v1` validated as
+  Alpaca/SIP/raw/15Min, 7,370 partitions and 383,082,447 rows. Snapshot and
+  inventory fingerprints are `bcace64bb55c68de66c256c5b9ed443e6384f80904cff7debaefeb862792d595`
+  and `1fa355435551705b6b1aadb70af40aca65039fdc46b0ada0b98f4eb2917ad3cc`.
+- **VERIFIED_ARTIFACT:** Run
+  `6523acae1db3a437d417de912000cd5bd045ddf58ae8f92d4775d9b6fabd4798`
+  completed 65,085 boundaries and 64,881 Candidate evaluations across
+  2016-09-06 through 2026-09-03. It ended at $1,338.0291861036626 from
+  $1,300.00, net P&L $38.029186103662596, maximum drawdown
+  0.17647901594240054, 253 signals, 238 fills/closed trades, 111 wins, 127
+  losses, and no open terminal positions. Checksummed final-report SHA-256 is
+  `43ed58b0d9f8b1c7f513a42cde00f5e2053cd8ce62f4dd7e701eb0286eddaf3e`.
+- **VERIFIED_ARTIFACT:** Focused runner tests passed 3/3; directly affected
+  replay/causal/Candidate tests passed 36/36; compilation and diff checks
+  passed.
+- **QUALIFICATION / AUTHORITY:** Strict data status remains
+  `ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`, with 22,498 known
+  unresolved/unbounded corporate actions. Training, promotion, live, broker,
+  and capital authority remain `NONE`.
+- **NEXT EXACT ACTION:** Treat this as one frozen experimental paper result.
+  Do not tune strategy semantics from it without a new governed task.

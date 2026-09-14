@@ -835,3 +835,67 @@ unchanged.
 **NEXT EXACT ACTION:** Resume the existing ten-year ALPACA SIP Candidate V1
 historical paper replay work. Candidate V1 evaluates completed 15-minute bars;
 do not reopen universe design or substitute legacy monthly-selector semantics.
+
+## September 14 ten-year Candidate V1 causal paper replay completion
+
+**USER_REQUIREMENT / VERIFIED_REPO:** The primary paper replay uses the current
+canonical Candidate V1 policy at every completed 15-minute boundary. The
+authoritative policy SHA-256 is
+`f61b3cdc585774cc4c21e9cac8d06e76abb29f2866c34b694d8d9d9014e263fa`;
+it declares `history_range=60d`,
+`signal_evaluation=all_candidates_each_completed_15m_bar`,
+`signal_execution=next_completed_15m_bar_open`, `rankings_enabled=false`, and
+the 2.0 ATR opening-gap limit. The legacy monthly selector and legacy default
+intraday policy are not the replay clock or policy authority.
+
+**VERIFIED_ARTIFACT:** The runner opened exactly
+`/home/ron/QPX_ALPHA/research_data/qpx_ml_historical_v1`. The checksummed source
+is Alpaca/SIP/raw/15Min with 7,370/7,370 partitions, 383,082,447 rows, input
+snapshot fingerprint
+`bcace64bb55c68de66c256c5b9ed443e6384f80904cff7debaefeb862792d595`,
+partition inventory fingerprint
+`1fa355435551705b6b1aadb70af40aca65039fdc46b0ada0b98f4eb2917ad3cc`,
+and calendar-repair aggregate fingerprint
+`81e3db3203ecdab2ff9ed347d4419ac1013952b32d881960f7122f9ba7e5f822`.
+No reservoir acquisition or regeneration occurred.
+
+**VERIFIED_REPO:** The frozen experiment configuration fingerprint is
+`73abd19622c37437194345992d2cdf8817585647fd4b7cd6dca6e27fb0137927`.
+It binds ALPACA/SIP, 15m, causal split adjustment, next eligible 15m open,
+cash-until-income-implementation availability, prior-completed-session Cboe
+VIX evidence, the explicit current `qpx_bot/symbols.json` manifest fingerprint
+`f3f17ff380cd28b28ca22f3a0f353344625b8fd2150367da3ed4833c9f19c345`,
+and zero training/promotion/live/broker/capital authority. This explicit
+Candidate configuration is not the retrospective Top-100 control and does not
+create or use a monthly reconstitution policy.
+
+**VERIFIED_ARTIFACT:** Real replay run
+`6523acae1db3a437d417de912000cd5bd045ddf58ae8f92d4775d9b6fabd4798`
+completed from `2016-09-06T09:30:00-04:00` through
+`2026-09-03T15:45:00-04:00`. It processed 65,085 completed 15-minute
+boundaries and 64,881 Candidate evaluations. Starting equity was $1,300.00;
+ending equity was $1,338.0291861036626; net P&L was $38.029186103662596;
+maximum drawdown was 17.647901594240054%; 253 signals produced 238 fills and
+238 closed trades (111 wins, 127 losses); income dividends were
+$97.97974278984324; terminal positions were empty. The checksummed final report
+SHA-256 is
+`43ed58b0d9f8b1c7f513a42cde00f5e2053cd8ce62f4dd7e701eb0286eddaf3e`;
+the manifest's canonical report fingerprint is
+`315ace52931cee8dbf13d5345364a481144a15cfec89efdcc93d501153032523`.
+Run manifest, checkpoint, final report, and exit-status checksums all validated;
+exit code was zero and causal-integrity status was `PASS`.
+
+**QUALIFICATION / AUTHORITY:** The result remains labeled
+`ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE`, including the known 22,498
+unresolved/unbounded corporate-action limitation. This paper experiment does
+not alter strict qualification. Training, promotion, live, broker, and capital
+authority remain `NONE`.
+
+**VERIFIED_ARTIFACT:** Focused tests passed 3/3 for the runner and 36/36 for the
+directly affected replay/causal/Candidate configuration surfaces. Changed
+Python compiled and `git diff --check` passed.
+
+**NEXT EXACT ACTION:** Review the completed causal paper evidence and decide
+the next technical experiment or return to the separately blocked historical
+identity qualification road. Do not optimize Candidate V1 from this single
+frozen replay without a separately governed task.

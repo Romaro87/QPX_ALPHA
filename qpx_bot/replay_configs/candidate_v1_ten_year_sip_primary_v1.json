@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "semantic_version": "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CONFIG_V1",
+  "experiment_id": "CANDIDATE.V1.TEN.YEAR.SIP.PRIMARY.V1",
+  "market_data": {
+    "provider": "ALPACA",
+    "feed": "SIP",
+    "decision_bar_interval": "15m",
+    "adjustment_mode": "CAUSAL_SPLIT_ADJUSTED",
+    "adapter_identity": "QPX.HISTORICAL.RESERVOIR.SIP.15M.V1"
+  },
+  "execution": {
+    "model": "NEXT_ELIGIBLE_15M_OPEN",
+    "adapter_identity": "QPX.HISTORICAL.PAPER.NEXT.15M.OPEN.V1",
+    "semantic_version": "NEXT.ELIGIBLE.15M.OPEN.V1"
+  },
+  "income": {
+    "implementation_identity": "QDTE.INCOME.ROLE.V1",
+    "bootstrap_mode": "CASH_UNTIL_INCOME_IMPLEMENTATION_AVAILABLE",
+    "availability_source": "CAUSAL.SIP.COMPLETED.BAR.AVAILABILITY.V1"
+  },
+  "volatility": {
+    "source": "CBOE.VIX.PREVIOUS.COMPLETED.SESSION",
+    "adapter_identity": "QPX.CBOE.VIX.PREVIOUS.SESSION.V1",
+    "evidence_fingerprint": "b40f4236d40cb9f6979206bf794f17c7ddd58fa66bd9f3bfda0c3116dd24c6c6"
+  },
+  "universe": {
+    "mode": "STATIC_FROZEN",
+    "identity": "CANDIDATE.V1.CONFIGURED.CANDIDATES.F3F17FF380CD28B2.V1",
+    "manifest_reference": "qpx_bot/symbols.json",
+    "manifest_fingerprint": "f3f17ff380cd28b28ca22f3a0f353344625b8fd2150367da3ed4833c9f19c345",
+    "retrospective_selection": false,
+    "policy": null
+  },
+  "starting_account": {
+    "configuration_identity": "CANDIDATE.V1.HISTORICAL.FRESH.ACCOUNT.V1",
+    "currency": "USD",
+    "starting_cash": 1300.0
+  },
+  "contributions": {
+    "schedule_identity": "CANDIDATE.V1.NO.EXTERNAL.CONTRIBUTIONS.V1",
+    "currency": "USD",
+    "amount": 0.0
+  },
+  "strategy": {
+    "identity": "QPX.CANDIDATE.V1.CURRENT",
+    "configuration_fingerprint": "26ea194b2706519fcf7b1e49b95f6f544d95ccb330996cf0cb1ec1790c8edf01",
+    "entry_semantics_fingerprint": "fc581b7310b16f9485e9383e11fe0d2058ee310ff90f6412c71c1c862e98fb32"
+  },
+  "runtime": {
+    "causal_driver_version": "QPX.SIP.RESERVOIR.CAUSAL.DRIVER.V1",
+    "accounting_version": "QPX.CANDIDATE.V1.PAPER.ACCOUNTING.V1",
+    "execution_version": "QPX.NEXT.ELIGIBLE.15M.OPEN.V1"
+  },
+  "dataset": {
+    "root_identity": "research_data/qpx_ml_historical_v1",
+    "snapshot_fingerprint": "bcace64bb55c68de66c256c5b9ed443e6384f80904cff7debaefeb862792d595",
+    "qualification_status": "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE"
+  },
+  "authority": {
+    "training": "NONE",
+    "promotion": "NONE",
+    "live": "NONE",
+    "broker": "NONE",
+    "capital": "NONE"
+  }
+}
