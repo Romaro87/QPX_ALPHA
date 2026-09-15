@@ -10,7 +10,7 @@ Type=simple
 WorkingDirectory=/home/ron/QPX_ALPHA
 Environment=QPX_PAPER_PROFILE=/home/ron/QPX_ALPHA/qpx_bot/paper_profiles/volume_confirmation_25_v1.json
 Environment=QPX_SHADOW_MATRIX_ENABLED=0
-ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_RUN_PR50_IEX_FORWARD_RESEARCH_PAPER.py --daemon --runtime-dir /home/ron/QPX_ALPHA/runtime/qpx_volume_confirmation_25_iex_forward_research_paper_clean_v2
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_RUN_PR50_IEX_FORWARD_RESEARCH_PAPER.py --daemon --runtime-dir /home/ron/QPX_ALPHA/runtime/qpx_volume_confirmation_25_iex_forward_research_paper_clean_v3
 Restart=on-failure
 RestartSec=60
 TimeoutStopSec=360

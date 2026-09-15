@@ -24,5 +24,7 @@
     "paper_profile_run_period": {"start": "2024-03-07", "end": "2026-08-07"},
     "historical_dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
     "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766"
+    ,"qualified_reference_commit": "7213db1e17fedce9e923889b116775cca121f766"
+    ,"profit_recycling_configuration_fingerprint": "83a3394a2f4c9d63159480db065f06cfa3f5849981256e4e8bb17c829e749ac7"
   }
 }
