@@ -1240,7 +1240,7 @@ def _heartbeat_payload(
     broker_snapshot = broker.get("last_snapshot") or {}
     return {
         "schema_version": HEARTBEAT_SCHEMA_VERSION,
-        "runner_variant": VARIANT,
+        "runner_variant": state.get("mode", VARIANT) if state else VARIANT,
         "market_data_feed": FEED,
         "research_only": True,
         "live_broker_enabled": False,
