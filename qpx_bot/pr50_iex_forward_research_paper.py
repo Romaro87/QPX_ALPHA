@@ -329,7 +329,7 @@ def load_contract() -> dict[str, Any]:
     contract = dict(sip.load_contract())
     contract.update({
         "feed": FEED,
-        "runner_variant": VARIANT,
+        "runner_variant": contract.get("runner_variant", VARIANT),
         "research_only": True,
         "sip_parity_claimed": False,
         "qualified": False,
@@ -1515,28 +1515,35 @@ def process_pending_execution_clock(
 def initialize(
     store: IEXResearchStore, contract: Mapping[str, Any], observed_at: datetime
 ) -> dict[str, Any]:
-    candidate_snapshot = sip.load_candidate_v1_config()
+    candidate_path = contract.get("candidate_v1_configuration_path")
+    candidate_snapshot = sip.load_candidate_v1_config(Path(candidate_path)) if candidate_path else sip.load_candidate_v1_config()
     config = candidate_snapshot.bot_config
-    starting_capital = candidate_snapshot.forward_starting_capital
+    starting_capital = float(contract.get("starting_equity", candidate_snapshot.forward_starting_capital))
+    qdte_start = float(contract.get("qdte_starting_value", starting_capital))
+    swing_start = float(contract.get("swing_starting_cash", starting_capital - qdte_start))
+    if abs(qdte_start + swing_start - starting_capital) > 1e-6:
+        raise RuntimeError("Paper profile starting sleeves do not equal starting equity.")
     rows = request_bars(("QDTE",), "1Min", observed_at - timedelta(days=7), observed_at)["QDTE"]
     execution = select_causal_execution_bar(rows, observed_at)
     fill = execution["source_price"] * (1.0 + config.slippage_rate)
-    shares = math.floor(starting_capital / fill)
+    shares = math.floor(qdte_start / fill)
     if shares < 1:
         raise RuntimeError("Starting capital cannot purchase one simulated QDTE share.")
     cost = shares * fill
-    cash = starting_capital - cost
+    cash = swing_start + qdte_start - cost
     identity = {
-        "capital": starting_capital, "symbol": config.dividend_symbol, "shares": shares,
+        "capital": starting_capital, "qdte_starting_value": qdte_start,
+        "swing_starting_cash": swing_start, "symbol": config.dividend_symbol, "shares": shares,
         "cash_remainder": cash, "fill_price": fill, **execution,
         "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
-        "runner_variant": VARIANT, "contract_fingerprint": sip.fingerprint(contract),
+        "runner_variant": contract.get("runner_variant", VARIANT), "contract_fingerprint": sip.fingerprint(contract),
     }
     persisted_contract = json.loads(sip.canonical(contract))
-    profit_config = load_profit_recycling_config(sip.PROFIT_CONFIG)
+    profit_path = (sip.ROOT / str(contract["profit_recycling_configuration_path"])) if contract.get("profit_recycling_configuration_path") else sip.PROFIT_CONFIG
+    profit_config = load_profit_recycling_config(profit_path)
     profit_runtime = ProfitRecyclingRuntime(profit_config, starting_capital)
     state = {
-        "schema_version": sip.SCHEMA, "mode": VARIANT,
+        "schema_version": sip.SCHEMA, "mode": contract.get("runner_variant", VARIANT),
         "research_only": True, "sip_parity_claimed": False,
         "semantic_contract_version": contract.get("semantic_version"),
         "qualified": False, "promoted": False,
@@ -1554,7 +1561,7 @@ def initialize(
         "last_completed_execution_observation_utc": None,
         "last_rebalance_week": None,
         "profit_recycling": {
-            "policy_identity": "PR_FRACTION_50",
+            "policy_identity": profit_config.policy_identity,
             "configuration_fingerprint": profit_config.fingerprint,
             "event_sequence": 0, "current_event_sequence": 0,
             "decision_ids": [], "ledger": profit_runtime.ledger.as_dict(),
@@ -1639,7 +1646,7 @@ def _cycle(
         sip.fingerprint(contract),
     }:
         raise RuntimeError("Persisted IEX research strategy identity differs from its contract.")
-    if state.get("schema_version") != sip.SCHEMA or state.get("mode") != VARIANT:
+    if state.get("schema_version") != sip.SCHEMA or state.get("mode") != contract.get("runner_variant", VARIANT):
         raise RuntimeError("Persisted state is not the IEX forward-research schema.")
     _flush_pending_broker_reconciliation(state, store)
     _flush_pending_semantic_transition(state, store)

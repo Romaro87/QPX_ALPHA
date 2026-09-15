@@ -1,5 +1,5 @@
 [Unit]
-Description=QPX PR_FRACTION_50 IEX Clean V2 Forward Research Paper Runner (simulated only; no SIP parity)
+Description=QPX Volume Confirmation 25% IEX Clean V2 Forward Research Paper Runner (simulated only; no SIP parity)
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=900
@@ -8,9 +8,9 @@ StartLimitBurst=3
 [Service]
 Type=simple
 WorkingDirectory=/home/ron/QPX_ALPHA
-Environment=QPX_BROKER_ACCOUNT_PROVIDER_CONFIG=/home/ron/QPX_ALPHA/deploy/qpx-pr50-iex-forward-research-paper-clean-v2-dummy-provider.json
+Environment=QPX_PAPER_PROFILE=/home/ron/QPX_ALPHA/qpx_bot/paper_profiles/volume_confirmation_25_v1.json
 Environment=QPX_SHADOW_MATRIX_ENABLED=0
-ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_RUN_PR50_IEX_FORWARD_RESEARCH_PAPER.py --daemon --runtime-dir /home/ron/QPX_ALPHA/runtime/qpx_pr50_iex_forward_research_paper_clean_v2
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_RUN_PR50_IEX_FORWARD_RESEARCH_PAPER.py --daemon --runtime-dir /home/ron/QPX_ALPHA/runtime/qpx_volume_confirmation_25_iex_forward_research_paper_clean_v2
 Restart=on-failure
 RestartSec=60
 TimeoutStopSec=360

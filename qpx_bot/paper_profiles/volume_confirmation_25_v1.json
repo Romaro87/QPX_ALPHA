@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "profile_identity": "VOLUME_CONFIRMATION_25_IEX_FORWARD_PAPER_V1",
+  "candidate_v1_configuration_path": "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
+  "contract": {
+    "candidate_v1_configuration_path": "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
+    "runner_variant": "VOLUME_CONFIRMATION_25_IEX_FORWARD_RESEARCH_PAPER_ONLY",
+    "starting_equity": 1443.34,
+    "qdte_starting_value": 1438.0,
+    "swing_starting_cash": 5.34,
+    "monthly_external_contribution": 0.0,
+    "capacity_arbitration_enabled": true,
+    "capacity_arbitration_policy": "volume_confirmation",
+    "capacity_arbitration_policy_version": "1.0.0",
+    "capacity_arbitration_configuration_fingerprint": "b9a5008ec61f919a4c9da9c4d8afe8fe20c36c1e10fca8690c880ade23b6e89b",
+    "maximum_position_notional_fraction": 0.25,
+    "profit_recycling_enabled": false,
+    "profit_recycling_policy": null,
+    "profit_recycling_configuration_path": "qpx_bot/accelerators/configs/profit_recycling_v1_foundation.json",
+    "dynamic_sizing_enabled": false,
+    "pyramiding_enabled": false,
+    "regime_allocation_enabled": false,
+    "candidate_v1_configuration_authority": "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
+    "paper_profile_run_period": {"start": "2024-03-07", "end": "2026-08-07"},
+    "historical_dataset_fingerprint": "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8",
+    "strategy_reference_commit": "7213db1e17fedce9e923889b116775cca121f766"
+  }
+}

@@ -1876,6 +1876,13 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   stable ID or historical CUSIP/ISIN crosswalk. Do not introduce a third-party
   source, guess identity, start training, or weaken qualification.
 
+## Volume-confirmation 25% paper runner — 2026-09-14
+
+- **USER_REQUIREMENT:** Activate the exact row-3 configuration in the supervised live paper runner.
+- **DECISION:** Use a fresh IEX forward-research runtime and immutable run-specific Candidate snapshot. Preserve existing PR50 runtime. Keep live broker, training, promotion, and capital authority disabled.
+- **VERIFIED:** Focused tests passed 104/104; profile smoke initialized total `$1,443.34` with QDTE sleeve `$1,438.00`, swing cash `$5.34`, disabled profit policy, and runner identity `VOLUME_CONFIRMATION_25_IEX_FORWARD_RESEARCH_PAPER_ONLY`.
+- **NEXT EXACT ACTION:** Commit/push continuity and restart the supervised service, then verify runtime state and heartbeat.
+
 ## Configurable causal historical paper replay foundation — 2026-09-13
 
 - **USER_REQUIREMENT:** Build every legitimate replay choice as explicit,

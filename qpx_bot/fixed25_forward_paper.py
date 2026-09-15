@@ -46,6 +46,10 @@ from qpx_bot.accelerators.profit_recycling import (
     ProfitSourceLedger,
     load_profit_recycling_config,
 )
+from qpx_bot.accelerators.capacity_arbitration import (
+    CapacityArbitrationConfig, CapacityArbitrationContext, CapacityArbitrationV1,
+    CapacityCandidate, tie_identity,
+)
 from qpx_bot.shadow_matrix.forward import build_cycle_payload, dispatch_cycle, flush_pending_event
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +57,7 @@ KEY_FILE = Path.home() / ".config/qpx/alpaca.json"
 UNIVERSE = ROOT / "qpx_bot/research_universes/alpaca_top100_qdte1300_thursday_v1.json"
 QUALIFICATION = ROOT / "qpx_bot/challenger_25pct_qualification.json"
 PROFIT_CONFIG = ROOT / "qpx_bot/accelerators/configs/profit_recycling_fraction_50_v1.json"
+PROFIT_DISABLED_CONFIG = ROOT / "qpx_bot/accelerators/configs/profit_recycling_v1_foundation.json"
 DEFAULT_RUNTIME = ROOT / "runtime/qpx_fixed25_forward_paper"
 DATA_URL = "https://data.alpaca.markets/v2/stocks/bars"
 CORPORATE_ACTION_URL = "https://data.alpaca.markets/v1/corporate-actions"
@@ -102,7 +107,7 @@ def load_contract() -> dict[str, Any]:
     profit_config = load_profit_recycling_config(PROFIT_CONFIG)
     if profit_config.fingerprint != PROFIT_FINGERPRINT:
         raise RuntimeError("PR_FRACTION_50 configuration fingerprint changed.")
-    return {
+    contract = {
         "qualified_reference_commit": QUALIFIED_COMMIT,
         "dataset_fingerprint": DATASET_FINGERPRINT,
         "universe_manifest_fingerprint": universe["manifest_fingerprint"],
@@ -119,6 +124,14 @@ def load_contract() -> dict[str, Any]:
         "profit_recycling_policy": "PR_FRACTION_50",
         "profit_recycling_configuration_fingerprint": PROFIT_FINGERPRINT,
     }
+    profile_path = os.environ.get("QPX_PAPER_PROFILE")
+    if profile_path:
+        profile = json.loads(Path(profile_path).read_text(encoding="utf-8"))
+        if profile.get("schema_version") != 1:
+            raise RuntimeError("Paper profile schema is unsupported.")
+        contract.update(profile.get("contract", {}))
+        contract["paper_profile_path"] = str(Path(profile_path).resolve())
+    return contract
 
 
 def credentials() -> tuple[str, str]:
@@ -231,10 +244,11 @@ def request_qdte_corporate_actions(start: date, end: date) -> list[dict[str, Any
 
 
 def _profit_runtime(state: Mapping[str, Any]) -> ProfitRecyclingRuntime:
-    config = load_profit_recycling_config(PROFIT_CONFIG)
+    path = (ROOT / str(state.get("contract", {}).get("profit_recycling_configuration_path", ""))) if state.get("contract", {}).get("profit_recycling_configuration_path") else PROFIT_CONFIG
+    config = load_profit_recycling_config(path)
     persisted = state["profit_recycling"]
     if persisted["configuration_fingerprint"] != config.fingerprint:
-        raise RuntimeError("Persisted Profit Recycling configuration differs from PR_FRACTION_50.")
+        raise RuntimeError("Persisted Profit Recycling configuration differs from the paper contract.")
     runtime = ProfitRecyclingRuntime(config, float(state["contributed_capital"]))
     runtime.ledger = ProfitSourceLedger.from_dict(persisted["ledger"])
     return runtime
@@ -803,6 +817,44 @@ def _flush_pending_decision_cycle_telemetry(
     return True
 
 
+def _capacity_selected_symbols(
+    *, qualifying: list[tuple[str, str, float, float]], symbols: tuple[str, ...],
+    histories: Mapping[str, list[dict[str, Any]]], indices: Mapping[str, Mapping[datetime, int]],
+    indicators: Mapping[str, Any], bar_time: datetime, config: Any, slots: int,
+    contract: Mapping[str, Any],
+) -> tuple[tuple[str, ...], dict[str, Any] | None]:
+    policy = contract.get("capacity_arbitration_policy")
+    if not policy:
+        return tuple(symbol for _, symbol, _, _ in sorted(qualifying)[:slots]), None
+    candidates = []
+    for rank, symbol in enumerate(symbols, 1):
+        if symbol not in {item[1] for item in qualifying}:
+            continue
+        index = indices[symbol][bar_time]
+        inputs = _entry_inputs(histories[symbol], index, indicators[symbol], 0.0, config)
+        if inputs is None:
+            continue
+        candidates.append(CapacityCandidate(
+            symbol=symbol, current_close=float(inputs.current_close), prior_high=float(inputs.prior_high),
+            current_atr=float(inputs.current_atr), current_fast=float(inputs.current_fast),
+            current_slow=float(inputs.current_slow), current_volume=float(inputs.current_volume),
+            baseline_volume=float(inputs.baseline_volume), frozen_top100_rank=rank,
+            tie_break_identity=tie_identity(bar_time, symbol),
+        ))
+    arbitration = CapacityArbitrationV1(CapacityArbitrationConfig(policy)).decide(
+        CapacityArbitrationContext(bar_time, slots, tuple(candidates))
+    )
+    return arbitration.selected_candidates, {
+        "policy": arbitration.policy, "policy_version": arbitration.policy_version,
+        "configuration_fingerprint": arbitration.configuration_fingerprint,
+        "decision_id": arbitration.decision_id, "available_slots": slots,
+        "qualifying_symbols": arbitration.qualifying_symbols,
+        "selected_candidates": arbitration.selected_candidates,
+        "deferred_candidates": arbitration.deferred_candidates,
+        "scores": [score.as_dict() for score in arbitration.scores],
+    }
+
+
 def _flush_pending_candidate_v1_config_event(
     state: dict[str, Any], store: "Store",
 ) -> bool:
@@ -835,11 +887,8 @@ def bind_candidate_v1_config_at_boundary(
             persisted_payload, persisted_fingerprint
         )
 
-    candidate = (
-        load_candidate_v1_config()
-        if config_path is None
-        else load_candidate_v1_config(config_path)
-    )
+    candidate_path = config_path or state.get("contract", {}).get("candidate_v1_configuration_path")
+    candidate = load_candidate_v1_config(Path(candidate_path)) if candidate_path else load_candidate_v1_config()
     old_fingerprint: str | None = None
     if persisted_fingerprint is not None or persisted_payload is not None:
         if not isinstance(persisted_fingerprint, str) or not isinstance(
@@ -1220,7 +1269,16 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             - len(positions)
             - len(state["pending"]),
         )
-        for _, symbol, atr, close in sorted(qualifying)[:slots]:
+        selected_symbols, arbitration_details = _capacity_selected_symbols(
+            qualifying=qualifying, symbols=symbols, histories=histories,
+            indices=indices, indicators=indicators, bar_time=bar_time,
+            config=config, slots=slots, contract=state["contract"],
+        )
+        if arbitration_details is not None:
+            store.event("CAPACITY_ARBITRATION_DECIDED", arbitration_details)
+        qualifying_by_symbol = {symbol: (atr, close) for _, symbol, atr, close in qualifying}
+        for symbol in selected_symbols:
+            atr, close = qualifying_by_symbol[symbol]
             signal_id = fingerprint({"symbol": symbol, "bar": bar_time.isoformat(), "atr": atr,
                                      "contract": state["contract_fingerprint"],
                                      "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint})
@@ -1313,9 +1371,14 @@ def select_causal_execution_bar(rows: list[dict[str, Any]], observed_at: datetim
 
 
 def initialize(store: Store, contract: Mapping[str, Any], observed_at: datetime) -> dict[str, Any]:
-    candidate_snapshot = load_candidate_v1_config()
+    candidate_path = contract.get("candidate_v1_configuration_path")
+    candidate_snapshot = load_candidate_v1_config(Path(candidate_path)) if candidate_path else load_candidate_v1_config()
     config = candidate_snapshot.bot_config
-    starting_capital = candidate_snapshot.forward_starting_capital
+    starting_capital = float(contract.get("starting_equity", candidate_snapshot.forward_starting_capital))
+    qdte_start = float(contract.get("qdte_starting_value", starting_capital))
+    swing_start = float(contract.get("swing_starting_cash", starting_capital - qdte_start))
+    if abs(qdte_start + swing_start - starting_capital) > 1e-6:
+        raise RuntimeError("Paper profile starting sleeves do not equal starting equity.")
     rows = request_bars(
         (config.dividend_symbol,),
         "1Min",
@@ -1324,15 +1387,17 @@ def initialize(store: Store, contract: Mapping[str, Any], observed_at: datetime)
     )[config.dividend_symbol]
     execution = select_causal_execution_bar(rows, observed_at)
     fill = execution["source_price"] * (1.0 + config.slippage_rate)
-    shares = math.floor(starting_capital / fill)
+    shares = math.floor(qdte_start / fill)
     if shares < 1: raise RuntimeError("Starting capital cannot purchase one simulated QDTE share.")
-    cost = shares * fill; cash = starting_capital - cost
-    identity = {"capital": starting_capital, "symbol": config.dividend_symbol, "shares": shares,
+    cost = shares * fill; cash = swing_start + qdte_start - cost
+    identity = {"capital": starting_capital, "qdte_starting_value": qdte_start,
+                "swing_starting_cash": swing_start, "symbol": config.dividend_symbol, "shares": shares,
                 "cash_remainder": cash, "fill_price": fill, **execution,
                 "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
                 "contract_fingerprint": fingerprint(contract)}
     persisted_contract = json.loads(canonical(contract))
-    profit_config = load_profit_recycling_config(PROFIT_CONFIG)
+    profit_path = (ROOT / str(contract["profit_recycling_configuration_path"])) if contract.get("profit_recycling_configuration_path") else PROFIT_CONFIG
+    profit_config = load_profit_recycling_config(profit_path)
     profit_runtime = ProfitRecyclingRuntime(profit_config, starting_capital)
     state = {"schema_version": SCHEMA, "mode": "FORWARD_PAPER_ONLY",
              "live_broker_enabled": False, "simulated_fills_only": True,
@@ -1347,7 +1412,7 @@ def initialize(store: Store, contract: Mapping[str, Any], observed_at: datetime)
              "completed_execution_ids": [fingerprint(identity)], "last_decision_bar": None,
              "last_rebalance_week": None,
              "profit_recycling": {
-                 "policy_identity": "PR_FRACTION_50",
+                 "policy_identity": profit_config.policy_identity,
                  "configuration_fingerprint": profit_config.fingerprint,
                  "event_sequence": 0, "current_event_sequence": 0,
                  "decision_ids": [], "ledger": profit_runtime.ledger.as_dict(),

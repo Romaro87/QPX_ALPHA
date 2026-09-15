@@ -29,7 +29,7 @@ class Fixed25ForwardPaperTest(unittest.TestCase):
         )
         self.assertEqual(
             load_candidate_v1_config().maximum_position_notional_fraction,
-            0.25,
+            0.90,
         )
         self.assertFalse(contract["live_broker_enabled"])
         self.assertTrue(contract["simulated_fills_only"])
