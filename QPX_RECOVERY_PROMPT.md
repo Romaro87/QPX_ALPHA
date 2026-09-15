@@ -943,9 +943,17 @@ pending entries. Apply the existing checksummed configuration-transition
 mechanism only while the account has no swing positions or pending actions;
 never reset QDTE shares, cash, history, or initialization identity.
 
-**NEXT EXACT ACTION:** Verify the pushed main revision, safely restart the
-supervised Clean-V2 service, validate its checksummed account continuity,
-loaded 90% Candidate fingerprint, execution-phase contract and healthy
-simulated-only heartbeat, then launch and monitor the distinct corrected V3
-service. Final replay acceptance remains pending until checksummed final report
-and exit status exist.
+**VERIFIED DEPLOYMENT / LAUNCH:** Remote `main` is
+`9b190fd55ea1fff50a1be58b51f77da65db23702`. Clean-V2 preserved 50 QDTE
+shares, `$22.275` cash, zero swing positions, and zero pending entries while
+loading `AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1`; its after-hours heartbeat was
+healthy and simulated-only. Corrected V3 run
+`1fbbd3cb80755e4ed8cbe37e05adee1c50b43ab90ff77ff25668197ecbbf8f83`
+launched under distinct service
+`qpx-v3-reservoir-replay-corrected-20260915.service`; initial preparation was
+2/670 with SQLite integrity `ok`.
+
+**NEXT EXACT ACTION:** Monitor the corrected service read-only. Final replay
+acceptance remains pending until preparation/replay complete and checksummed
+final report and exit status exist. Do not resume or rewrite the excluded
+`c4159b1c...49f839` run.

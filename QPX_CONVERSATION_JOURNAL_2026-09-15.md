@@ -173,3 +173,35 @@
   profile, dividend, fixed-paper, and IEX-paper tests passed. This is not final
   replay acceptance; deployment, push verification, corrected launch, and
   eventual replay completion are recorded separately.
+
+## Corrected deployment and replay launch
+
+- **SOURCE ACCEPTANCE:** Commit
+  `9b190fd55ea1fff50a1be58b51f77da65db23702` was pushed to `origin/main`;
+  remote `refs/heads/main` verified at the identical SHA.
+- **LIVE DEPLOYMENT:** The supervised Clean-V2 target loaded execution-phase
+  identity `AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1` through the existing
+  checksummed configuration-transition path. Post-transition state SHA-256 is
+  `1eac9b53099e219434bb431e8ff46694c5a0f2f38e898b99a2c816eea9d26a38`.
+  Account continuity is exact: 50 QDTE shares, QDTE cost `$1,421.065`, cash
+  `$22.275`, zero swing positions, zero pending entries, and revision 52.
+  The after-hours heartbeat SHA-256 is
+  `66a64a0f79704f5075793c6be88b2af4e0606c713b703a41075c41c1f2ef6bd8`;
+  it reports the approved Candidate fingerprint, 90% cap, simulated fills,
+  no live broker, no failure, and zero service restarts.
+- **CORRECTED HISTORICAL LAUNCH:** Distinct service
+  `qpx-v3-reservoir-replay-corrected-20260915.service` launched run
+  `1fbbd3cb80755e4ed8cbe37e05adee1c50b43ab90ff77ff25668197ecbbf8f83`
+  from accepted commit `9b190fd55ea1fff50a1be58b51f77da65db23702` with implementation
+  fingerprint
+  `4f1261475a0784effd3f3572a60b6bbac5af0449d0823adef625db71e831d1a9`.
+  Checksummed manifest SHA-256 is
+  `95b656c657833c669b3316e98fc0d1719f2c7c4ee5e690d7ed6bfba2d96ec80d`;
+  it binds configuration `da2a13d...d2795`, universe `3c94d342...44a5`,
+  31,431 assets, and `$1,443.34` starting cash. Initial preparation checkpoint
+  validated at 2/670 batches; SQLite `quick_check` returned `ok`; service was
+  active with PID 181490 and zero restarts.
+- **ACCEPTANCE STATUS:** Implementation/tests and live after-hours runtime
+  acceptance passed. Corrected replay launch passed. Final replay acceptance
+  remains pending because preparation/replay are running and no checksummed
+  final report or exit status exists yet.

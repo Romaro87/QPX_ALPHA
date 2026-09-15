@@ -2025,3 +2025,15 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   its checksummed pre-deployment state held 50 QDTE shares, `$22.275` cash,
   zero swing positions, and zero pending entries. No broker order or training,
   promotion, live-capital, or universe-change authority is granted.
+- **VERIFIED DEPLOYMENT / LAUNCH:** Accepted commit `9b190fd55ea1fff50a1be58b51f77da65db23702`
+  is remote `main`. The live checksummed account retained exactly 50 QDTE
+  shares, `$22.275` cash, zero swing positions, and zero pending entries while
+  loading `AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1`; after-hours heartbeat was
+  healthy/simulated-only with zero restarts. Corrected historical run
+  `1fbbd3cb80755e4ed8cbe37e05adee1c50b43ab90ff77ff25668197ecbbf8f83`
+  launched in a distinct service, binding the approved configuration/universe
+  and `$1,443.34`; initial preparation was 2/670 with SQLite integrity `ok`.
+- **ACCEPTANCE BOUNDARY:** Implementation/test and live after-hours acceptance
+  passed; historical launch passed. Final historical acceptance remains
+  pending until preparation/replay complete and checksummed final-report and
+  exit-status evidence validate.
