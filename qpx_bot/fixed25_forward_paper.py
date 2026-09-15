@@ -963,7 +963,6 @@ def _vix_previous_close(day) -> float:
 
 def process_latest_decision(state: dict[str, Any], store: Store, observed_at: datetime) -> None:
     """Process each newly completed 15-minute timestamp exactly once."""
-    fixed25_notional_fraction = load_qualified_fixed25_notional_fraction()
     _flush_pending_candidate_v1_config_event(state, store)
     if state["contract"].get("feed") == "iex":
         _flush_pending_decision_cycle_telemetry(state, store)
@@ -1027,6 +1026,8 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
 
         # Apply the governed Candidate V1 allocation at its configured weekday.
         if (
+            state["contract"].get("feed") != "iex"
+            and
             broker_risk_block is None
             and bar_time.weekday() == candidate_snapshot.rebalance_weekday
             and bar_time in indices.get("QDTE", {})
@@ -1130,7 +1131,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                 atr=signal["atr"], active_risk=active_risk, config=signal_config,
                 trade_results_r=disabled_kelly_trade_history(signal_snapshot))
             share_cap = math.floor(
-                (equity * fixed25_notional_fraction)
+            (equity * candidate_snapshot.maximum_position_notional_fraction)
                 / sizing.entry_fill
             ) if sizing.entry_fill else 0
             shares = min(sizing.shares, share_cap)

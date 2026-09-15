@@ -19,9 +19,9 @@
     "minimum_rebalance_trade": 1.0
   },
   "indicators": {"ema_fast_period": 9, "ema_slow_period": 21, "rsi_period": 14, "rsi_strength_level": 50.0, "rmi_period": 14, "rmi_momentum": 5, "sma_trend_period": 200, "sma_slope_lookback": 5, "atr_period": 14, "average_volume_period": 20},
-  "entry": {"minimum_average_15m_volume": 75000, "breakout_volume_multiplier": 1.05, "breakout_lookback": 10, "maximum_vix": 32.0, "rsi_overbought": 75.0, "maximum_gap_atr_multiple": 2.0},
+  "entry": {"minimum_average_15m_volume": 75000, "breakout_volume_multiplier": 1.05, "breakout_lookback": 10, "maximum_vix": 32.0, "rsi_overbought": 75.0, "momentum_persistence_level": 52.0, "vix_exclusion_low": 20.0, "vix_exclusion_high": 25.0, "maximum_gap_atr_multiple": 2.0},
   "exit": {"stop_atr_multiple": 2.5, "target_atr_multiple": 5.0, "trailing_activation_atr": 3.0},
-  "risk": {"maximum_positions": 6, "risk_per_trade": 0.03, "maximum_active_portfolio_risk": 0.1, "kelly_enabled": false, "kelly_fraction": 0.25, "minimum_kelly_trades": 20, "maximum_position_notional_fraction": 0.25},
+  "risk": {"maximum_positions": 6, "risk_per_trade": 0.03, "maximum_active_portfolio_risk": 0.1, "kelly_enabled": false, "kelly_fraction": 0.25, "minimum_kelly_trades": 20, "maximum_position_notional_fraction": 0.90},
   "execution": {"slippage_rate": 0.00075},
   "tax_reserve": {"annual_rate": 0.37}
 }

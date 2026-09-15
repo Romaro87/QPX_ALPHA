@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "profile_identity": "VOLUME_CONFIRMATION_25_IEX_FORWARD_PAPER_V1",
+  "profile_identity": "VOLUME_CONFIRMATION_90_IEX_FORWARD_PAPER_V1",
   "candidate_v1_configuration_path": "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
   "contract": {
     "candidate_v1_configuration_path": "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
@@ -13,7 +13,7 @@
     "capacity_arbitration_policy": "volume_confirmation",
     "capacity_arbitration_policy_version": "1.0.0",
     "capacity_arbitration_configuration_fingerprint": "b9a5008ec61f919a4c9da9c4d8afe8fe20c36c1e10fca8690c880ade23b6e89b",
-    "maximum_position_notional_fraction": 0.25,
+    "maximum_position_notional_fraction": 0.90,
     "profit_recycling_enabled": false,
     "profit_recycling_policy": null,
     "profit_recycling_configuration_path": "qpx_bot/accelerators/configs/profit_recycling_v1_foundation.json",

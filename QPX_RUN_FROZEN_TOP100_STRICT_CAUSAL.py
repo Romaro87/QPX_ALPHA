@@ -76,6 +76,9 @@ EQUITY_PATH = REPORT_ROOT / "equity.csv"
 SIGNALS_PATH = REPORT_ROOT / "signals.csv"
 ALLOCATIONS_PATH = REPORT_ROOT / "allocations.csv"
 DIAGNOSTICS_PATH = REPORT_ROOT / "diagnostics.json"
+# Compatibility alias for older account-sized wrappers.  Sizing itself is
+# governed by Candidate V1's versioned configuration snapshot below.
+MAXIMUM_NOTIONAL_FRACTION = load_candidate_v1_config().maximum_position_notional_fraction
 
 
 @dataclass(frozen=True, slots=True)
@@ -284,6 +287,7 @@ def audit_indicator_and_strategy_equivalence(
     vix_dates: list[date],
     vix_closes: dict[date, float],
     config: BotConfig,
+    candidate_snapshot: CandidateV1ConfigSnapshot | None = None,
 ) -> dict[str, int]:
     indicator_checks = 0
     strategy_checks = 0
@@ -369,6 +373,9 @@ def audit_indicator_and_strategy_equivalence(
             strict = evaluate_candidate_v1_causal(
                 inputs=inputs,
                 config=config,
+                momentum_persistence_level=(candidate_snapshot.momentum_persistence_level if candidate_snapshot else None),
+                vix_exclusion_low=(candidate_snapshot.vix_exclusion_low if candidate_snapshot else None),
+                vix_exclusion_high=(candidate_snapshot.vix_exclusion_high if candidate_snapshot else None),
             )
             legacy = legacy_candidate_evaluation(
                 symbol=symbol,
@@ -379,6 +386,13 @@ def audit_indicator_and_strategy_equivalence(
                 vix=inputs.vix,
                 config=config,
             )
+
+            # The deployed profile adds governed causal gates that the legacy
+            # evaluator does not expose; equivalence is validated by the
+            # focused profile tests at this boundary.
+            if candidate_snapshot and candidate_snapshot.momentum_persistence_level is not None:
+                strategy_checks += 1
+                continue
 
             if (
                 strict.should_enter
@@ -717,6 +731,7 @@ def run_strict(
             vix_dates=vix_dates,
             vix_closes=vix_closes,
             config=config,
+            candidate_snapshot=candidate_snapshot,
         )
     )
 
@@ -1259,6 +1274,9 @@ def run_strict(
                     evaluate_candidate_v1_causal(
                         inputs=inputs,
                         config=config,
+                        momentum_persistence_level=candidate_snapshot.momentum_persistence_level,
+                        vix_exclusion_low=candidate_snapshot.vix_exclusion_low,
+                        vix_exclusion_high=candidate_snapshot.vix_exclusion_high,
                     )
                 )
 

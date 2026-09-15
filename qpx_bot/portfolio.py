@@ -58,6 +58,7 @@ class ClosedTrade:
 @dataclass(slots=True)
 class Portfolio:
     starting_cash: float
+    preserve_identity: bool = False
     cash: float = field(init=False)
     tax_reserve_cash: float = 0.0
     total_contributions: float = field(init=False)
@@ -70,6 +71,13 @@ class Portfolio:
             raise ValueError("Starting cash cannot be negative.")
         self.cash = float(self.starting_cash)
         self.total_contributions = float(self.starting_cash)
+
+    def _identity_key(self, value: str) -> str:
+        """Return an exact provider identity or the legacy symbol key."""
+        key = value.strip()
+        if not key:
+            raise ValueError("Position identity cannot be empty.")
+        return key if self.preserve_identity else key.upper()
 
     def deposit(self, amount: float) -> None:
         """Add external capital to the investable cash balance."""
@@ -94,10 +102,7 @@ class Portfolio:
         config: BotConfig | None = None,
     ) -> Position:
         """Open one risk-sized position and deduct its full cost."""
-        normalized_symbol = symbol.strip().upper()
-
-        if not normalized_symbol:
-            raise ValueError("Symbol cannot be empty.")
+        normalized_symbol = self._identity_key(symbol)
 
         if normalized_symbol in self.positions:
             raise ValueError(
@@ -159,7 +164,7 @@ class Portfolio:
         config: BotConfig,
     ) -> float:
         """Activate and raise the ATR trailing stop; never lower it."""
-        normalized_symbol = symbol.strip().upper()
+        normalized_symbol = self._identity_key(symbol)
         position = self.positions[normalized_symbol]
 
         if current_high <= 0 or current_atr <= 0:
@@ -219,7 +224,7 @@ class Portfolio:
         config: BotConfig,
     ) -> ClosedTrade:
         """Close a position, apply slippage, and reserve gain taxes."""
-        normalized_symbol = symbol.strip().upper()
+        normalized_symbol = self._identity_key(symbol)
         position = self.positions.pop(normalized_symbol)
         exit_slippage_rate = (
             position.exit_slippage_rate

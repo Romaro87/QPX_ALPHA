@@ -45,7 +45,7 @@ AUTHORITY_FIELDS = frozenset({"training", "promotion", "live", "broker", "capita
 _ROOT_FIELDS = {
     "schema_version", "semantic_version", "experiment_id", "market_data",
     "execution", "income", "volatility", "universe", "starting_account",
-    "contributions", "strategy", "runtime", "dataset", "authority",
+    "contributions", "strategy", "capacity_arbitration", "runtime", "dataset", "authority",
 }
 _RECONSTITUTED_FIELDS = {
     "eligibility_source", "selection_rule", "membership_count", "lookback",
@@ -239,6 +239,18 @@ def replay_configuration_from_mapping(
     _fingerprint(strategy["configuration_fingerprint"], "strategy.configuration_fingerprint")
     _fingerprint(strategy["entry_semantics_fingerprint"], "strategy.entry_semantics_fingerprint")
 
+    arbitration = _object(root["capacity_arbitration"], "capacity_arbitration", {
+        "enabled", "policy", "policy_version", "configuration_fingerprint",
+    })
+    if type(arbitration["enabled"]) is not bool or not arbitration["enabled"]:
+        raise ReplayConfigurationError("capacity_arbitration must be explicitly enabled.")
+    _text(arbitration["policy"], "capacity_arbitration.policy")
+    _text(arbitration["policy_version"], "capacity_arbitration.policy_version")
+    _fingerprint(
+        arbitration["configuration_fingerprint"],
+        "capacity_arbitration.configuration_fingerprint",
+    )
+
     runtime = _object(root["runtime"], "runtime", {
         "causal_driver_version", "accounting_version", "execution_version",
     })
@@ -313,7 +325,13 @@ class CandidateV1ReplayPort:
         return self._snapshot.fingerprint
 
     def evaluate(self, inputs: CandidateV1CausalInputs) -> CandidateV1CausalEvaluation:
-        return evaluate_candidate_v1_causal(inputs=inputs, config=self._snapshot.bot_config)
+        return evaluate_candidate_v1_causal(
+            inputs=inputs,
+            config=self._snapshot.bot_config,
+            momentum_persistence_level=self._snapshot.momentum_persistence_level,
+            vix_exclusion_low=self._snapshot.vix_exclusion_low,
+            vix_exclusion_high=self._snapshot.vix_exclusion_high,
+        )
 
 
 @dataclass(frozen=True, slots=True)

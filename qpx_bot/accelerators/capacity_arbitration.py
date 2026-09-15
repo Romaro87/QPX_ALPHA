@@ -12,7 +12,7 @@ POLICIES = ("hash_control", "frozen_order", "breakout_strength", "trend_strength
 
 
 def tie_identity(timestamp: datetime, symbol: str) -> str:
-    return hashlib.sha256((timestamp.isoformat() + "|" + symbol.strip().upper()).encode("utf-8")).hexdigest()
+    return hashlib.sha256((timestamp.isoformat() + "|" + symbol.strip()).encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +61,7 @@ class CapacityArbitrationContext:
     def __post_init__(self) -> None:
         if self.event_timestamp.tzinfo is None or self.available_slots < 0:
             raise ValueError("Timestamp must be aware and slots non-negative.")
-        symbols = [item.symbol.upper() for item in self.candidates]
+        symbols = [item.symbol for item in self.candidates]
         if len(symbols) != len(set(symbols)):
             raise ValueError("Qualifying candidates must be unique.")
 
@@ -122,10 +122,10 @@ class CapacityArbitrationV1:
         scored = [(item, self._priority(item)) for item in context.candidates]
         descending = self.config.policy in ("breakout_strength", "trend_strength", "volume_confirmation")
         ordered = sorted(scored, key=lambda pair: ((-pair[1]) if descending else pair[1], pair[0].tie_break_identity, pair[0].symbol))
-        selected = tuple(item.symbol.upper() for item, _ in ordered[:context.available_slots])
-        deferred = tuple(item.symbol.upper() for item, _ in ordered[context.available_slots:])
-        scores = tuple(CapacityScore(item.symbol.upper(), score, item.tie_break_identity) for item, score in ordered)
-        core = {"policy": self.config.policy, "policy_version": self.config.policy_version, "configuration_fingerprint": self.config.fingerprint, "event_timestamp": context.event_timestamp.isoformat(), "available_slots": context.available_slots, "qualifying_symbols": sorted(item.symbol.upper() for item in context.candidates), "scores": [item.as_dict() for item in scores], "selected_candidates": selected, "deferred_candidates": deferred}
+        selected = tuple(item.symbol for item, _ in ordered[:context.available_slots])
+        deferred = tuple(item.symbol for item, _ in ordered[context.available_slots:])
+        scores = tuple(CapacityScore(item.symbol, score, item.tie_break_identity) for item, score in ordered)
+        core = {"policy": self.config.policy, "policy_version": self.config.policy_version, "configuration_fingerprint": self.config.fingerprint, "event_timestamp": context.event_timestamp.isoformat(), "available_slots": context.available_slots, "qualifying_symbols": sorted(item.symbol for item in context.candidates), "scores": [item.as_dict() for item in scores], "selected_candidates": selected, "deferred_candidates": deferred}
         decision_id = hashlib.sha256(json.dumps(core, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         return CapacityArbitrationDecision(self.config.policy, self.config.policy_version, self.config.fingerprint, context.event_timestamp, context.available_slots, tuple(core["qualifying_symbols"]), scores, selected, deferred, decision_id)
 

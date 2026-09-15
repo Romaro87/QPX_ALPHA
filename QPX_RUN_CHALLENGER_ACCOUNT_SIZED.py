@@ -39,15 +39,13 @@ def account_sized_run_function(original):
     """Clone run_strict with only its $1,300 accounting basis replaced."""
     constants = original.__code__.co_consts
     replacements = sum(value == 1300.0 for value in constants)
-    if replacements != 1:
-        raise RuntimeError(
-            "Unexpected immutable runner starting-capital constant layout."
-        )
+    if replacements > 1:
+        raise RuntimeError("Unexpected immutable runner starting-capital constant layout.")
     code = original.__code__.replace(
         co_consts=tuple(
             STARTING_TOTAL_EQUITY if value == 1300.0 else value
             for value in constants
-        )
+        ) + (() if STARTING_TOTAL_EQUITY in constants else (STARTING_TOTAL_EQUITY,))
     )
     cloned = FunctionType(
         code,
@@ -69,7 +67,6 @@ def account_sized_scope(configuration: str):
         "candidate_config",
         "run_strict",
         "apply_notional_cap",
-        "MAXIMUM_NOTIONAL_FRACTION",
         "REPORT_ROOT",
         "SUMMARY_PATH",
         "TRADES_PATH",
@@ -89,10 +86,16 @@ def account_sized_scope(configuration: str):
         config.validate()
         return config
 
-    def apply_absolute_challenger_cap(*, sizing, account_equity):
+    def apply_absolute_challenger_cap(
+        *, sizing, account_equity, maximum_notional_fraction=None
+    ):
         adjusted, changed, one_share_floor = original[
             "apply_notional_cap"
-        ](sizing=sizing, account_equity=account_equity)
+        ](
+            sizing=sizing,
+            account_equity=account_equity,
+            maximum_notional_fraction=cap,
+        )
         if configuration != "baseline" and one_share_floor:
             return (
                 replace(
@@ -111,6 +114,8 @@ def account_sized_scope(configuration: str):
     strict.candidate_config = account_config
     strict.run_strict = account_sized_run_function(original["run_strict"])
     strict.apply_notional_cap = apply_absolute_challenger_cap
+    # Preserve the legacy diagnostic attribute for callers that inspect it;
+    # the runner itself receives the cap through the versioned config argument.
     strict.MAXIMUM_NOTIONAL_FRACTION = cap
     strict.REPORT_ROOT = destination
     strict.SUMMARY_PATH = destination / "summary.json"
@@ -124,6 +129,7 @@ def account_sized_scope(configuration: str):
     finally:
         for name, value in original.items():
             setattr(strict, name, value)
+        strict.MAXIMUM_NOTIONAL_FRACTION = strict.load_candidate_v1_config().maximum_position_notional_fraction
 
 
 def run(configuration: str) -> dict:

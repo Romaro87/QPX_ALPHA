@@ -53,6 +53,7 @@ from qpx_bot.pr50_iex_forward_research_paper import (
     main,
     observe_and_reconcile_broker_account,
     process_pending_execution_clock,
+    process_open_phase_clock,
     request_bars,
 )
 
@@ -82,6 +83,40 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         self.assertFalse(contract["pyramiding_enabled"])
         self.assertFalse(contract["sip_parity_claimed"])
         self.assertNotEqual(DEFAULT_RUNTIME, sip.DEFAULT_RUNTIME)
+
+    def test_authentic_open_phase_settles_then_rebalances_once(self):
+        snapshot = sip.load_candidate_v1_config(
+            Path(__file__).parents[1] / "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json"
+        )
+        observed = datetime(2026, 9, 3, 13, 30, 20, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as folder:
+            store = IEXResearchStore(Path(folder))
+            store.event("TEST_RUNTIME_INITIALIZED", {})
+            state = {
+                "contract": load_contract(), "contract_fingerprint": sip.fingerprint(load_contract()),
+                "candidate_v1_config_snapshot": snapshot.as_dict(),
+                "candidate_v1_config_fingerprint": snapshot.fingerprint,
+                "cash": 22.275, "tax_reserve_cash": 0.0, "realized_pnl": 0.0,
+                "qdte_shares": 50, "qdte_cost": 1421.065,
+                "positions": {}, "pending": {}, "completed_execution_ids": [],
+                "last_rebalance_week": None, "qdte_corporate_actions": {},
+                "qdte_open_share_snapshots": {},
+            }
+            row = {"t": "2026-09-03T13:30:00Z", "o": 30.0}
+            with patch(
+                "qpx_bot.pr50_iex_forward_research_paper.request_bars",
+                return_value={"QDTE": [row]},
+            ):
+                self.assertFalse(process_open_phase_clock(state, store, observed))
+                cash_after = state["cash"]
+                shares_after = state["qdte_shares"]
+                self.assertFalse(process_open_phase_clock(state, store, observed))
+            self.assertEqual(state["last_rebalance_week"], "2026-W36")
+            self.assertEqual(len(state["completed_open_phase_ids"]), 1)
+            self.assertEqual(state["cash"], cash_after)
+            self.assertEqual(state["qdte_shares"], shares_after)
+            events = [json.loads(line)["event_type"] for line in store.journal.read_text().splitlines()]
+            self.assertEqual(events.count("SIMULATED_AUTHENTIC_OPEN_REBALANCE"), 1)
 
     def test_allowlisted_semantic_transition_preserves_flat_account(self):
         with tempfile.TemporaryDirectory() as folder:

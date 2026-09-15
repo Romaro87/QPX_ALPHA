@@ -39,6 +39,9 @@ class CandidateV1ConfigSnapshot:
     forward_starting_capital: float
     canonical_json: str
     fingerprint: str
+    momentum_persistence_level: float | None = None
+    vix_exclusion_low: float | None = None
+    vix_exclusion_high: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a detached canonical JSON object suitable for persistence."""
@@ -173,11 +176,18 @@ def _validate_payload(payload: Mapping[str, Any]) -> CandidateV1ConfigSnapshot:
         "sma_trend_period", "sma_slope_lookback", "atr_period",
         "average_volume_period",
     })
-    entry = _object(root["entry"], "entry", {
+    entry_raw = root["entry"]
+    if not isinstance(entry_raw, Mapping):
+        raise CandidateV1ConfigError("entry must be a JSON object.")
+    required_entry = {
         "minimum_average_15m_volume", "breakout_volume_multiplier",
         "breakout_lookback", "maximum_vix", "rsi_overbought",
         "maximum_gap_atr_multiple",
-    })
+    }
+    optional_entry = {"momentum_persistence_level", "vix_exclusion_low", "vix_exclusion_high"}
+    if set(entry_raw) - required_entry - optional_entry or not required_entry <= set(entry_raw):
+        raise CandidateV1ConfigError("entry fields are invalid.")
+    entry = entry_raw
     exit_policy = _object(root["exit"], "exit", {
         "stop_atr_multiple", "target_atr_multiple", "trailing_activation_atr",
     })
@@ -253,6 +263,9 @@ def _validate_payload(payload: Mapping[str, Any]) -> CandidateV1ConfigSnapshot:
     maximum_gap = _number(entry["maximum_gap_atr_multiple"], "entry.maximum_gap_atr_multiple", minimum=0.0, minimum_inclusive=False)
     rebalance_weekday = _integer(portfolio["rebalance_weekday"], "portfolio.rebalance_weekday", minimum=0, maximum=4)
     forward_capital = _number(portfolio["forward_starting_capital"], "portfolio.forward_starting_capital", minimum=0.0, minimum_inclusive=False)
+    momentum_persistence = (_number(entry["momentum_persistence_level"], "entry.momentum_persistence_level", minimum=0.0, maximum=100.0) if "momentum_persistence_level" in entry else None)
+    vix_exclusion_low = (_number(entry["vix_exclusion_low"], "entry.vix_exclusion_low", minimum=0.0) if "vix_exclusion_low" in entry else None)
+    vix_exclusion_high = (_number(entry["vix_exclusion_high"], "entry.vix_exclusion_high", minimum=vix_exclusion_low or 0.0, minimum_inclusive=False) if "vix_exclusion_high" in entry else None)
     canonical = canonical_candidate_v1_bytes(root)
     return CandidateV1ConfigSnapshot(
         bot_config=config,
@@ -263,6 +276,9 @@ def _validate_payload(payload: Mapping[str, Any]) -> CandidateV1ConfigSnapshot:
         forward_starting_capital=forward_capital,
         canonical_json=canonical.decode("utf-8"),
         fingerprint=hashlib.sha256(canonical).hexdigest(),
+        momentum_persistence_level=momentum_persistence,
+        vix_exclusion_low=vix_exclusion_low,
+        vix_exclusion_high=vix_exclusion_high,
     )
 
 

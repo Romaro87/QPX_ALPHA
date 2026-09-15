@@ -21,7 +21,12 @@ from typing import Any, Iterable, Iterator, Mapping, Sequence
 from qpx_bot.actual_two_year_15m_six import _read_vix_daily_cache
 from qpx_bot.allocation import rebalance_income_allocation
 from qpx_bot.candidate_v1_causal import CandidateV1CausalInputs
-from qpx_bot.candidate_v1_config import disabled_kelly_trade_history, load_candidate_v1_config
+from qpx_bot.candidate_v1_config import CandidateV1ConfigSnapshot, disabled_kelly_trade_history, load_candidate_v1_config
+from qpx_bot.causal_dividends import CausalDividendEvent, IncompleteDividendMetadata
+from qpx_bot.accelerators.capacity_arbitration import (
+    CapacityArbitrationConfig, CapacityArbitrationContext, CapacityArbitrationV1,
+    CapacityCandidate, tie_identity,
+)
 from qpx_bot.data_loader import Candle
 from qpx_bot.historical_paper_replay import (
     CandidateV1ReplayPort,
@@ -108,6 +113,7 @@ class ReservoirArchiveDriver:
         income_symbol: str,
         vix_path: Path,
         config: ReplayExperimentConfiguration,
+        candidate_snapshot: CandidateV1ConfigSnapshot,
     ) -> "ReservoirArchiveDriver":
         configured_dataset = (ROOT / str(config.payload["dataset"]["root_identity"])).resolve()
         if dataset.resolve() != configured_dataset:
@@ -190,7 +196,6 @@ class ReservoirArchiveDriver:
 
         histories = {symbol: [row for _, row in sorted(values.items())] for symbol, values in rows.items()}
         candidate_values: dict[tuple[str, datetime], CandidateV1CausalInputs | None] = {}
-        candidate_snapshot = load_candidate_v1_config()
         bot_config = candidate_snapshot.bot_config
         for symbol in symbols:
             bars = histories[symbol]
@@ -201,16 +206,18 @@ class ReservoirArchiveDriver:
             ]
             indicators = calculate_indicators(candles, bot_config)
             for index, bar in enumerate(bars):
+                prior_index = index - 1
+                slope_index = index - bot_config.sma_slope_lookback
+                if prior_index < 0 or slope_index < 0 or index < bot_config.breakout_lookback:
+                    candidate_values[(symbol, bar.start)] = None
+                    continue
                 needed = (
                     indicators.ema_fast[index], indicators.ema_slow[index],
                     indicators.rsi[index], indicators.rmi[index], indicators.atr[index],
-                    indicators.sma_trend[index], indicators.average_volume[index],
+                    indicators.sma_trend[index], indicators.average_volume[prior_index],
                 )
-                prior_index = index - 1
-                slope_index = index - bot_config.sma_slope_lookback
                 if (
-                    prior_index < 0 or slope_index < 0 or index < bot_config.breakout_lookback
-                    or any(value is None for value in needed)
+                    any(value is None for value in needed)
                     or indicators.ema_fast[prior_index] is None
                     or indicators.ema_slow[prior_index] is None
                     or indicators.rsi[prior_index] is None
@@ -233,7 +240,7 @@ class ReservoirArchiveDriver:
                     previous_rmi=float(indicators.rmi[prior_index]),
                     current_sma=float(indicators.sma_trend[index]),
                     slope_sma=float(indicators.sma_trend[slope_index]),
-                    baseline_volume=float(indicators.average_volume[index]),
+                    baseline_volume=float(indicators.average_volume[prior_index]),
                     current_atr=float(indicators.atr[index]),
                     prior_high=max(candle.high for candle in candles[index-bot_config.breakout_lookback:index]),
                     vix=0.0,
@@ -313,7 +320,7 @@ class ReservoirArchiveDriver:
         event_to_asset = {
             str(record["provider_event_id"]): str(record["provider_asset_id"])
             for record in resolution["records"]
-            if record.get("outcome") == "RESOLVED_PROVIDER_ASSET_ID"
+            if record.get("outcome") == "RESOLVED_PROVIDER_IDENTITY"
         }
         count = 0
         with gzip.open(dataset / str(state["corporate_action_artifact_path"]), "rt", encoding="utf-8") as handle:
@@ -329,7 +336,9 @@ class ReservoirArchiveDriver:
 
 @dataclass(frozen=True, slots=True)
 class PendingEntry:
-    symbol: str
+    signal_id: str
+    provider_asset_id: str
+    symbol_label: str
     signal_completed_at: str
     signal_atr: float
     prior_close: float
@@ -365,40 +374,79 @@ def _trade_from_dict(value: Mapping[str, Any]) -> ClosedTrade:
 class CandidateV1HistoricalPaperRuntime:
     """Current Candidate V1 paper/account logic with no archive capability."""
 
-    __slots__ = ("config", "candidate", "policy", "state", "_portfolio")
+    __slots__ = (
+        "config", "candidate", "policy", "state", "_portfolio", "_arbitration",
+        "asset_symbols", "candidate_asset_ids", "income_asset_id", "rank_by_asset",
+    )
 
-    def __init__(self, config: ReplayExperimentConfiguration, state: Mapping[str, Any] | None = None):
+    def __init__(
+        self, config: ReplayExperimentConfiguration, state: Mapping[str, Any] | None = None,
+        *, candidate_snapshot: CandidateV1ConfigSnapshot | None = None,
+        asset_symbols: Mapping[str, str] | None = None,
+    ):
         self.config = config
-        snapshot = load_candidate_v1_config()
+        snapshot = candidate_snapshot or load_candidate_v1_config()
         if snapshot.fingerprint != config.payload["strategy"]["configuration_fingerprint"]:
             raise ReplayConfigurationError("Candidate V1 configuration fingerprint mismatch.")
         self.candidate = CandidateV1ReplayPort(snapshot)
+        arbitration_config = CapacityArbitrationConfig(
+            str(config.payload["capacity_arbitration"]["policy"]),
+            str(config.payload["capacity_arbitration"]["policy_version"]),
+        )
+        if arbitration_config.fingerprint != config.payload["capacity_arbitration"]["configuration_fingerprint"]:
+            raise ReplayConfigurationError("Capacity arbitration configuration fingerprint mismatch.")
+        self._arbitration = CapacityArbitrationV1(arbitration_config)
         self.policy = load_policy(DEFAULT_CANDIDATE_POLICY)
         if self.policy.interval != "15m" or self.policy.rankings_enabled:
             raise ReplayConfigurationError("Candidate V1 current 15-minute unranked policy is not active.")
         if self.policy.signal_evaluation != "all_candidates_each_completed_15m_bar":
             raise ReplayConfigurationError("Candidate V1 decision cadence differs from replay config.")
+        if asset_symbols is None:
+            asset_symbols = {symbol: symbol for symbol in (*self.policy.candidates, self.policy.income_symbol)}
+        self.asset_symbols = {str(asset_id): str(symbol).upper() for asset_id, symbol in asset_symbols.items()}
+        if len(self.asset_symbols) != len(asset_symbols):
+            raise ReplayConfigurationError("Provider asset identities must be unique.")
+        income_matches = [asset_id for asset_id, symbol in self.asset_symbols.items() if symbol == self.policy.income_symbol]
+        if len(income_matches) != 1:
+            raise ReplayConfigurationError("Replay universe must contain exactly one income asset identity.")
+        self.income_asset_id = income_matches[0]
+        self.candidate_asset_ids = tuple(asset_id for asset_id in self.asset_symbols if asset_id != self.income_asset_id)
+        self.rank_by_asset = {asset_id: rank for rank, asset_id in enumerate(self.candidate_asset_ids, 1)}
         if state is None:
             starting = float(config.payload["starting_account"]["starting_cash"])
-            self._portfolio = Portfolio(starting)
+            self._portfolio = Portfolio(starting, preserve_identity=True)
             self.state = {
+                "identity_key": "provider_asset_id",
+                "universe_manifest_fingerprint": config.payload["universe"]["manifest_fingerprint"],
+                "asset_symbols": self.asset_symbols,
                 "last_completed_boundary": None, "boundaries": 0, "candidate_evaluations": 0,
                 "pending": {}, "income_shares": 0.0, "income_cost": 0.0,
-                "income_dividends": 0.0, "processed_dividends": [], "last_rebalance_week": None,
+                "income_dividends": 0.0, "dividend_entitlements": {},
+                "settled_dividends": [], "last_rebalance_week": None,
                 "last_marks": {}, "peak_equity": starting, "maximum_drawdown": 0.0,
                 "annual": {}, "signals": 0, "fills": 0, "gap_rejections": 0,
-                "risk_rejections": 0, "capacity_deferred": 0,
+                "risk_rejections": 0, "capacity_deferred": 0, "capacity_decisions": [],
+                "capacity_rejections": 0, "entry_outcomes": {},
+                "outcome_reconciliation": {},
             }
         else:
             self.state = json.loads(json.dumps(state))
+            if (
+                self.state.get("identity_key") != "provider_asset_id"
+                or self.state.get("universe_manifest_fingerprint") != config.payload["universe"]["manifest_fingerprint"]
+                or self.state.get("asset_symbols") != self.asset_symbols
+            ):
+                raise ReplayConfigurationError("Replay checkpoint provider-asset identity differs from the selected universe.")
             p = self.state.pop("portfolio")
-            self._portfolio = Portfolio(float(p["starting_cash"]))
+            self._portfolio = Portfolio(float(p["starting_cash"]), preserve_identity=True)
             self._portfolio.cash = float(p["cash"])
             self._portfolio.tax_reserve_cash = float(p["tax_reserve_cash"])
             self._portfolio.total_contributions = float(p["total_contributions"])
             self._portfolio.realized_pnl = float(p["realized_pnl"])
             self._portfolio.positions = {k: _position_from_dict(v) for k, v in p["positions"].items()}
             self._portfolio.closed_trades = [_trade_from_dict(v) for v in p["closed_trades"]]
+            if any(key != position.symbol for key, position in self._portfolio.positions.items()):
+                raise ReplayConfigurationError("Checkpoint position identity differs from its provider-asset key.")
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -418,34 +466,62 @@ class CandidateV1HistoricalPaperRuntime:
         last = self.state["last_completed_boundary"]
         if last is not None and boundary.completed_at <= datetime.fromisoformat(last):
             raise ReplayConfigurationError("Replay boundary is duplicate or out of order.")
-        bars = {item.symbol: item for item in boundary.bars}
+        bars = {item.provider_asset_id: item for item in boundary.bars}
+        if len(bars) != len(boundary.bars):
+            raise ReplayConfigurationError("A boundary contains duplicate provider asset identity.")
         starts = {item.bar.start for item in boundary.bars}
-        if len(starts) != 1:
+        if len(starts) > 1:
             raise ReplayConfigurationError("A completed boundary contains different bar starts.")
-        start = next(iter(starts))
-        candidate_symbols = tuple(self.policy.candidates)
-        current_candidates = {symbol: bars[symbol] for symbol in candidate_symbols if symbol in bars}
+        start = next(iter(starts)) if starts else boundary.completed_at - timedelta(minutes=15)
+        candidate_assets = self.candidate_asset_ids
+        current_candidates = {asset_id: bars[asset_id] for asset_id in candidate_assets if asset_id in bars}
+
+        # OPEN phase: entitlements and settlements are effective before account
+        # allocation; exits available at the open release cash before rebalance.
+        self._apply_dividends_open(start.date(), dividends)
+        for asset_id, position in tuple(self._portfolio.positions.items()):
+            evidence = current_candidates.get(asset_id)
+            if evidence is None or evidence.candidate_inputs is None:
+                continue
+            open_only = Candle(
+                date=start.date(), open=evidence.bar.open, high=evidence.bar.open,
+                low=evidence.bar.open, close=evidence.bar.open, volume=0,
+            )
+            outcome = evaluate_exit(
+                position=position, candle=open_only,
+                current_atr=evidence.candidate_inputs.current_atr,
+                config=self.candidate._snapshot.bot_config,
+            )
+            if outcome.should_exit:
+                self._portfolio.close_position(
+                    symbol=asset_id, exit_price=float(outcome.exit_price), exit_date=start.date(),
+                    reason=outcome.reason or "OPEN_EXIT", config=self.candidate._snapshot.bot_config,
+                )
+
+        self._rebalance_income_open(start, bars)
 
         pending_items = sorted(
             (PendingEntry(**value) for value in self.state["pending"].values()),
-            key=lambda item: (item.tie_key, item.symbol),
+            key=lambda item: (item.tie_key, item.provider_asset_id),
         )
         self.state["pending"] = {}
         for signal in pending_items:
-            evidence = current_candidates.get(signal.symbol)
+            evidence = current_candidates.get(signal.provider_asset_id)
             if evidence is None or start < datetime.fromisoformat(signal.signal_completed_at):
-                self.state["pending"][signal.symbol] = asdict(signal)
+                self.state["pending"][signal.provider_asset_id] = asdict(signal)
                 continue
             if len(self._portfolio.positions) >= self.policy.maximum_concurrent_positions:
-                self.state["capacity_deferred"] += 1
+                self.state["capacity_rejections"] += 1
+                self._finish_entry(signal.signal_id, "REJECTED", "MAXIMUM_CONCURRENT_POSITIONS")
                 continue
             gap = abs(evidence.bar.open - signal.prior_close) / signal.signal_atr
             if gap > self.policy.maximum_gap_atr_multiple:
                 self.state["gap_rejections"] += 1
+                self._finish_entry(signal.signal_id, "REJECTED", "MAXIMUM_GAP_ATR_MULTIPLE")
                 continue
             marks = {symbol: float(self.state["last_marks"].get(symbol, position.entry_price))
                      for symbol, position in self._portfolio.positions.items()}
-            income_price = float(self.state["last_marks"].get(self.policy.income_symbol, 0.0))
+            income_price = float(self.state["last_marks"].get(self.income_asset_id, 0.0))
             equity = self._portfolio.equity(marks) + self.state["income_shares"] * income_price
             sizing = calculate_position_size(
                 account_equity=equity, available_cash=self._portfolio.cash,
@@ -461,15 +537,22 @@ class CandidateV1HistoricalPaperRuntime:
                                  blocked_reason=None if shares > 0 else "Position notional cap blocked the trade.")
             if not sizing.is_tradeable:
                 self.state["risk_rejections"] += 1
+                self._finish_entry(
+                    signal.signal_id, "REJECTED",
+                    sizing.blocked_reason or "UNSPECIFIED_SIZING_REJECTION",
+                )
                 continue
             self._portfolio.open_position(
-                symbol=signal.symbol, sizing=sizing, entry_date=start.date(),
+                symbol=signal.provider_asset_id, sizing=sizing, entry_date=start.date(),
                 entry_atr=signal.signal_atr, config=self.candidate._snapshot.bot_config,
             )
             self.state["fills"] += 1
+            self._finish_entry(signal.signal_id, "FILLED", None)
 
-        for symbol, position in tuple(self._portfolio.positions.items()):
-            evidence = current_candidates.get(symbol)
+        # CLOSE phase: the now-completed bar may update trailing state or close
+        # positions, and only then may it authorize a later entry.
+        for asset_id, position in tuple(self._portfolio.positions.items()):
+            evidence = current_candidates.get(asset_id)
             if evidence is None or evidence.candidate_inputs is None:
                 continue
             outcome = evaluate_exit(
@@ -481,45 +564,76 @@ class CandidateV1HistoricalPaperRuntime:
             )
             if outcome.should_exit:
                 self._portfolio.close_position(
-                    symbol=symbol, exit_price=float(outcome.exit_price), exit_date=start.date(),
+                    symbol=asset_id, exit_price=float(outcome.exit_price), exit_date=start.date(),
                     reason=outcome.reason or "EXIT", config=self.candidate._snapshot.bot_config,
                 )
             else:
                 position.stop_price = outcome.next_stop_price
                 position.highest_price = outcome.highest_price
 
-        qualifying: list[str] = []
+        qualifying: list[tuple[str, CandidateV1CausalInputs]] = []
         if boundary.previous_session_vix is not None:
-            for symbol in candidate_symbols:
-                evidence = current_candidates.get(symbol)
-                if evidence is None or evidence.candidate_inputs is None:
+            for asset_id, evidence in sorted(
+                current_candidates.items(), key=lambda item: self.rank_by_asset[item[0]],
+            ):
+                if evidence.candidate_inputs is None:
                     continue
                 raw = evidence.candidate_inputs
                 inputs = CandidateV1CausalInputs(**{**asdict(raw), "vix": boundary.previous_session_vix})
                 result = self.candidate.evaluate(inputs)
                 self.state["candidate_evaluations"] += 1
-                if result.should_enter and symbol not in self._portfolio.positions and symbol not in self.state["pending"]:
-                    qualifying.append(symbol)
+                if result.should_enter and asset_id not in self._portfolio.positions and asset_id not in self.state["pending"]:
+                    qualifying.append((asset_id, raw))
         slots = max(0, self.policy.maximum_concurrent_positions - len(self._portfolio.positions) - len(self.state["pending"]))
-        accepted, deferred = choose_without_ranking(signal_bar=start, qualifying=qualifying, available_slots=slots)
-        self.state["capacity_deferred"] += len(deferred)
-        for symbol in accepted:
-            evidence = current_candidates[symbol]
+        candidates = tuple(
+            CapacityCandidate(
+                symbol=asset_id, current_close=inputs.current_close, prior_high=inputs.prior_high,
+                current_atr=inputs.current_atr, current_fast=inputs.current_fast,
+                current_slow=inputs.current_slow, current_volume=inputs.current_volume,
+                baseline_volume=inputs.baseline_volume,
+                frozen_top100_rank=self.rank_by_asset[asset_id],
+                tie_break_identity=tie_identity(start, asset_id),
+            )
+            for asset_id, inputs in qualifying
+        )
+        decision = self._arbitration.decide(CapacityArbitrationContext(start, slots, candidates))
+        self.state["capacity_deferred"] += len(decision.deferred_candidates)
+        if candidates:
+            self.state.setdefault("capacity_decisions", []).append({
+                "decision_id": decision.decision_id, "policy": decision.policy,
+                "policy_version": decision.policy_version,
+                "configuration_fingerprint": decision.configuration_fingerprint,
+                "available_slots": decision.available_slots,
+                "qualifying_asset_ids": decision.qualifying_symbols,
+                "selected_asset_ids": decision.selected_candidates,
+                "deferred_asset_ids": decision.deferred_candidates,
+                "scores": [score.as_dict() for score in decision.scores],
+            })
+        for asset_id in decision.selected_candidates:
+            evidence = current_candidates[asset_id]
             inputs = evidence.candidate_inputs
             assert inputs is not None
-            tie = hashlib.sha256((start.isoformat() + "|" + symbol).encode()).hexdigest()
-            self.state["pending"][symbol] = asdict(PendingEntry(
-                symbol=symbol, signal_completed_at=boundary.completed_at.isoformat(),
+            tie = hashlib.sha256((start.isoformat() + "|" + asset_id).encode()).hexdigest()
+            signal_id = hashlib.sha256(("entry|" + start.isoformat() + "|" + asset_id).encode()).hexdigest()
+            self.state["pending"][asset_id] = asdict(PendingEntry(
+                signal_id=signal_id,
+                provider_asset_id=asset_id, symbol_label=self.asset_symbols[asset_id],
+                signal_completed_at=boundary.completed_at.isoformat(),
                 signal_atr=inputs.current_atr, prior_close=evidence.bar.close, tie_key=tie,
             ))
+            self.state["entry_outcomes"][signal_id] = {
+                "provider_asset_id": asset_id, "symbol_label": self.asset_symbols[asset_id],
+                "decision_completed_at": boundary.completed_at.isoformat(),
+                "status": "PENDING", "reason": None,
+            }
             self.state["signals"] += 1
 
-        for symbol, evidence in bars.items():
-            self.state["last_marks"][symbol] = evidence.bar.close
-        self._apply_income(start, bars, dividends)
+        for asset_id, evidence in bars.items():
+            self.state["last_marks"][asset_id] = evidence.bar.close
+        self._reconcile_outcomes()
         marks = {symbol: float(self.state["last_marks"].get(symbol, position.entry_price))
                  for symbol, position in self._portfolio.positions.items()}
-        income_price = float(self.state["last_marks"].get(self.policy.income_symbol, 0.0))
+        income_price = float(self.state["last_marks"].get(self.income_asset_id, 0.0))
         equity = self._portfolio.equity(marks) + self.state["income_shares"] * income_price
         self.state["peak_equity"] = max(float(self.state["peak_equity"]), equity)
         if self.state["peak_equity"] > 0:
@@ -532,23 +646,80 @@ class CandidateV1HistoricalPaperRuntime:
         self.state["boundaries"] += 1
         self.state["last_completed_boundary"] = boundary.completed_at.isoformat()
 
-    def _apply_income(
-        self, start: datetime, bars: Mapping[str, CompletedBarEvidence],
+    def _finish_entry(self, signal_id: str, status: str, reason: str | None) -> None:
+        outcome = self.state["entry_outcomes"].get(signal_id)
+        if outcome is None or outcome.get("status") != "PENDING":
+            raise ReplayConfigurationError("Pending-entry outcome identity is missing or already terminal.")
+        outcome["status"] = status
+        outcome["reason"] = reason
+
+    def _reconcile_outcomes(self) -> None:
+        qualifying = sum(len(item["qualifying_asset_ids"]) for item in self.state["capacity_decisions"])
+        selected = sum(len(item["selected_asset_ids"]) for item in self.state["capacity_decisions"])
+        deferred = sum(len(item["deferred_asset_ids"]) for item in self.state["capacity_decisions"])
+        statuses: dict[str, int] = {}
+        reasons: dict[str, int] = {}
+        for item in self.state["entry_outcomes"].values():
+            status = str(item["status"])
+            statuses[status] = statuses.get(status, 0) + 1
+            if status == "REJECTED":
+                reason = str(item.get("reason") or "UNSPECIFIED")
+                reasons[reason] = reasons.get(reason, 0) + 1
+        if qualifying != selected + deferred or selected != sum(statuses.values()):
+            raise ReplayConfigurationError("Historical replay entry outcomes do not reconcile.")
+        if statuses.get("PENDING", 0) != len(self.state["pending"]):
+            raise ReplayConfigurationError("Historical replay pending outcomes do not reconcile.")
+        self.state["outcome_reconciliation"] = {
+            "qualifying": qualifying, "selected": selected, "deferred": deferred,
+            "pending": statuses.get("PENDING", 0), "filled": statuses.get("FILLED", 0),
+            "rejected": statuses.get("REJECTED", 0),
+            "sizing_rejection_reasons": dict(sorted(reasons.items())),
+            "reconciled": True,
+        }
+
+    def _apply_dividends_open(
+        self, current_date: date,
         dividends: Mapping[date, Sequence[Mapping[str, Any]]],
     ) -> None:
-        income_symbol = self.policy.income_symbol
-        income_bar = bars.get(income_symbol)
+        entitlements = self.state["dividend_entitlements"]
+        for raw in dividends.get(current_date, ()):
+            event_id = str(raw["provider_event_id"])
+            if event_id in entitlements:
+                continue
+            try:
+                event = CausalDividendEvent(
+                    event_id=event_id,
+                    ex_date=date.fromisoformat(str(raw["ex_or_effective_date"])[:10]),
+                    cash_amount=float(raw["rate"]),
+                    record_date=(date.fromisoformat(str(raw["record_date"])[:10]) if raw.get("record_date") else None),
+                    payable_date=(date.fromisoformat(str(raw["payable_date"])[:10]) if raw.get("payable_date") else None),
+                    process_date=(date.fromisoformat(str(raw["process_date"])[:10]) if raw.get("process_date") else None),
+                )
+                available = event.cash_available_date
+            except (KeyError, TypeError, ValueError, IncompleteDividendMetadata) as exc:
+                raise ReplayConfigurationError(f"Incomplete causal dividend metadata for {event_id}: {exc}") from exc
+            entitlements[event_id] = {
+                "ex_date": event.ex_date.isoformat(),
+                "entitled_shares": self.state["income_shares"],
+                "cash_amount_per_share": event.cash_amount,
+                "cash_available_date": available.isoformat(),
+            }
+        settled = set(self.state["settled_dividends"])
+        for event_id, entitlement in sorted(entitlements.items()):
+            if event_id in settled or date.fromisoformat(entitlement["cash_available_date"]) > current_date:
+                continue
+            cash = float(entitlement["entitled_shares"]) * float(entitlement["cash_amount_per_share"])
+            self._portfolio.cash += cash
+            self.state["income_dividends"] += cash
+            settled.add(event_id)
+        self.state["settled_dividends"] = sorted(settled)
+
+    def _rebalance_income_open(
+        self, start: datetime, bars: Mapping[str, CompletedBarEvidence],
+    ) -> None:
+        income_bar = bars.get(self.income_asset_id)
         if income_bar is None:
             return
-        processed = set(self.state["processed_dividends"])
-        for event in dividends.get(start.date(), ()):
-            event_id = str(event["provider_event_id"])
-            if event_id not in processed:
-                cash = self.state["income_shares"] * float(event["rate"])
-                self._portfolio.cash += cash
-                self.state["income_dividends"] += cash
-                processed.add(event_id)
-        self.state["processed_dividends"] = sorted(processed)
         if start.weekday() != self.candidate._snapshot.rebalance_weekday:
             return
         iso = start.isocalendar()
@@ -557,8 +728,13 @@ class CandidateV1HistoricalPaperRuntime:
             return
         years = max(0, start.year - 2016)
         target, _ = contribution_allocation(years, self.candidate._snapshot.bot_config)
-        position_marks = {symbol: float(self.state["last_marks"].get(symbol, position.entry_price))
-                          for symbol, position in self._portfolio.positions.items()}
+        position_marks = {
+            asset_id: (
+                bars[asset_id].bar.open if asset_id in bars
+                else float(self.state["last_marks"].get(asset_id, position.entry_price))
+            )
+            for asset_id, position in self._portfolio.positions.items()
+        }
         result = rebalance_income_allocation(
             income_shares=self.state["income_shares"], income_cost=self.state["income_cost"],
             swing_cash=self._portfolio.cash, swing_market_value=self._portfolio.market_value(position_marks),
@@ -594,10 +770,12 @@ def _read_runtime_state(run_dir: Path, config: ReplayExperimentConfiguration) ->
     path = run_dir / "checkpoint.json"
     if not path.exists():
         return None
-    encoded = read_checksummed_state(path, run_dir / "checkpoint.sha256", label="Historical paper replay state")
+    encoded = read_checksummed_state(path, run_dir / "checkpoint.json.sha256", label="Historical paper replay state")
     payload = json.loads(encoded)
     if payload.get("configuration_fingerprint") != config.fingerprint:
         raise ReplayConfigurationError("Historical replay checkpoint configuration mismatch.")
+    if payload.get("capacity_arbitration") != config.payload["capacity_arbitration"]:
+        raise ReplayConfigurationError("Historical replay checkpoint capacity arbitration mismatch.")
     state = payload.get("paper_state")
     if not isinstance(state, Mapping) or payload.get("paper_state_fingerprint") != _fingerprint(state):
         raise ReplayConfigurationError("Historical replay paper-state fingerprint mismatch.")
@@ -609,6 +787,7 @@ def _write_runtime_state(run_dir: Path, run_id: str, config: ReplayExperimentCon
     core = {
         "schema_version": RUN_SCHEMA, "semantic_version": RUN_SEMANTIC,
         "run_id": run_id, "configuration_fingerprint": config.fingerprint,
+        "capacity_arbitration": config.payload["capacity_arbitration"],
         "last_completed_boundary": state["last_completed_boundary"],
         "paper_state_fingerprint": _fingerprint(state), "paper_state": state,
         "authority": config.payload["authority"],
@@ -616,9 +795,38 @@ def _write_runtime_state(run_dir: Path, run_id: str, config: ReplayExperimentCon
     return _write_evidence(run_dir / "checkpoint.json", core)
 
 
-def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET) -> Path:
+def _load_strategy_profile(path: Path | None, config: ReplayExperimentConfiguration) -> CandidateV1ConfigSnapshot:
+    if path is None:
+        return load_candidate_v1_config()
+    profile = json.loads(path.read_text(encoding="utf-8"))
+    contract = profile.get("contract")
+    if not isinstance(contract, Mapping):
+        raise ReplayConfigurationError("Selected strategy profile lacks a contract.")
+    candidate_path = (ROOT / str(contract.get("candidate_v1_configuration_path", ""))).resolve()
+    snapshot = load_candidate_v1_config(candidate_path)
+    expected = config.payload["capacity_arbitration"]
+    if snapshot.fingerprint != config.payload["strategy"]["configuration_fingerprint"]:
+        raise ReplayConfigurationError("Selected strategy profile Candidate fingerprint differs from experiment.")
+    if (
+        contract.get("capacity_arbitration_enabled") is not True
+        or contract.get("capacity_arbitration_policy") != expected["policy"]
+        or contract.get("capacity_arbitration_policy_version") != expected["policy_version"]
+        or contract.get("capacity_arbitration_configuration_fingerprint") != expected["configuration_fingerprint"]
+    ):
+        raise ReplayConfigurationError("Selected strategy profile capacity arbitration differs from experiment.")
+    if float(contract.get("maximum_position_notional_fraction", -1)) != snapshot.maximum_position_notional_fraction:
+        raise ReplayConfigurationError("Selected strategy profile notional cap differs from Candidate configuration.")
+    if float(config.payload["starting_account"]["starting_cash"]) != snapshot.bot_config.total_starting_capital:
+        raise ReplayConfigurationError("Selected strategy profile starting account differs from experiment.")
+    return snapshot
+
+
+def run(
+    config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET,
+    strategy_profile_path: Path | None = None,
+) -> Path:
     config = load_replay_configuration(config_path)
-    candidate_snapshot = load_candidate_v1_config()
+    candidate_snapshot = _load_strategy_profile(strategy_profile_path, config)
     policy = load_policy(DEFAULT_CANDIDATE_POLICY)
     if candidate_snapshot.fingerprint != config.payload["strategy"]["configuration_fingerprint"]:
         raise ReplayConfigurationError("Frozen strategy configuration differs from current Candidate V1.")
@@ -634,13 +842,16 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET) -> 
     run_dir.mkdir(parents=True, exist_ok=True)
     driver = ReservoirArchiveDriver.from_reservoir(
         dataset=dataset, symbols=policy.candidates, income_symbol=policy.income_symbol,
-        vix_path=DEFAULT_VIX, config=config,
+        vix_path=DEFAULT_VIX, config=config, candidate_snapshot=candidate_snapshot,
     )
     manifest = {
         "schema_version": RUN_SCHEMA, "semantic_version": RUN_SEMANTIC,
         "run_id": run_id, "status": "RUNNING", "source_commit": source_commit,
         "runner_sha256": _sha256(Path(__file__)),
         "configuration": config.as_dict(), "configuration_fingerprint": config.fingerprint,
+        "strategy_profile_path": str(strategy_profile_path.resolve()) if strategy_profile_path else None,
+        "candidate_configuration": candidate_snapshot.as_dict(),
+        "candidate_configuration_fingerprint": candidate_snapshot.fingerprint,
         "candidate_v1_policy_sha256": _sha256(DEFAULT_CANDIDATE_POLICY),
         "candidate_v1_symbols_sha256": _sha256(DEFAULT_SYMBOLS),
         "source_evidence": driver.source_evidence,
@@ -649,7 +860,10 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET) -> 
     }
     _write_evidence(run_dir / "run_manifest.json", manifest)
     restored = _read_runtime_state(run_dir, config)
-    runtime = CandidateV1HistoricalPaperRuntime(config, restored)
+    asset_symbols = {asset_id: symbol for symbol, asset_id in driver.source_evidence["asset_ids"].items()}
+    runtime = CandidateV1HistoricalPaperRuntime(
+        config, restored, candidate_snapshot=candidate_snapshot, asset_symbols=asset_symbols,
+    )
     dividends = _load_dividends(dataset, policy.income_symbol)
     after = datetime.fromisoformat(runtime.state["last_completed_boundary"]) if runtime.state["last_completed_boundary"] else None
     for boundary in driver.boundaries_after(after):
@@ -659,11 +873,13 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET) -> 
     marks = state["last_marks"]
     positions = state["portfolio"]["positions"]
     swing_market_value = sum(float(marks.get(symbol, value["entry_price"])) * value["shares"] for symbol, value in positions.items())
-    income_value = float(state["income_shares"]) * float(marks.get(policy.income_symbol, 0.0))
+    income_value = float(state["income_shares"]) * float(marks.get(runtime.income_asset_id, 0.0))
     ending_equity = state["portfolio"]["cash"] + state["portfolio"]["tax_reserve_cash"] + swing_market_value + income_value
     report = {
         "schema_version": RUN_SCHEMA, "semantic_version": RUN_SEMANTIC,
         "run_id": run_id, "status": "COMPLETE", "configuration_fingerprint": config.fingerprint,
+        "capacity_arbitration": config.payload["capacity_arbitration"],
+        "candidate_configuration_fingerprint": candidate_snapshot.fingerprint,
         "source_commit": source_commit, "historical_start": driver.source_evidence["first_bar_start"],
         "historical_end": driver.source_evidence["last_bar_start"],
         "completed_15m_boundaries": state["boundaries"],
@@ -679,8 +895,12 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET) -> 
         "income_dividends": state["income_dividends"],
         "gap_rejections": state["gap_rejections"], "risk_rejections": state["risk_rejections"],
         "capacity_deferred": state["capacity_deferred"],
+        "capacity_decisions": state["capacity_decisions"],
         "ending_cash": state["portfolio"]["cash"], "ending_tax_reserve": state["portfolio"]["tax_reserve_cash"],
-        "ending_income_shares": state["income_shares"], "ending_positions": positions,
+        "ending_income_shares": state["income_shares"], "ending_positions": {
+            asset_id: {**value, "symbol_label": runtime.asset_symbols[asset_id]}
+            for asset_id, value in positions.items()
+        },
         "annual": state["annual"], "causal_integrity_status": "PASS",
         "historical_data_qualification_status": config.payload["dataset"]["qualification_status"],
         "known_evidence_limitations": {"unresolved_unbounded_corporate_actions": 22498},
@@ -700,8 +920,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
+    parser.add_argument("--strategy-profile", type=Path)
     args = parser.parse_args(argv)
-    run_dir = run(args.config.resolve(), args.dataset.resolve())
+    run_dir = run(args.config.resolve(), args.dataset.resolve(), args.strategy_profile.resolve() if args.strategy_profile else None)
     print(run_dir)
     return 0
 

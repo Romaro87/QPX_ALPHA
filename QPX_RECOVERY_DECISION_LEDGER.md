@@ -1987,3 +1987,41 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   and capital authority remain `NONE`.
 - **NEXT EXACT ACTION:** Treat this as one frozen experimental paper result.
   Do not tune strategy semantics from it without a new governed task.
+
+## Corrected split-excluded reservoir V3 replay and live-paper causal phases — 2026-09-15
+
+- **USER_REQUIREMENT:** Correct the demonstrated provider-identity, volume
+  baseline, dividend timing, execution-phase, and outcome-evidence defects;
+  preserve the approved 31,431-asset split-excluded universe and exact
+  volume-confirmation/90% Candidate configuration; deploy the supervised
+  simulated paper path without resetting its account; and launch a distinct
+  resumable historical replay.
+- **ACCEPTANCE EXCLUSION:** Historical run
+  `c4159b1c96507b58cc5a2168cfa09020fca7d7322e31821195025b367949f839`
+  is permanently excluded from acceptance. Before its authorized stop it was
+  active with zero restarts; its run-manifest, preparation checkpoint, replay
+  checkpoint, logs, and preparation cache remain preserved. Evidence checksums
+  include manifest
+  `bdb7784c68abd54d42e4dc94128cbe58bd6c8c758ceda5c270bb4e1d814c329b`
+  and replay checkpoint
+  `0d72c4a30616d0b02f890ecce4a655e29e0a4423baeed4daeb4467ac3255c4cf`.
+- **DEMONSTRATED DEFECTS:** Generic symbol normalization uppercased provider
+  asset IDs after fill and disconnected four positions from later database
+  bars; entry preparation included the signal bar in its own average-volume
+  baseline; dividends were credited immediately on ex-date; historical
+  pending entries preceded exits/allocation and weekly allocation used an
+  already-completed bar's open; sizing rejection causes were counted but not
+  persisted/reconciled. The supervised IEX paper path already had prior-bar
+  volume and governed dividend entitlement/settlement, but its completed-bar
+  catch-up path could retrospectively apply the weekly open allocation.
+- **DECISION:** Generic symbol consumers retain uppercase symbol behavior.
+  Historical reservoir portfolios explicitly select exact-identity mode.
+  Historical OPEN processes entitlement/settlement, eligible open exits,
+  allocation, then prior pending entries; CLOSE processes completed-bar exits,
+  marks, and later signals. Supervised IEX paper performs eligible gap exits,
+  settlement, and allocation on its authentic one-minute open clock before
+  pending entries; completed-bar processing cannot rebalance IEX retrospectively.
+- **PRESERVATION / AUTHORITY:** The live paper account remains simulated-only;
+  its checksummed pre-deployment state held 50 QDTE shares, `$22.275` cash,
+  zero swing positions, and zero pending entries. No broker order or training,
+  promotion, live-capital, or universe-change authority is granted.

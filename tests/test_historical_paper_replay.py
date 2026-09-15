@@ -87,6 +87,12 @@ def static_configuration() -> dict:
             "configuration_fingerprint": FINGERPRINT_C,
             "entry_semantics_fingerprint": FINGERPRINT_A,
         },
+        "capacity_arbitration": {
+            "enabled": True,
+            "policy": "HASH_CONTROL",
+            "policy_version": "V1",
+            "configuration_fingerprint": FINGERPRINT_B,
+        },
         "runtime": {
             "causal_driver_version": "CAUSAL.DRIVER.V1",
             "accounting_version": "PAPER.ACCOUNTING.V1",
@@ -195,6 +201,9 @@ class ReplayConfigurationTests(unittest.TestCase):
             (("strategy", "identity"), "CANDIDATE.V2"),
             (("strategy", "configuration_fingerprint"), FINGERPRINT_B),
             (("strategy", "entry_semantics_fingerprint"), FINGERPRINT_C),
+            (("capacity_arbitration", "policy"), "OTHER_POLICY"),
+            (("capacity_arbitration", "policy_version"), "V2"),
+            (("capacity_arbitration", "configuration_fingerprint"), FINGERPRINT_C),
             (("runtime", "causal_driver_version"), "CAUSAL.DRIVER.V2"),
             (("runtime", "accounting_version"), "PAPER.ACCOUNTING.V2"),
             (("runtime", "execution_version"), "HISTORICAL.EXECUTION.V2"),

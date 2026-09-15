@@ -908,3 +908,44 @@ frozen replay without a separately governed task.
 - **VERIFIED_TEST:** Focused suite passed 104/104. Profile initialization smoke evidence preserved the exact sleeve split and disabled policy identity.
 - **NEXT EXACT ACTION:** Continue monitoring the active profile runtime at completed 15-minute boundaries; preserve its checksummed state and do not migrate the preserved PR50 runtime.
 - **VERIFIED_RUNTIME:** Commit `caeab6d` is pushed to `main`; service is active with the profile and fresh v3 runtime. State persisted the exact contract and sleeve split. Heartbeat labeling is being corrected to report the profile variant.
+
+## September 15 corrected reservoir V3 and authentic live execution phases
+
+**SETTLED CONFIGURATION:** Historical V3 uses all 31,431 provider asset IDs in
+the split-excluded reservoir manifest fingerprint
+`3c94d3429559f335be3119832b1f8a8321604853416bb6d6a310c941d4d844a5`.
+Symbols are non-unique labels. Starting equity is `$1,443.34`; the 90% cap,
+volume-confirmation arbitration, momentum persistence 52, VIX exclusion
+`20 < VIX < 25`, allocation/risk/exit values, and disabled accelerators are
+unchanged. The live frozen Top-100 universe is unchanged.
+
+**INVALID EVIDENCE:** Run
+`c4159b1c96507b58cc5a2168cfa09020fca7d7322e31821195025b367949f839`
+is stopped and acceptance-excluded. Do not delete, rewrite, resume, or cite it
+as corrected evidence. Its manifest/checkpoints/logs/cache remain preserved.
+The older XLE-only run `0297c163...f741` also is not reservoir acceptance
+evidence.
+
+**IMPLEMENTED CONTRACT:** Exact provider IDs survive historical positions,
+fills, marks, exits, arbitration, checkpoints, and reports without changing
+the default uppercase-symbol behavior of unrelated consumers. Average volume
+comes from the previous completed bar. Dividend shares are captured at ex-date
+open and cash releases only at the later payable/process boundary. Historical
+OPEN precedes CLOSE and no completed bar can authorize a rebalance at its past
+open. Selected entry outcomes persist exact terminal reasons and reconcile
+qualifying/selected/deferred/pending/filled/rejected totals across restart.
+
+**LIVE PRESERVATION:** The supervised IEX paper runner already used the
+previous-bar volume baseline and causal dividend ledger. Its weekly allocation
+is now removed from completed-bar catch-up and placed on the authentic
+one-minute open clock after eligible gap exits and settlement and before
+pending entries. Apply the existing checksummed configuration-transition
+mechanism only while the account has no swing positions or pending actions;
+never reset QDTE shares, cash, history, or initialization identity.
+
+**NEXT EXACT ACTION:** Verify the pushed main revision, safely restart the
+supervised Clean-V2 service, validate its checksummed account continuity,
+loaded 90% Candidate fingerprint, execution-phase contract and healthy
+simulated-only heartbeat, then launch and monitor the distinct corrected V3
+service. Final replay acceptance remains pending until checksummed final report
+and exit status exist.

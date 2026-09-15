@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """Fixed-policy, resumable Capacity Arbitration V1 historical experiment."""
 from __future__ import annotations
-import csv,json
+import csv,json,hashlib
 from collections import Counter
 from contextlib import contextmanager
-from dataclasses import asdict
+from dataclasses import asdict,replace
 from pathlib import Path
 import QPX_RUN_DYNAMIC_SIZING_PAIRED_CAPS as paired
 import QPX_RUN_DYNAMIC_SIZING_ROBUSTNESS as compact
 import QPX_RUN_FROZEN_TOP100_STRICT_CAUSAL as strict
 from qpx_bot.accelerators.capacity_arbitration import CapacityArbitrationConfig,CapacityArbitrationContext,CapacityArbitrationV1,CapacityCandidate,POLICIES,selection_divergence,tie_identity
 from qpx_bot.portfolio import Portfolio
+from qpx_bot.candidate_v1_config import canonical_candidate_v1_bytes
 
 ROOT=Path(__file__).resolve().parent
+DEPLOYED_CANDIDATE_PROFILE=ROOT/"qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json"
 REPORT_PARENT=ROOT/"reports/qpx_capacity_arbitration_v1_shadow_matrix"
 SUMMARY_PATH=ROOT/"docs/research_results/CAPACITY_ARBITRATION_V1_SHADOW_MATRIX_2026-08-12.json"
 PERIODS=paired.PERIODS;CAP_ORDER=paired.CAP_ORDER;POLICY_ORDER=POLICIES
@@ -65,7 +67,11 @@ def _trade_risk(destination):
 def run_arm(period,cap,policy):
  destination=REPORT_PARENT/period/f"{policy}_{cap}";result_path=destination/"capacity_arbitration.json"
  if result_path.exists():return json.loads(result_path.read_text())
- with paired.run_scope(period,cap),compact.output_paths(destination),arbitration_scope(policy) as (state,accelerator):result,summary=strict.run_strict()
+ snapshot=strict.load_candidate_v1_config(DEPLOYED_CANDIDATE_PROFILE)
+ payload=snapshot.as_dict();payload["risk"]["maximum_position_notional_fraction"]=float(cap)/100
+ canonical=canonical_candidate_v1_bytes(payload)
+ snapshot=replace(snapshot,maximum_position_notional_fraction=float(cap)/100,canonical_json=canonical.decode(),fingerprint=hashlib.sha256(canonical).hexdigest())
+ with paired.run_scope(period,cap),compact.output_paths(destination),arbitration_scope(policy) as (state,accelerator):result,summary=strict.run_strict(snapshot)
  compact.verify_summary(summary);metrics=compact.compact_result(result,equity_path=destination/"equity.csv");metrics.update(_trade_risk(destination));collisions=len(state.decisions);different=sum(x.hash_selected!=x.alternative_selected for x in state.divergences);metrics.update(arbitration_events=collisions,capacity_constrained_events=collisions,signal_events=state.signal_events,percentage_signal_events_constrained=(collisions/state.signal_events if state.signal_events else 0.0),qualifying_candidates_at_collision=state.collision_candidates,average_competing_candidates=(state.collision_candidates/collisions if collisions else 0.0),selected_candidates=sum(len(x.selected_candidates) for x in state.decisions),deferred_candidates=sum(len(x.deferred_candidates) for x in state.decisions),fills_after_selection=len(state.filled),post_selection_entry_rejections=max(0,len(state.selected)-len(state.filled)),average_selected_frozen_rank=(sum(state.selected_ranks)/len(state.selected_ranks) if state.selected_ranks else None),average_deferred_frozen_rank=(sum(state.deferred_ranks)/len(state.deferred_ranks) if state.deferred_ranks else None),selected_frozen_rank_distribution=state.selected_ranks,deferred_frozen_rank_distribution=state.deferred_ranks,selected_score_distribution=state.selected_scores,deferred_score_distribution=state.deferred_scores,selection_divergence_from_hash_control=different,selection_divergence_rate=(different/collisions if collisions else 0.0))
  record={"schema_version":1,"period":period,"cap":float(cap)/100,"policy":policy,"policy_version":"1.0.0","configuration_fingerprint":accelerator.config.fingerprint,"dataset_fingerprint":summary["dataset_fingerprint"],"causal_gates":summary["gate"],"metrics":metrics,"divergences":[asdict(x)|{"event_timestamp":x.event_timestamp.isoformat()} for x in state.divergences]};strict.atomic_json(result_path,record);return record
 

@@ -67,7 +67,7 @@ PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT = (
     "5fcab69089cbfd069727b754f1ca1be9338500234348fbbc56bf3e5633603c5d"
 )
 NEW_SEMANTIC_CONTRACT_FINGERPRINT = (
-    "8d8a8faa72d318d92e6f1124c4238093a817b5231cf85ef5a37b4f348c355c2b"
+    "ead839eb2b081e5cb4271c52f52673412ce73b56dcd777780c668a10e7a31074"
 )
 SEMANTIC_VERSION_OLD = "PR50_IEX_PRE_PARITY_V1"
 SEMANTIC_VERSION_PARITY = "PR50_IEX_HISTORICAL_CANDIDATE_V1_SPLIT_V2"
@@ -83,6 +83,7 @@ ENTRY_SEMANTICS_FINGERPRINT = sip.fingerprint({
     ),
 })
 PROVIDER_INPUT_SEMANTICS_VERSION = "ALPACA_IEX_15M_COMPLETED_SPLIT_V1"
+EXECUTION_PHASE_SEMANTICS_VERSION = "AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1"
 BAR_ADJUSTMENT_MODE = "split"
 SEMANTIC_TRANSITION_EVENT = "CONFIGURATION_VERSION_CHANGED"
 
@@ -339,6 +340,7 @@ def load_contract() -> dict[str, Any]:
         "entry_semantics_fingerprint": ENTRY_SEMANTICS_FINGERPRINT,
         "bar_adjustment": BAR_ADJUSTMENT_MODE,
         "provider_input_semantics_version": PROVIDER_INPUT_SEMANTICS_VERSION,
+        "execution_phase_semantics_version": EXECUTION_PHASE_SEMANTICS_VERSION,
     })
     return contract
 
@@ -1244,6 +1246,14 @@ def _heartbeat_payload(
         "market_data_feed": FEED,
         "research_only": True,
         "live_broker_enabled": False,
+        "simulated_fills_only": True,
+        "maximum_position_notional_fraction": (
+            state.get("contract", {}).get("maximum_position_notional_fraction")
+            if state else None
+        ),
+        "candidate_v1_config_fingerprint": (
+            state.get("candidate_v1_config_fingerprint") if state else None
+        ),
         "daemon_pid": os.getpid(),
         "daemon_started_at_utc": daemon_started_at_utc,
         "daemon_alive_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -1512,6 +1522,123 @@ def process_pending_execution_clock(
     return False
 
 
+def process_open_phase_clock(
+    state: dict[str, Any], store: IEXResearchStore, observed_at: datetime
+) -> bool:
+    """Process exact 15-minute opens before pending entries or close decisions."""
+    market = observed_at.astimezone(sip.NY)
+    wall = market.time().replace(tzinfo=None)
+    if (
+        not is_market_session(market.date())
+        or wall < clock_time(9, 30)
+        or wall >= clock_time(16, 0)
+        or market.minute % 15
+    ):
+        return False
+    bar_open = market.replace(second=0, microsecond=0)
+    phase_id = sip.fingerprint({
+        "kind": "IEX_AUTHENTIC_OPEN_PHASE", "bar_open": bar_open.isoformat(),
+        "contract": state["contract_fingerprint"],
+    })
+    completed = state.setdefault("completed_open_phase_ids", [])
+    if phase_id in completed:
+        return False
+
+    positions = {name: sip._position(raw) for name, raw in state["positions"].items()}
+    symbols = tuple(dict.fromkeys(("QDTE", *positions)))
+    start_utc = bar_open.astimezone(timezone.utc)
+    rows = request_bars(symbols, "1Min", start_utc, start_utc + timedelta(minutes=2))
+    exact: dict[str, Mapping[str, Any]] = {}
+    for symbol in symbols:
+        matches = [
+            row for row in rows.get(symbol, ())
+            if sip._parse(str(row["t"])).astimezone(timezone.utc) == start_utc
+        ]
+        if not matches:
+            return True
+        exact[symbol] = matches[0]
+
+    # Eligible gap exits use the authentic open and release proceeds before
+    # settlement/allocation and before any pending entries.
+    for symbol, position in list(positions.items()):
+        entry = position.entry_semantic_snapshot
+        if not isinstance(entry, Mapping):
+            raise RuntimeError("Open position lacks its Candidate V1 entry configuration snapshot.")
+        position_snapshot = sip.candidate_v1_config_from_snapshot(
+            entry.get("candidate_v1_config_snapshot"),
+            str(entry.get("candidate_v1_config_fingerprint", "")),
+        )
+        open_price = float(exact[symbol]["o"])
+        candle = sip.Candle(
+            date=bar_open.date(), open=open_price, high=open_price,
+            low=open_price, close=open_price, volume=0,
+        )
+        evaluation = sip.evaluate_exit(
+            position=position, candle=candle, current_atr=position.entry_atr,
+            config=position_snapshot.bot_config,
+        )
+        if not evaluation.should_exit:
+            continue
+        fill = float(evaluation.exit_price)
+        proceeds = position.shares * fill
+        pnl = (fill - position.entry_price) * position.shares
+        tax_reserved = max(0.0, pnl) * position_snapshot.bot_config.annual_tax_reserve_rate
+        state["cash"] += proceeds - tax_reserved
+        state["tax_reserve_cash"] += tax_reserved
+        state["realized_pnl"] = state.get("realized_pnl", 0.0) + pnl
+        execution_id = sip.fingerprint({
+            "kind": "open_exit", "symbol": symbol, "bar": bar_open.isoformat(),
+            "reason": evaluation.reason, "contract": state["contract_fingerprint"],
+        })
+        state["completed_execution_ids"].append(execution_id)
+        positions.pop(symbol)
+        store.event("SIMULATED_OPEN_EXIT_FILLED", {
+            "symbol": symbol, "execution_id": execution_id, "shares": position.shares,
+            "fill_price": fill, "reason": evaluation.reason,
+            "iex_1m_bar": str(exact[symbol]["t"]), "tax_reserved": tax_reserved,
+        })
+    state["positions"] = {name: sip._position_dict(value) for name, value in positions.items()}
+
+    sip.apply_qdte_corporate_actions(state, store, bar_open)
+    candidate_snapshot = sip.candidate_v1_config_from_snapshot(
+        state.get("candidate_v1_config_snapshot"),
+        str(state.get("candidate_v1_config_fingerprint", "")),
+    )
+    if (
+        bar_open.weekday() == candidate_snapshot.rebalance_weekday
+        and state.get("last_rebalance_week")
+        != f"{bar_open.isocalendar().year}-W{bar_open.isocalendar().week:02d}"
+    ):
+        week = f"{bar_open.isocalendar().year}-W{bar_open.isocalendar().week:02d}"
+        marks = {name: float(exact[name]["o"]) for name in positions}
+        result = sip.rebalance_income_allocation(
+            income_shares=state["qdte_shares"], income_cost=state["qdte_cost"],
+            swing_cash=state["cash"],
+            swing_market_value=sum(pos.shares * marks[name] for name, pos in positions.items()),
+            income_price=float(exact["QDTE"]["o"]),
+            target_income_weight=candidate_snapshot.bot_config.dividend_allocation_years_1_2,
+            slippage_rate=candidate_snapshot.bot_config.slippage_rate,
+            tax_reserve_rate=candidate_snapshot.bot_config.annual_tax_reserve_rate,
+            tolerance=candidate_snapshot.bot_config.allocation_rebalance_tolerance,
+            minimum_trade=candidate_snapshot.bot_config.minimum_rebalance_trade,
+        )
+        state["qdte_shares"] = result.shares_after
+        state["qdte_cost"] = result.income_cost_after
+        state["cash"] = result.swing_cash_after
+        state["tax_reserve_cash"] += result.tax_reserved
+        state["realized_pnl"] += result.realized_pnl
+        state["last_rebalance_week"] = week
+        store.event("SIMULATED_AUTHENTIC_OPEN_REBALANCE", {
+            "week": week, "action": result.action,
+            "shares_before": result.shares_before, "shares_after": result.shares_after,
+            "target_income_weight": candidate_snapshot.bot_config.dividend_allocation_years_1_2,
+            "iex_1m_bar": str(exact["QDTE"]["t"]),
+        })
+    completed.append(phase_id)
+    store.save(state)
+    return False
+
+
 def initialize(
     store: IEXResearchStore, contract: Mapping[str, Any], observed_at: datetime
 ) -> dict[str, Any]:
@@ -1645,7 +1772,25 @@ def _cycle(
         PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT,
         sip.fingerprint(contract),
     }:
-        raise RuntimeError("Persisted IEX research strategy identity differs from its contract.")
+        old_contract_fingerprint = str(state.get("contract_fingerprint"))
+        persisted = dict(state.get("contract") or {})
+        reloadable = {"maximum_position_notional_fraction", "execution_phase_semantics_version"}
+        comparable_old = {k: (list(v) if k == "symbols" else v) for k, v in persisted.items() if k not in reloadable}
+        comparable_new = {k: (list(v) if k == "symbols" else v) for k, v in contract.items() if k not in reloadable}
+        if comparable_old != comparable_new:
+            raise RuntimeError("Persisted IEX research strategy identity differs from its contract.")
+        if state.get("positions") or state.get("pending"):
+            raise RuntimeError("Execution-phase transition requires no open positions or pending actions.")
+        state["contract"] = json.loads(sip.canonical(contract))
+        state["contract_fingerprint"] = sip.fingerprint(contract)
+        store.event("PAPER_CONFIGURATION_RELOADED", {
+            "old_contract_fingerprint": old_contract_fingerprint,
+            "new_contract_fingerprint": sip.fingerprint(contract),
+            "maximum_position_notional_fraction": contract.get("maximum_position_notional_fraction"),
+            "execution_phase_semantics_version": contract.get("execution_phase_semantics_version"),
+            "effective_boundary": _next_decision_boundary(state, observed_at),
+        })
+        store.save(state)
     if state.get("schema_version") != sip.SCHEMA or state.get("mode") != contract.get("runner_variant", VARIANT):
         raise RuntimeError("Persisted state is not the IEX forward-research schema.")
     _flush_pending_broker_reconciliation(state, store)
@@ -1662,18 +1807,23 @@ def _cycle(
             ),
         )
     _transition_semantic_contract_if_required(state, store, contract, observed_at)
-    if process_pending_execution_clock(state, store, observed_at):
+    with _iex_request_scope():
+        if corporate_action_poll_due(state, observed_at):
+            sip.observe_qdte_corporate_actions(state, store, observed_at)
+        waiting_for_open = process_open_phase_clock(state, store, observed_at)
+    if waiting_for_open or process_pending_execution_clock(state, store, observed_at):
         state["last_observed_at_utc"] = observed_at.astimezone(timezone.utc).isoformat()
         state["revision"] += 1
         store.save(state)
         store.event("IEX_RESEARCH_PAPER_HEARTBEAT", {
             "revision": state["revision"], "live_broker_enabled": False,
-            "execution_clock": "WAITING_FOR_CAUSAL_MINUTE",
+            "execution_clock": (
+                "WAITING_FOR_AUTHENTIC_OPEN_MINUTE" if waiting_for_open
+                else "WAITING_FOR_CAUSAL_MINUTE"
+            ),
         })
         return state
     with _iex_request_scope():
-        if corporate_action_poll_due(state, observed_at):
-            sip.observe_qdte_corporate_actions(state, store, observed_at)
         if not decision_processing_due(state, observed_at):
             return state
         expected = expected_completed_decision_start(observed_at)
