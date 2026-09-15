@@ -71,5 +71,5 @@
 - **USER_REQUIREMENT:** “set the live paper runner to this exact configuration”; continuation: “continue”.
 - **IMPLEMENTATION:** Added isolated Candidate V1 snapshot and paper profile, profile-aware contract/initialization, governed volume-confirmation capacity selection, and disabled-profit no-op handling. Existing PR50 state remains preserved.
 - **TEST:** Focused configuration, accelerator, Candidate, Fixed25, and IEX runner tests passed 104/104. Profile smoke showed `$1,443.34` total, `$1,438.00` QDTE, `$5.34` swing cash, and disabled policy identity.
-- **OPERATIONAL:** Service unit now points to `QPX_PAPER_PROFILE=/home/ron/QPX_ALPHA/qpx_bot/paper_profiles/volume_confirmation_25_v1.json` and fresh runtime `runtime/qpx_volume_confirmation_25_iex_forward_research_paper_clean_v3`; restart is pending commit/push.
+- **OPERATIONAL:** Service unit now points to `QPX_PAPER_PROFILE=/home/ron/QPX_ALPHA/qpx_bot/paper_profiles/volume_confirmation_25_v1.json` and fresh runtime `runtime/qpx_volume_confirmation_25_iex_forward_research_paper_clean_v3`; deployment is active and healthy.
 - **VERIFIED_RUNTIME:** Commit `caeab6d` is pushed and the service is active on v3. State contract contains the exact requested values; a small heartbeat-label correction is staged for the next commit.
