@@ -8,7 +8,8 @@ import unittest
 from unittest.mock import patch
 
 from qpx_bot.fixed25_forward_paper import (
-    Store, _completed_15m, _entry_inputs, _minute_for_exit,
+    Store, _apply_simulated_swing_exit_accounting, _completed_15m,
+    _entry_inputs, _minute_for_exit,
     _persist_profit_runtime, _profit_runtime,
     apply_qdte_corporate_actions, fingerprint, initialize, load_contract,
     select_causal_execution_bar,
@@ -21,6 +22,30 @@ from qpx_bot.portfolio import Position
 
 
 class Fixed25ForwardPaperTest(unittest.TestCase):
+    def test_live_close_accounting_uses_configured_net_realized_reserve(self):
+        state = {"cash": 0.0, "tax_reserve_cash": 0.0, "realized_pnl": 0.0}
+        position = Position(
+            "AAA", 1, date(2026, 9, 1), 100.0, 1.0, 95.0, 120.0, 100.0
+        )
+        pnl, reserved, released = _apply_simulated_swing_exit_accounting(
+            state, position, 120.0, 0.25
+        )
+        self.assertEqual((pnl, reserved, released), (20.0, 5.0, 0.0))
+        self.assertEqual(state, {
+            "cash": 115.0, "tax_reserve_cash": 5.0, "realized_pnl": 20.0,
+        })
+
+        loss = Position(
+            "BBB", 1, date(2026, 9, 2), 100.0, 1.0, 95.0, 120.0, 100.0
+        )
+        pnl, reserved, released = _apply_simulated_swing_exit_accounting(
+            state, loss, 80.0, 0.25
+        )
+        self.assertEqual((pnl, reserved, released), (-20.0, 0.0, 5.0))
+        self.assertEqual(state, {
+            "cash": 200.0, "tax_reserve_cash": 0.0, "realized_pnl": 0.0,
+        })
+
     def test_contract_is_fixed25_paper_only(self):
         contract = load_contract()
         self.assertEqual(

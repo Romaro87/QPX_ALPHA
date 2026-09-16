@@ -2037,3 +2037,48 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   passed; historical launch passed. Final historical acceptance remains
   pending until preparation/replay complete and checksummed final-report and
   exit-status evidence validate.
+
+## Net-realized tax-reserve replay correction — 2026-09-16
+
+- **USER REQUIREMENT / PROVEN DEFECT:** Run
+  `1fbbd3cb80755e4ed8cbe37e05adee1c50b43ab90ff77ff25668197ecbbf8f83`
+  omitted the governed net-realized reserve reconciliation after both direct
+  historical OPEN- and CLOSE-phase position closes. Cumulative losses therefore
+  left excess tax reserve unavailable to later sizing.
+- **ACCEPTANCE EXCLUSION:** The run is permanently excluded. Its service was
+  stopped cleanly with exit status 0 and zero restarts. Its manifest,
+  preparation checkpoint, replay checkpoint, cache, sidecars, and journal
+  evidence remain unmodified and preserved. Verified digests are manifest
+  `95b656c657833c669b3316e98fc0d1719f2c7c4ee5e690d7ed6bfba2d96ec80d`,
+  preparation checkpoint
+  `638f313ed7e388d822a61b3677f165aba9ecb426e73f4017efd694375be740ad`,
+  and replay checkpoint
+  `3b552a95e4f793d99ff6d5588658db385f6958fc73cb4deea790ade693b198ce`.
+- **SETTLED CORRECTION:** Reuse the existing configured-rate net-realized
+  reconciliation immediately after each successful close and before later
+  same-event cash consumers. Reuse the existing sizing-rejection diagnostic;
+  do not alter strategy semantics or invent another reserve/classification
+  mechanism. A fresh replay must not reuse defective replay state.
+- **DEFERRED SEPARATE LIMITATION:** Stale RVLT and AMMA positions are a known
+  causal data-lifecycle limitation and are outside this accounting correction.
+- **REVIEWED HIGH-RISK DESIGN:** `Portfolio` and checksummed paper state retain
+  balance ownership. One shared balance primitive implements only the existing
+  configured-rate formula; the existing historical wrapper and one live-state
+  adapter apply it immediately within the close event. Historical completed
+  boundaries are the checkpoint transaction, so a pre-checkpoint restart
+  recomputes from old state and a post-checkpoint restart restores reconciled
+  state; a repeated reconciliation releases zero.
+- **IMPLEMENTATION:** Both historical OPEN/CLOSE close sites now reconcile
+  before later allocation/sizing/admission. The active IEX authentic-OPEN and
+  completed-CLOSE sites use the same accounting primitive and persist release
+  evidence. Historical rejection outcomes call the existing governed sizing
+  diagnostic with the exact sizing inputs.
+- **FOCUSED VERIFICATION:** 73/73 focused historical replay, live IEX/fixed
+  paper, and accounting tests passed. The directly affected legacy
+  net-realized-control and portfolio/risk script-tests passed; compilation and
+  `git diff --check` passed. Existing duplicate-symbol and exact provider-ID
+  mark/exit/restart coverage remained green. No broad suite was run.
+- **LIVE CONTINUITY BASELINE:** Before deployment, the checksum-valid active
+  account was revision 134 with 50 QDTE shares, QDTE cost `$1,421.065`,
+  `$22.275` cash, zero reserve/P&L, no swing positions, and no pending entries.
+  The loaded contract remained simulated-only and bound the 90% cap.

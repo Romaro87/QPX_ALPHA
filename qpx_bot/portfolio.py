@@ -10,6 +10,23 @@ from qpx_bot.config import BotConfig
 from qpx_bot.risk import PositionSize, sell_fill
 
 
+def reconcile_net_realized_tax_reserve_balances(
+    *,
+    cash: float,
+    tax_reserve_cash: float,
+    realized_pnl: float,
+    reserve_rate: float,
+) -> tuple[float, float, float]:
+    """Return cash, required reserve, and released excess for net realized P&L."""
+    target = max(0.0, realized_pnl) * reserve_rate
+    if target > tax_reserve_cash + 1e-8:
+        raise RuntimeError(
+            "Net-realized tax target exceeded the gross trade reserve."
+        )
+    released = max(0.0, tax_reserve_cash - target)
+    return cash + released, target, released
+
+
 @dataclass(slots=True)
 class Position:
     symbol: str

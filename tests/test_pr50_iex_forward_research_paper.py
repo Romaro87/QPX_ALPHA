@@ -67,6 +67,70 @@ def _attempt_lock_in_second_process(directory: str, result) -> None:
 
 
 class PR50IEXForwardResearchPaperTests(unittest.TestCase):
+    def test_authentic_open_exit_reconciles_reserve_once_before_later_work(self):
+        snapshot = sip.load_candidate_v1_config(
+            Path(__file__).parents[1]
+            / "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json"
+        )
+        observed = datetime(2026, 9, 2, 13, 30, 20, tzinfo=timezone.utc)
+        contract = load_contract()
+        position = sip.Position(
+            "TSLL", 1, observed.date(), 100.0, 1.0, 95.0, 120.0, 100.0,
+            entry_semantic_snapshot={
+                "candidate_v1_config_snapshot": snapshot.as_dict(),
+                "candidate_v1_config_fingerprint": snapshot.fingerprint,
+            },
+        )
+        state = {
+            "contract": contract,
+            "contract_fingerprint": sip.fingerprint(contract),
+            "candidate_v1_config_snapshot": snapshot.as_dict(),
+            "candidate_v1_config_fingerprint": snapshot.fingerprint,
+            "cash": 0.0,
+            "tax_reserve_cash": 100.0 * snapshot.bot_config.annual_tax_reserve_rate,
+            "realized_pnl": 100.0,
+            "qdte_shares": 0,
+            "qdte_cost": 0.0,
+            "positions": {"TSLL": sip._position_dict(position)},
+            "pending": {},
+            "completed_execution_ids": [],
+            "last_rebalance_week": None,
+            "qdte_corporate_actions": {},
+            "qdte_open_share_snapshots": {},
+        }
+        exact = {
+            "QDTE": [{"t": "2026-09-02T13:30:00Z", "o": 30.0}],
+            "TSLL": [{"t": "2026-09-02T13:30:00Z", "o": 80.0}],
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            store = IEXResearchStore(Path(folder))
+            store.event("TEST_RUNTIME_INITIALIZED", {})
+            with patch(
+                "qpx_bot.pr50_iex_forward_research_paper.request_bars",
+                return_value=exact,
+            ), patch(
+                "qpx_bot.pr50_iex_forward_research_paper.sip.evaluate_exit",
+                return_value=SimpleNamespace(
+                    should_exit=True, exit_price=80.0, reason="ATR_STOP"
+                ),
+            ):
+                self.assertFalse(process_open_phase_clock(state, store, observed))
+                after = sip.canonical(state)
+                self.assertFalse(process_open_phase_clock(state, store, observed))
+            rate = snapshot.bot_config.annual_tax_reserve_rate
+            self.assertAlmostEqual(state["realized_pnl"], 80.0)
+            self.assertAlmostEqual(state["tax_reserve_cash"], 80.0 * rate)
+            self.assertAlmostEqual(state["cash"], 80.0 + 20.0 * rate)
+            self.assertEqual(sip.canonical(state), after)
+            self.assertEqual(state["positions"], {})
+            records = [json.loads(line) for line in store.journal.read_text().splitlines()]
+            exit_event = next(
+                item for item in records
+                if item["event_type"] == "SIMULATED_OPEN_EXIT_FILLED"
+            )
+            self.assertAlmostEqual(exit_event["details"]["tax_reserve_released"], 20.0 * rate)
+            self.assertAlmostEqual(exit_event["details"]["required_tax_reserve"], 80.0 * rate)
+
     def test_contract_and_runtime_are_isolated_and_explicit(self):
         contract = load_contract()
         self.assertEqual(contract["feed"], "iex")

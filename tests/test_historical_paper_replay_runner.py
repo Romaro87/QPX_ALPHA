@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from qpx_bot.candidate_v1_causal import CandidateV1CausalInputs
@@ -17,6 +18,7 @@ from qpx_bot.historical_paper_replay_runner import (
     DEFAULT_CONFIG,
     DEFAULT_SYMBOLS,
     CandidateV1HistoricalPaperRuntime,
+    _fingerprint,
     _sha256,
     _load_strategy_profile,
     _read_runtime_state,
@@ -27,6 +29,7 @@ from qpx_bot.data_loader import Candle
 from qpx_bot.indicators import calculate_indicators
 from qpx_bot.candidate_v1_config import load_candidate_v1_config
 from qpx_bot.intraday_six_paper import IntradayBar, load_policy
+from qpx_bot.portfolio import Position
 
 
 class CandidateV1HistoricalPaperRunnerTests(unittest.TestCase):
@@ -90,6 +93,54 @@ class CandidateV1HistoricalPaperRunnerTests(unittest.TestCase):
             bar = IntradayBar(start=start, open=100.0, high=102.0, low=99.0, close=101.0, volume=int(100_000 * ratio))
             bars.append(CompletedBarEvidence(label, asset_id, bar, start + timedelta(minutes=15), inputs))
         return CompletedBoundary(start.isoformat(), start + timedelta(minutes=15), tuple(bars), 20.0)
+
+    def _v3_runtime(self, assets: dict[str, str]) -> CandidateV1HistoricalPaperRuntime:
+        config = load_replay_configuration(
+            Path(__file__).parents[1]
+            / "qpx_bot/replay_configs/volume_confirmation_90_ten_year_sip_reservoir_split_excluded_v3.json"
+        )
+        snapshot = _load_strategy_profile(
+            Path(__file__).parents[1]
+            / "qpx_bot/paper_profiles/volume_confirmation_25_v1.json",
+            config,
+        )
+        return CandidateV1HistoricalPaperRuntime(
+            config,
+            candidate_snapshot=snapshot,
+            asset_symbols={**assets, "income-id": "QDTE"},
+        )
+
+    def _exit_boundary(
+        self, start: datetime, *, open_price: float, low: float, close: float
+    ) -> CompletedBoundary:
+        template = self._asset_boundary(start, [("asset-a", "AAA", 1.2)]).bars[0]
+        bar = IntradayBar(start, open_price, max(open_price, close), low, close, 120_000)
+        return CompletedBoundary(
+            start.isoformat(),
+            start + timedelta(minutes=15),
+            (CompletedBarEvidence(
+                "AAA", "asset-a", bar, start + timedelta(minutes=15),
+                template.candidate_inputs,
+            ),),
+            20.0,
+        )
+
+    def _install_prior_profit_and_position(
+        self, runtime: CandidateV1HistoricalPaperRuntime
+    ) -> None:
+        config = runtime.candidate._snapshot.bot_config
+        runtime._portfolio.cash = 0.0
+        runtime._portfolio.realized_pnl = 100.0
+        runtime._portfolio.tax_reserve_cash = 100.0 * config.annual_tax_reserve_rate
+        runtime._portfolio.positions["asset-a"] = Position(
+            symbol="asset-a", shares=1, entry_date=date(2025, 1, 2),
+            entry_price=100.0, entry_atr=1.0, stop_price=95.0,
+            target_price=120.0, highest_price=100.0,
+            entry_stop_atr_multiple=config.stop_atr_multiple,
+            entry_target_atr_multiple=config.target_atr_multiple,
+            entry_trailing_activation_atr=config.trailing_activation_atr,
+            exit_slippage_rate=config.slippage_rate,
+        )
 
     def test_primary_config_binds_current_candidate_manifest_without_monthly_policy(self):
         universe = self.config.payload["universe"]
@@ -274,12 +325,116 @@ class CandidateV1HistoricalPaperRunnerTests(unittest.TestCase):
         self.assertEqual(reconciliation["selected"], 2)
         self.assertEqual(reconciliation["rejected"], 1)
         self.assertEqual(reconciliation["pending"], 1)
-        self.assertEqual(sum(reconciliation["sizing_rejection_reasons"].values()), 1)
+        self.assertEqual(
+            reconciliation["sizing_rejection_reasons"],
+            {"No available capital.": 1},
+        )
         restored = CandidateV1HistoricalPaperRuntime(
             config, json.loads(json.dumps(runtime.snapshot())),
             candidate_snapshot=snapshot, asset_symbols={"asset-a": "AAA", "income-id": "QDTE"},
         )
         self.assertEqual(restored.state["outcome_reconciliation"], reconciliation)
+
+    def test_open_phase_exit_reconciles_net_realized_reserve_immediately(self):
+        runtime = self._v3_runtime({"asset-a": "AAA"})
+        self._install_prior_profit_and_position(runtime)
+        runtime.process_boundary(
+            self._exit_boundary(
+                datetime(2025, 1, 3, 9, 30, tzinfo=self.ny),
+                open_price=80.0, low=80.0, close=80.0,
+            ),
+            {},
+        )
+        trade = runtime._portfolio.closed_trades[-1]
+        rate = runtime.candidate._snapshot.bot_config.annual_tax_reserve_rate
+        self.assertLess(trade.pnl, 0.0)
+        self.assertAlmostEqual(
+            runtime._portfolio.tax_reserve_cash,
+            max(0.0, runtime._portfolio.realized_pnl) * rate,
+        )
+        self.assertAlmostEqual(
+            runtime._portfolio.cash,
+            trade.exit_price * trade.shares
+            + (100.0 * rate - runtime._portfolio.tax_reserve_cash),
+        )
+
+    def test_close_phase_exit_reconciles_and_restart_cannot_release_twice(self):
+        runtime = self._v3_runtime({"asset-a": "AAA"})
+        self._install_prior_profit_and_position(runtime)
+        boundary = self._exit_boundary(
+            datetime(2025, 1, 3, 9, 30, tzinfo=self.ny),
+            open_price=100.0, low=90.0, close=96.0,
+        )
+        runtime.process_boundary(boundary, {})
+        self.assertNotIn("asset-a", runtime._portfolio.positions)
+        rate = runtime.candidate._snapshot.bot_config.annual_tax_reserve_rate
+        self.assertAlmostEqual(
+            runtime._portfolio.tax_reserve_cash,
+            max(0.0, runtime._portfolio.realized_pnl) * rate,
+        )
+        restored = CandidateV1HistoricalPaperRuntime(
+            runtime.config,
+            json.loads(json.dumps(runtime.snapshot())),
+            candidate_snapshot=runtime.candidate._snapshot,
+            asset_symbols={"asset-a": "AAA", "income-id": "QDTE"},
+        )
+        before = restored.snapshot()
+        from qpx_bot.actual_two_year_15m_six import _reconcile_net_realized_tax_reserve
+        self.assertEqual(
+            _reconcile_net_realized_tax_reserve(
+                portfolio=restored._portfolio,
+                config=restored.candidate._snapshot.bot_config,
+            ),
+            0.0,
+        )
+        self.assertEqual(restored.snapshot(), before)
+
+        next_boundary = self._asset_boundary(
+            datetime(2025, 1, 3, 9, 45, tzinfo=self.ny),
+            [("asset-a", "AAA", 1.2)],
+        )
+        runtime.process_boundary(next_boundary, {})
+        restored.process_boundary(next_boundary, {})
+        self.assertEqual(restored.snapshot(), runtime.snapshot())
+        self.assertEqual(_fingerprint(restored.snapshot()), _fingerprint(runtime.snapshot()))
+
+    def test_same_boundary_pending_sizing_sees_reconciled_cash(self):
+        runtime = self._v3_runtime({"asset-a": "AAA", "asset-b": "BBB"})
+        start = datetime(2025, 1, 2, 9, 30, tzinfo=self.ny)
+        runtime.process_boundary(
+            self._asset_boundary(start, [("asset-b", "BBB", 1.2)]), {}
+        )
+        self.assertIn("asset-b", runtime.state["pending"])
+        self._install_prior_profit_and_position(runtime)
+        second = self._asset_boundary(
+            start + timedelta(minutes=15),
+            [("asset-a", "AAA", 1.2), ("asset-b", "BBB", 1.2)],
+        )
+        first = second.bars[0]
+        open_loss = CompletedBarEvidence(
+            first.symbol, first.provider_asset_id,
+            IntradayBar(first.bar.start, 80.0, 80.0, 80.0, 80.0, first.bar.volume),
+            first.completed_at, first.candidate_inputs,
+        )
+        second = CompletedBoundary(
+            second.boundary_id, second.completed_at, (open_loss, second.bars[1]),
+            second.previous_session_vix,
+        )
+        import qpx_bot.historical_paper_replay_runner as replay_runner
+        with patch.object(
+            replay_runner,
+            "calculate_position_size",
+            wraps=replay_runner.calculate_position_size,
+        ) as sizing:
+            runtime.process_boundary(second, {})
+        trade = runtime._portfolio.closed_trades[-1]
+        rate = runtime.candidate._snapshot.bot_config.annual_tax_reserve_rate
+        expected = (
+            trade.exit_price * trade.shares
+            + 100.0 * rate
+            - max(0.0, runtime._portfolio.realized_pnl) * rate
+        )
+        self.assertAlmostEqual(sizing.call_args.kwargs["available_cash"], expected)
 
     def test_exact_asset_position_receives_later_mark_and_exit(self):
         config = load_replay_configuration(

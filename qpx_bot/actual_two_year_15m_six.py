@@ -36,7 +36,12 @@ from qpx_bot.market_calendar import (
     latest_completed_session,
 )
 from qpx_bot.performance import ReturnMetrics, metrics_from_returns
-from qpx_bot.portfolio import ClosedTrade, Portfolio, contribution_allocation
+from qpx_bot.portfolio import (
+    ClosedTrade,
+    Portfolio,
+    contribution_allocation,
+    reconcile_net_realized_tax_reserve_balances,
+)
 from qpx_bot.risk import buy_fill, calculate_position_size
 from qpx_bot.strategy import (
     EntryEvaluation,
@@ -2049,23 +2054,14 @@ def _reconcile_net_realized_tax_reserve(
     This is a research cash-reserve model, not tax advice or a complete
     tax-accounting engine.
     """
-    target = (
-        max(0.0, portfolio.realized_pnl)
-        * config.annual_tax_reserve_rate
-    )
-    current = portfolio.tax_reserve_cash
-
-    if target > current + 1e-8:
-        # close_position already reserves tax on every profitable exit.
-        # Under a net-realized model that gross reserve should never be
-        # below the cumulative-net target.
-        raise RuntimeError(
-            "Net-realized tax target exceeded the gross trade reserve."
+    portfolio.cash, portfolio.tax_reserve_cash, released = (
+        reconcile_net_realized_tax_reserve_balances(
+            cash=portfolio.cash,
+            tax_reserve_cash=portfolio.tax_reserve_cash,
+            realized_pnl=portfolio.realized_pnl,
+            reserve_rate=config.annual_tax_reserve_rate,
         )
-
-    released = max(0.0, current - target)
-    portfolio.tax_reserve_cash = target
-    portfolio.cash += released
+    )
     return released
 
 

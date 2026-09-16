@@ -18,7 +18,11 @@ from pathlib import Path
 import subprocess
 from typing import Any, Iterable, Iterator, Mapping, Sequence
 
-from qpx_bot.actual_two_year_15m_six import _read_vix_daily_cache
+from qpx_bot.actual_two_year_15m_six import (
+    _position_size_rejection_diagnostic,
+    _read_vix_daily_cache,
+    _reconcile_net_realized_tax_reserve,
+)
 from qpx_bot.allocation import rebalance_income_allocation
 from qpx_bot.candidate_v1_causal import CandidateV1CausalInputs
 from qpx_bot.candidate_v1_config import CandidateV1ConfigSnapshot, disabled_kelly_trade_history, load_candidate_v1_config
@@ -497,6 +501,10 @@ class CandidateV1HistoricalPaperRuntime:
                     symbol=asset_id, exit_price=float(outcome.exit_price), exit_date=start.date(),
                     reason=outcome.reason or "OPEN_EXIT", config=self.candidate._snapshot.bot_config,
                 )
+                _reconcile_net_realized_tax_reserve(
+                    portfolio=self._portfolio,
+                    config=self.candidate._snapshot.bot_config,
+                )
 
         self._rebalance_income_open(start, bars)
 
@@ -523,10 +531,11 @@ class CandidateV1HistoricalPaperRuntime:
                      for symbol, position in self._portfolio.positions.items()}
             income_price = float(self.state["last_marks"].get(self.income_asset_id, 0.0))
             equity = self._portfolio.equity(marks) + self.state["income_shares"] * income_price
+            active_risk = self._portfolio.active_risk()
             sizing = calculate_position_size(
                 account_equity=equity, available_cash=self._portfolio.cash,
                 entry_price=evidence.bar.open, atr=signal.signal_atr,
-                active_risk=self._portfolio.active_risk(), config=self.candidate._snapshot.bot_config,
+                active_risk=active_risk, config=self.candidate._snapshot.bot_config,
                 trade_results_r=disabled_kelly_trade_history(self.candidate._snapshot),
             )
             maximum_notional = equity * self.candidate._snapshot.maximum_position_notional_fraction
@@ -539,7 +548,13 @@ class CandidateV1HistoricalPaperRuntime:
                 self.state["risk_rejections"] += 1
                 self._finish_entry(
                     signal.signal_id, "REJECTED",
-                    sizing.blocked_reason or "UNSPECIFIED_SIZING_REJECTION",
+                    _position_size_rejection_diagnostic(
+                        account_equity=equity,
+                        available_cash=self._portfolio.cash,
+                        active_risk=active_risk,
+                        sizing=sizing,
+                        config=self.candidate._snapshot.bot_config,
+                    ),
                 )
                 continue
             self._portfolio.open_position(
@@ -566,6 +581,10 @@ class CandidateV1HistoricalPaperRuntime:
                 self._portfolio.close_position(
                     symbol=asset_id, exit_price=float(outcome.exit_price), exit_date=start.date(),
                     reason=outcome.reason or "EXIT", config=self.candidate._snapshot.bot_config,
+                )
+                _reconcile_net_realized_tax_reserve(
+                    portfolio=self._portfolio,
+                    config=self.candidate._snapshot.bot_config,
                 )
             else:
                 position.stop_price = outcome.next_stop_price

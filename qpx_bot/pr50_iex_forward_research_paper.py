@@ -1580,12 +1580,12 @@ def process_open_phase_clock(
         if not evaluation.should_exit:
             continue
         fill = float(evaluation.exit_price)
-        proceeds = position.shares * fill
-        pnl = (fill - position.entry_price) * position.shares
-        tax_reserved = max(0.0, pnl) * position_snapshot.bot_config.annual_tax_reserve_rate
-        state["cash"] += proceeds - tax_reserved
-        state["tax_reserve_cash"] += tax_reserved
-        state["realized_pnl"] = state.get("realized_pnl", 0.0) + pnl
+        pnl, tax_reserved, tax_reserve_released = (
+            sip._apply_simulated_swing_exit_accounting(
+                state, position, fill,
+                position_snapshot.bot_config.annual_tax_reserve_rate,
+            )
+        )
         execution_id = sip.fingerprint({
             "kind": "open_exit", "symbol": symbol, "bar": bar_open.isoformat(),
             "reason": evaluation.reason, "contract": state["contract_fingerprint"],
@@ -1596,6 +1596,8 @@ def process_open_phase_clock(
             "symbol": symbol, "execution_id": execution_id, "shares": position.shares,
             "fill_price": fill, "reason": evaluation.reason,
             "iex_1m_bar": str(exact[symbol]["t"]), "tax_reserved": tax_reserved,
+            "tax_reserve_released": tax_reserve_released,
+            "required_tax_reserve": state["tax_reserve_cash"],
         })
     state["positions"] = {name: sip._position_dict(value) for name, value in positions.items()}
 

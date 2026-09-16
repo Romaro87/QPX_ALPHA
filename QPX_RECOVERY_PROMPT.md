@@ -957,3 +957,50 @@ launched under distinct service
 acceptance remains pending until preparation/replay complete and checksummed
 final report and exit status exist. Do not resume or rewrite the excluded
 `c4159b1c...49f839` run.
+
+## September 16 net-realized tax-reserve correction
+
+**ACCEPTANCE EXCLUSION:** Historical run
+`1fbbd3cb80755e4ed8cbe37e05adee1c50b43ab90ff77ff25668197ecbbf8f83`
+is permanently excluded from acceptance. Its historical OPEN- and CLOSE-phase
+exit paths called `Portfolio.close_position()` without immediately applying
+the governed net-realized tax-reserve reconciliation. After cumulative realized
+losses this retained excess reserve instead of returning it to deployable swing
+cash, materially suppressing later fills. Do not resume, rewrite, or cite this
+run as corrected evidence.
+
+**PRESERVATION EVIDENCE:** Only
+`qpx-v3-reservoir-replay-corrected-20260915.service` was stopped. It exited
+cleanly with `Result=success`, status 0, and zero restarts. The preserved final
+manifest, preparation-checkpoint, and replay-checkpoint SHA-256 values are
+`95b656c657833c669b3316e98fc0d1719f2c7c4ee5e690d7ed6bfba2d96ec80d`,
+`638f313ed7e388d822a61b3677f165aba9ecb426e73f4017efd694375be740ad`,
+and `3b552a95e4f793d99ff6d5588658db385f6958fc73cb4deea790ade693b198ce`.
+Its manifest, checkpoints, 126,857,822,208-byte SQLite preparation cache,
+sidecars, and system journal remain preserved in place.
+
+**NEXT EXACT ACTION:** Apply the already-governed configured-rate reconciliation
+after every successful historical close, reuse the existing exact sizing
+diagnostic, inspect and correct only matching live-paper omissions, run focused
+tests, push the accepted correction, and launch a distinct replay from the
+beginning without reusing defective portfolio/checkpoint/outcome/report state.
+
+**IMPLEMENTED / VERIFIED:** The governed reserve balance calculation is now a
+shared accounting primitive while the existing research wrapper remains the
+historical authority. Historical OPEN and CLOSE invoke it immediately after
+every successful close. The active IEX paper runner's authentic-OPEN and
+completed-CLOSE paths use the same primitive and emit released/required-reserve
+evidence. Historical sizing persists the existing governed diagnostic subtype.
+No configuration or strategy parameter changed. Focused verification passed
+73/73 tests plus the directly affected net-reserve-control and portfolio/risk
+script-tests; changed Python compiled and `git diff --check` passed.
+
+**LIVE BASELINE BEFORE DEPLOYMENT:** Checksummed live paper state was revision
+134 with 50 QDTE shares, QDTE cost `$1,421.065`, `$22.275` cash, zero reserve,
+zero realized P&L, zero swing positions, and zero pending entries. It remained
+simulated-only with the 90% cap and no broker-order authority.
+
+**NEXT EXACT ACTION:** Push the explicitly staged correction to `main`, verify
+local/remote identity, safely restart only the supervised active IEX paper
+target without resetting its account, then launch and verify a distinct V3
+replay from the beginning.

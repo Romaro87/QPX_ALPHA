@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 from qpx_bot.data_loader import Candle
 from qpx_bot.indicators import calculate_indicators
-from qpx_bot.portfolio import Position
+from qpx_bot.portfolio import Position, reconcile_net_realized_tax_reserve_balances
 from qpx_bot.paper_state import (
     read_checksummed_state,
     runtime_lock,
@@ -80,6 +80,35 @@ def canonical(value: Any) -> bytes:
 
 def fingerprint(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def _reconcile_state_net_realized_tax_reserve(
+    state: dict[str, Any], reserve_rate: float,
+) -> float:
+    """Apply the governed net-realized reserve rule to checksummed paper state."""
+    state["cash"], state["tax_reserve_cash"], released = (
+        reconcile_net_realized_tax_reserve_balances(
+            cash=float(state["cash"]),
+            tax_reserve_cash=float(state.get("tax_reserve_cash", 0.0)),
+            realized_pnl=float(state.get("realized_pnl", 0.0)),
+            reserve_rate=reserve_rate,
+        )
+    )
+    return released
+
+
+def _apply_simulated_swing_exit_accounting(
+    state: dict[str, Any], position: Position, fill: float, reserve_rate: float,
+) -> tuple[float, float, float]:
+    """Post one simulated swing close and reconcile its net-realized reserve."""
+    proceeds = position.shares * fill
+    pnl = (fill - position.entry_price) * position.shares
+    tax_reserved = max(0.0, pnl) * reserve_rate
+    state["cash"] += proceeds - tax_reserved
+    state["tax_reserve_cash"] += tax_reserved
+    state["realized_pnl"] = state.get("realized_pnl", 0.0) + pnl
+    released = _reconcile_state_net_realized_tax_reserve(state, reserve_rate)
+    return pnl, tax_reserved, released
 
 
 def load_qualified_fixed25_notional_fraction() -> float:
@@ -1197,12 +1226,13 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                     minute = _minute_for_exit(
                         minute_raw.get(symbol, []), bar_time, position, str(evaluation.reason)
                     )
-                    fill = float(evaluation.exit_price); proceeds = position.shares * fill
-                    pnl = (fill - position.entry_price) * position.shares
-                    tax_reserved = max(0.0, pnl) * position_config.annual_tax_reserve_rate
-                    state["cash"] += proceeds - tax_reserved
-                    state["realized_pnl"] = state.get("realized_pnl", 0.0) + pnl
-                    state["tax_reserve_cash"] += tax_reserved
+                    fill = float(evaluation.exit_price)
+                    pnl, tax_reserved, tax_reserve_released = (
+                        _apply_simulated_swing_exit_accounting(
+                            state, position, fill,
+                            position_config.annual_tax_reserve_rate,
+                        )
+                    )
                     state["profit_recycling"]["event_sequence"] += 1
                     sequence = state["profit_recycling"]["event_sequence"]
                     state["profit_recycling"]["current_event_sequence"] = sequence
@@ -1219,6 +1249,8 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                     store.event("SIMULATED_EXIT_FILLED", {"symbol": symbol, "execution_id": execution_id,
                         "shares": position.shares, "fill_price": fill, "reason": evaluation.reason,
                         "sip_1m_bar": str(minute["t"]), "tax_reserved": tax_reserved,
+                        "tax_reserve_released": tax_reserve_released,
+                        "required_tax_reserve": state["tax_reserve_cash"],
                         "eligible_after_tax_profit": decision.eligible_net_profit,
                         "recyclable_profit": decision.destination_amount,
                         "profit_recycling_event_sequence": sequence})
