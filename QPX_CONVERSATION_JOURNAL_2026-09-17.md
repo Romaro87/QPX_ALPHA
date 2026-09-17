@@ -96,4 +96,57 @@
 - **NEXT EXACT ACTION:** Stage and inspect only intended files; commit/push to
   `main`; verify local/remote equality; then start one distinct isolated
   systemd replay and verify its manifest and first checksum-valid advancing
-  checkpoint. Final ten-year historical result remains pending.
+checkpoint. Final ten-year historical result remains pending.
+
+## 14:25 CDT — aggressive accelerated Top-100 implementation
+
+- **USER REQUIREMENT:** Create one distinct ten-year aggressive Top-100 replay,
+  not a sweep or four-arm matrix. Preserve every completed causal-split and
+  baseline experiment surface. Use 12 positions, 10% risk per trade, 60%
+  maximum active portfolio risk, and the exact named Profit Recycling,
+  Dynamic Sizing 90%, Pyramiding, and two-sided Regime Allocation configs.
+- **RISK / PRE-CODE GATE:** HIGH / SATISFIED. The reviewed design resolved
+  portfolio and accelerator state ownership, OPEN/CLOSE causal boundaries,
+  profit-classification economics, pyramid addition accounting, corporate-
+  action fractional shares, restart behavior, invariants, and focused proof
+  before editing.
+- **IMPLEMENTATION:** Added a schema-V2 replay configuration that binds every
+  accelerator source checksum and effective fingerprint, a distinct aggressive
+  Candidate/profile, and a minimal replay accelerator bundle. The runtime now
+  persists opportunity/effect evidence; applies reduction-only dynamic sizing;
+  classifies and attributes recycled profit without creating cash; proposes
+  weekly QDTE targets from prior-session VIX; and executes governed pyramid
+  additions from previous-close evidence at authentic next OPEN. Pyramid
+  cost/P&L/tax correction and split-scaled metadata remain provider-ID keyed
+  and checkpoint-restart deterministic.
+- **IDENTITY:** Candidate fingerprint
+  `13fba53fea5af66cc22ee10e1597b91be98574bedd3b10dc39c81251d5c98f87`;
+  replay configuration fingerprint
+  `dc746092972bdcf1653b391a8c242786b280b652ba8f2c61fecdf961406d1daa`.
+  Accelerator fingerprints: Profit Recycling
+  `148f702f9ba50ec788b0554ade08c9bebedb7219ddbe796d62feda884739f691`,
+  Dynamic Sizing 90%
+  `beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1`,
+  Pyramiding `4e69add84dec7aac26952231ef90b24578df29310d86b60cc2b7ba977877a1c4`,
+  Regime Allocation
+  `da9ba35f5f30d6515770b8d48fe92c4cd0a088f792a4151848fdd4262d3ca9dd`.
+- **FOCUSED VERIFICATION COMMAND:** `python3 -m unittest
+  tests.test_historical_replay_accelerators tests.test_historical_paper_replay
+  tests.test_historical_paper_replay_runner tests.test_top100_causal_splits
+  tests.test_dynamic_sizing tests.test_pyramiding tests.test_profit_recycling
+  tests.test_candidate_v1_config tests.test_volume_confirmation_profile` plus
+  the seven directly relevant Regime Allocation causal/configuration methods.
+- **RESULT:** 117/117 passed; changed Python compiled and `git diff --check`
+  passed. No broad suite or parameter matrix ran. Two pre-existing brittle
+  source-text assertions in the full legacy Regime test module remain unrelated
+  to the unchanged strict-reference file and are not used as integration
+  acceptance evidence.
+- **PRESERVATION:** The existing baseline Top-100 service remained active with
+  zero restarts during implementation. Live paper, the full-universe replay,
+  existing run directories, checkpoints, reports, and preparation databases
+  were not signaled or modified. Pre-existing untracked `runtime/` and the
+  malformed `ystemctl ...` path remain unstaged.
+- **NEXT EXACT ACTION:** Stage and inspect only the intended files, commit/push
+  to `main`, verify local/remote equality, launch one isolated aggressive
+  replay service, and validate its first checksum-valid advancing checkpoint.
+  Final ten-year result remains pending.

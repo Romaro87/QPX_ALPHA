@@ -2124,4 +2124,51 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
 - **NEXT EXACT ACTION:** Commit/push the explicitly staged implementation and
   continuity transaction, verify `HEAD == origin/main`, then launch and verify
   the first advancing checkpoint of one isolated Top-100 replay. Do not wait
-  synchronously for the final ten-year result.
+synchronously for the final ten-year result.
+
+## Aggressive accelerated Top-100 historical experiment — 2026-09-17
+
+- **DECISION:** Authorize exactly one research-only experiment, not a matrix.
+  Preserve the frozen 100-member retrospective/in-sample provider-ID universe,
+  QDTE separation, causal split semantics, integer new entries, `$1,443.34`,
+  volume-confirmation arbitration, momentum 52, VIX rules, and 90% notional
+  cap. Change only maximum positions 6→12, risk per trade 3%→10%, maximum
+  active portfolio risk 10%→60%, and enable the four named governed
+  accelerator configurations.
+- **STATE / CAUSAL OWNERSHIP:** Economic balances remain in `Portfolio`.
+  Profit Recycling only classifies already-authoritative after-tax cash.
+  Dynamic Sizing can reduce but never increase qualified base shares.
+  Regime Allocation acts only at scheduled authentic OPEN using a prior
+  completed VIX session. Pyramiding observes the previous completed close/ATR
+  and executes an accepted integer addition at the authentic next OPEN before
+  ordinary pending entries. Split transformations scale the associated
+  pyramid metadata and preserve exact accounting.
+- **RECOVERY:** The checksummed paper state owns accelerator ledgers,
+  opportunity/effect decisions, event sequences, pyramid position metadata,
+  regime state, and observed utilization/risk maxima. Exact source checksums
+  and effective configuration fingerprints are part of configuration and run
+  identity. A mismatch fails closed; a boundary restart recomputes or restores
+  deterministically without double application.
+- **FINGERPRINTS:** Candidate
+  `13fba53fea5af66cc22ee10e1597b91be98574bedd3b10dc39c81251d5c98f87`;
+  replay configuration
+  `dc746092972bdcf1653b391a8c242786b280b652ba8f2c61fecdf961406d1daa`;
+  Profit Recycling
+  `148f702f9ba50ec788b0554ade08c9bebedb7219ddbe796d62feda884739f691`;
+  Dynamic Sizing 90%
+  `beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1`;
+  Pyramiding
+  `4e69add84dec7aac26952231ef90b24578df29310d86b60cc2b7ba977877a1c4`;
+  Regime Allocation
+  `da9ba35f5f30d6515770b8d48fe92c4cd0a088f792a4151848fdd4262d3ca9dd`.
+- **VERIFICATION:** 117/117 focused tests passed across exact configuration,
+  accelerator opportunity/effect integration, accounting, causal splits,
+  provider identity, and checksummed restart. No broad suite, sweep, or
+  comparison matrix ran.
+- **AUTHORITY:** Historical paper only; training, promotion, live, broker, and
+  capital authority remain `NONE`. The baseline Top-100 replay and live paper
+  are preservation boundaries.
+- **NEXT EXACT ACTION:** Commit/push the explicit intended files, verify
+  `HEAD == origin/main`, launch the distinct unattended service, and validate
+  its manifest plus first advancing checksummed checkpoint. Final replay
+  acceptance is pending completion.

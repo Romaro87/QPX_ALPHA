@@ -1065,3 +1065,50 @@ manifest/config, focused test, recovery prompt, decision ledger, and September
 17 journal; commit/push accepted work to `main`; verify local/remote equality;
 then launch one isolated resumable Top-100 service and verify its first
 checksum-valid advancing checkpoint. Final ten-year result remains pending.
+
+## September 17 aggressive accelerated Top-100 replay
+
+**USER AUTHORITY:** Launch one research-only, retrospective/in-sample Top-100
+replay. Preserve the completed provider-ID/causal-split experiment and change
+only maximum positions to 12, risk per trade to 10%, maximum active portfolio
+risk to 60%, and enable the exact governed Profit Recycling 100%, Dynamic
+Sizing V1 paired with the 90% cap, Pyramiding V1, and two-sided Regime
+Allocation V1 configurations. No matrix, tuning, training, promotion, live,
+broker, or capital authority is granted.
+
+**REVIEWED HIGH-RISK DESIGN:** `Portfolio` remains the sole economic owner.
+Profit Recycling is classification-only and cannot create cash. Dynamic Sizing
+is reduction-only after base sizing and the 90% cap. Regime Allocation changes
+only the authentic weekly OPEN target from prior-session VIX. Pyramiding uses
+the previous completed close/ATR and authentic next OPEN; new additions remain
+integer-share transactions. Corporate actions scale open position and pyramid
+lot metadata together, preserving fractional corporate-action shares and
+addition accounting. Accelerator state, event identities, source checksums,
+configuration fingerprints, and observations persist in the checksummed
+checkpoint.
+
+**CONFIGURATION:** Candidate fingerprint is
+`13fba53fea5af66cc22ee10e1597b91be98574bedd3b10dc39c81251d5c98f87`;
+replay configuration fingerprint is
+`dc746092972bdcf1653b391a8c242786b280b652ba8f2c61fecdf961406d1daa`.
+Accelerator fingerprints are Profit Recycling
+`148f702f9ba50ec788b0554ade08c9bebedb7219ddbe796d62feda884739f691`,
+Dynamic Sizing 90%
+`beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1`,
+Pyramiding `4e69add84dec7aac26952231ef90b24578df29310d86b60cc2b7ba977877a1c4`,
+and Regime Allocation
+`da9ba35f5f30d6515770b8d48fe92c4cd0a088f792a4151848fdd4262d3ca9dd`.
+
+**FOCUSED VERIFICATION:** 117/117 directly affected configuration, replay,
+provider-ID, causal-split, accelerator, accounting, and restart tests passed.
+No broad suite or parameter matrix ran. Two pre-existing Regime Allocation
+source-text assertions against the unchanged legacy strict-reference file are
+not acceptance tests for this integration; the actual causal VIX, fixed
+weights, deterministic decision, and checkpoint contracts passed.
+
+**NEXT EXACT ACTION:** Explicitly stage/audit the intended source,
+configuration, focused test, and continuity files; commit/push to `main` and
+verify local/remote equality; then launch one isolated resumable aggressive
+Top-100 replay and verify its first checksummed advancing checkpoint. Preserve
+the active baseline replay and live paper. Final historical result remains
+pending.

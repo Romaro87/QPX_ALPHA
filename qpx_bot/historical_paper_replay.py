@@ -27,6 +27,8 @@ from qpx_bot.paper_state import read_checksummed_state, write_checksummed_state
 
 CONFIG_SCHEMA_VERSION = 1
 CONFIG_SEMANTIC_VERSION = "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CONFIG_V1"
+ACCELERATED_CONFIG_SCHEMA_VERSION = 2
+ACCELERATED_CONFIG_SEMANTIC_VERSION = "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CONFIG_V2"
 CHECKPOINT_SCHEMA_VERSION = 1
 CHECKPOINT_SEMANTIC_VERSION = "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CHECKPOINT_V1"
 
@@ -46,6 +48,10 @@ _ROOT_FIELDS = {
     "schema_version", "semantic_version", "experiment_id", "market_data",
     "execution", "income", "volatility", "universe", "starting_account",
     "contributions", "strategy", "capacity_arbitration", "runtime", "dataset", "authority",
+}
+_ACCELERATOR_FIELDS = {
+    "enabled", "configuration_path", "configuration_fingerprint",
+    "source_file_sha256",
 }
 _RECONSTITUTED_FIELDS = {
     "eligibility_source", "selection_rule", "membership_count", "lookback",
@@ -150,10 +156,25 @@ class ReplayExperimentConfiguration:
 def replay_configuration_from_mapping(
     raw: Mapping[str, Any],
 ) -> ReplayExperimentConfiguration:
-    root = _object(raw, "Replay configuration", _ROOT_FIELDS)
-    if type(root["schema_version"]) is not int or root["schema_version"] != CONFIG_SCHEMA_VERSION:
+    if not isinstance(raw, Mapping):
+        raise ReplayConfigurationError("Replay configuration must be a JSON object.")
+    schema_version = raw.get("schema_version")
+    semantic_version = raw.get("semantic_version")
+    accelerated = (
+        schema_version == ACCELERATED_CONFIG_SCHEMA_VERSION
+        and semantic_version == ACCELERATED_CONFIG_SEMANTIC_VERSION
+    )
+    fields = _ROOT_FIELDS | ({"accelerators"} if accelerated else set())
+    root = _object(raw, "Replay configuration", fields)
+    if type(root["schema_version"]) is not int or root["schema_version"] not in {
+        CONFIG_SCHEMA_VERSION, ACCELERATED_CONFIG_SCHEMA_VERSION,
+    }:
         raise ReplayConfigurationError("Unsupported replay configuration schema.")
-    if root["semantic_version"] != CONFIG_SEMANTIC_VERSION:
+    expected_semantic = (
+        ACCELERATED_CONFIG_SEMANTIC_VERSION if accelerated
+        else CONFIG_SEMANTIC_VERSION
+    )
+    if root["semantic_version"] != expected_semantic:
         raise ReplayConfigurationError("Unsupported replay configuration semantics.")
     _identifier(root["experiment_id"], "experiment_id")
 
@@ -250,6 +271,38 @@ def replay_configuration_from_mapping(
         arbitration["configuration_fingerprint"],
         "capacity_arbitration.configuration_fingerprint",
     )
+
+    if accelerated:
+        accelerators = _object(root["accelerators"], "accelerators", {
+            "profit_recycling", "dynamic_sizing", "pyramiding",
+            "regime_allocation",
+        })
+        for name in ("profit_recycling", "pyramiding", "regime_allocation"):
+            item = _object(
+                accelerators[name], f"accelerators.{name}", _ACCELERATOR_FIELDS,
+            )
+            if item["enabled"] is not True:
+                raise ReplayConfigurationError(f"accelerators.{name} must be enabled.")
+            _text(item["configuration_path"], f"accelerators.{name}.configuration_path")
+            _fingerprint(item["configuration_fingerprint"], f"accelerators.{name}.configuration_fingerprint")
+            _fingerprint(item["source_file_sha256"], f"accelerators.{name}.source_file_sha256")
+        dynamic = _object(
+            accelerators["dynamic_sizing"], "accelerators.dynamic_sizing",
+            _ACCELERATOR_FIELDS | {
+                "paired_caps_path", "paired_caps_file_sha256", "paired_cap",
+            },
+        )
+        if dynamic["enabled"] is not True or dynamic["paired_cap"] != "90":
+            raise ReplayConfigurationError(
+                "Accelerated replay requires the enabled governed 90% Dynamic Sizing pair."
+            )
+        _text(dynamic["configuration_path"], "accelerators.dynamic_sizing.configuration_path")
+        _text(dynamic["paired_caps_path"], "accelerators.dynamic_sizing.paired_caps_path")
+        for field in (
+            "configuration_fingerprint", "source_file_sha256",
+            "paired_caps_file_sha256",
+        ):
+            _fingerprint(dynamic[field], f"accelerators.dynamic_sizing.{field}")
 
     runtime = _object(root["runtime"], "runtime", {
         "causal_driver_version", "accounting_version", "execution_version",

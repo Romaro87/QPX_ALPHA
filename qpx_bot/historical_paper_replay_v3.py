@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 from bisect import bisect_left
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 import csv
 import gzip
 import json
@@ -92,6 +92,16 @@ def _vix_for(start: datetime, vix: Mapping[Any, float], days: list[Any]) -> floa
     index = bisect_left(days, start.date()) - 1
     day = days[index] if index >= 0 else None
     return vix[day] if day is not None and (start.date() - day).days <= 7 else None
+
+
+def _vix_observation_for(
+    start: datetime, vix: Mapping[Any, float], days: list[Any],
+) -> tuple[float | None, datetime | None]:
+    index = bisect_left(days, start.date()) - 1
+    day = days[index] if index >= 0 else None
+    if day is None or (start.date() - day).days > 7:
+        return None, None
+    return vix[day], datetime.combine(day, time(16, 0), tzinfo=start.tzinfo)
 
 
 def _inputs_from_indicators(
@@ -282,6 +292,11 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         "runtime": _sha256(ROOT / "qpx_bot/historical_paper_replay_runner.py"),
         "portfolio": _sha256(ROOT / "qpx_bot/portfolio.py"),
         "top100_evidence_builder": _sha256(ROOT / "qpx_bot/top100_split_evidence.py"),
+        "historical_replay_accelerators": _sha256(ROOT / "qpx_bot/historical_replay_accelerators.py"),
+        "dynamic_sizing": _sha256(ROOT / "qpx_bot/accelerators/dynamic_sizing.py"),
+        "profit_recycling": _sha256(ROOT / "qpx_bot/accelerators/profit_recycling.py"),
+        "pyramiding": _sha256(ROOT / "qpx_bot/accelerators/pyramiding.py"),
+        "regime_allocation": _sha256(ROOT / "qpx_bot/accelerators/regime_allocation.py"),
     })
     run_identity = {
         "configuration_fingerprint": config.fingerprint,
@@ -303,6 +318,10 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         "split_accounting_semantic_version": universe.get(
             "split_accounting_semantic_version", "SPLIT_EXCLUDED"
         ),
+        "accelerator_bundle_fingerprint": (
+            _fingerprint(config.payload["accelerators"])
+            if config.payload.get("accelerators") is not None else None
+        ),
     }
     run_id = _fingerprint(run_identity)
     run_dir = dataset / "historical_paper_replay_v3" / run_id; run_dir.mkdir(parents=True, exist_ok=True)
@@ -322,6 +341,7 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         "split_event_count": universe.get("split_event_count", 0),
         "fractional_share_policy": universe.get("fractional_share_policy"),
         "entry_share_policy": universe.get("entry_share_policy", "INTEGER_ONLY"),
+        "accelerators": config.payload.get("accelerators"),
         "configuration": config.as_dict(), "authority": config.payload["authority"],
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
     })
@@ -364,7 +384,11 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
             symbol,o,h,l,c,volume,raw=row; inputs=CandidateV1CausalInputs(**json.loads(raw)) if raw else None
             evidence.append(CompletedBarEvidence(symbol,asset_id,IntradayBar(start,o,h,l,c,volume),start+timedelta(minutes=15),inputs))
         completed=start+timedelta(minutes=15)
-        runtime.process_boundary(CompletedBoundary(_fingerprint({"kind":"COMPLETED_15M","time":completed.isoformat()}),completed,tuple(evidence),_vix_for(start,vix,days)),dividends)
+        prior_vix, prior_vix_at = _vix_observation_for(start, vix, days)
+        runtime.process_boundary(CompletedBoundary(
+            _fingerprint({"kind":"COMPLETED_15M","time":completed.isoformat()}),
+            completed, tuple(evidence), prior_vix, prior_vix_at,
+        ),dividends)
         _write_runtime_state(run_dir,run_id,config,runtime)
     state = runtime.snapshot(); marks=state["last_marks"]; positions=state["portfolio"]["positions"]
     swing_value=sum(float(marks.get(asset_id,value["entry_price"]))*value["shares"] for asset_id,value in positions.items())
@@ -396,6 +420,65 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         "applied_split_count":len(state.get("applied_splits", ())),
         "applied_splits":state.get("applied_splits", []),
         "authority":config.payload["authority"],"completed_at_utc":datetime.now(timezone.utc).isoformat()}
+    if state.get("accelerators") is not None:
+        accelerator_state = state["accelerators"]
+        profit = accelerator_state["profit_recycling"]
+        ledger = profit["ledger"]
+        dynamic = accelerator_state["dynamic_sizing"]
+        pyramid = accelerator_state["pyramiding"]
+        regime = accelerator_state["regime_allocation"]
+        report["accelerators"] = {
+            "configuration": config.payload["accelerators"],
+            "configuration_fingerprints": accelerator_state["configuration_fingerprints"],
+            "profit_recycling": {
+                "decision_count": len(profit["decisions"]),
+                "decision_ids": [item["decision_id"] for item in profit["decisions"]],
+                "dollars_made_available": sum(
+                    float(item["amount_proposed_for_recycling"])
+                    for item in profit["decisions"]
+                ),
+                "dollars_deployed": ledger["already_recycled_amount"],
+                "unused_recycled_dollars": ledger["recycled_profit_balance"],
+                "released_at_sleeve_rebalance": ledger["released_at_sleeve_rebalance"],
+                "ledger": ledger,
+            },
+            "dynamic_sizing": {
+                "decision_count": len(dynamic["decisions"]),
+                "opportunity_count": dynamic["opportunities"],
+                "increases": 0, "reductions": dynamic["reductions"],
+                "unchanged": dynamic["unchanged"], "blocked": dynamic["blocked"],
+                "decision_ids": [item["decision_id"] for item in dynamic["decisions"]],
+                "multiplier_counts": {
+                    str(multiplier): sum(
+                        item["sizing_multiplier"] == multiplier
+                        for item in dynamic["decisions"]
+                    )
+                    for multiplier in (1.0, 0.85, 0.7, 0.5)
+                },
+            },
+            "pyramiding": {
+                "decision_count": len(pyramid["decisions"]),
+                "opportunity_count": pyramid["opportunities"],
+                "addition_count": pyramid["additions"],
+                "shares_added": pyramid["shares_added"],
+                "notional_added": pyramid["notional_added"],
+                "affected_provider_asset_ids": sorted({
+                    item["symbol"] for item in pyramid["decisions"]
+                    if item["accepted_shares"] > 0
+                }),
+                "accepted_additions": [
+                    item for item in pyramid["decisions"]
+                    if item["accepted_shares"] > 0
+                ],
+            },
+            "regime_allocation": {
+                "decision_count": len(regime["decisions"]),
+                "opportunity_count": regime["opportunities"],
+                "transition_count": regime["transitions"],
+                "decisions": regime["decisions"],
+            },
+            "observed": accelerator_state["observed"],
+        }
     report["experiment_report_fingerprint"] = _fingerprint(report)
     _write_evidence(run_dir / "final_report.json",report)
     _write_evidence(run_dir / "exit_status.json", {"run_id":run_id,"status":"COMPLETE","exit_code":0})

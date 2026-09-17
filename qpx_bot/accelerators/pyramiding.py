@@ -20,14 +20,14 @@ class PyramidingConfig:
 class PyramidingContext:
  decision_timestamp:datetime; event_id:str; event_sequence:int; symbol:str
  current_price:float; execution_price:float; current_atr:float|None; original_entry_price:float
- original_entry_shares:int; current_shares:int; additions_count:int
+ original_entry_shares:float; current_shares:float; additions_count:int
  pyramid_anchor_price:float; decision_time_total_equity:float; available_cash:float
  active_portfolio_risk:float; maximum_active_portfolio_risk:float
  current_position_active_risk:float; hard_notional_cap:float
  def __post_init__(self):
   if self.decision_timestamp.tzinfo is None: raise ValueError("Decision timestamp must be timezone-aware.")
   if not self.symbol.strip() or len(self.event_id)!=64 or self.event_sequence<1: raise ValueError("Causal event identity is required.")
-  if type(self.original_entry_shares) is not int or self.original_entry_shares<1 or type(self.current_shares) is not int or self.current_shares<1 or type(self.additions_count) is not int or self.additions_count<0: raise ValueError("Share/addition state is invalid.")
+  if type(self.original_entry_shares) not in (int,float) or not math.isfinite(self.original_entry_shares) or self.original_entry_shares<=0 or type(self.current_shares) not in (int,float) or not math.isfinite(self.current_shares) or self.current_shares<=0 or type(self.additions_count) is not int or self.additions_count<0: raise ValueError("Share/addition state is invalid.")
   for name in ("current_price","execution_price","original_entry_price","pyramid_anchor_price","decision_time_total_equity","available_cash","active_portfolio_risk","maximum_active_portfolio_risk","current_position_active_risk","hard_notional_cap"):
    value=getattr(self,name)
    if type(value) not in (int,float) or not math.isfinite(value) or value<0: raise ValueError(f"{name} must be a non-negative scalar.")
@@ -37,7 +37,7 @@ class PyramidingContext:
 class PyramidingDecision:
  accelerator_name:str; accelerator_version:str; configuration_version:str; configuration_fingerprint:str; enabled:bool
  decision_timestamp:datetime; event_id:str; event_sequence:int; symbol:str; current_price:float; execution_price:float; atr_used:float|None
- original_entry_price:float; original_entry_shares:int; current_shares:int; additions_before:int; anchor_before:float
+ original_entry_price:float; original_entry_shares:float; current_shares:float; additions_before:int; anchor_before:float
  target_shares:int; accepted_shares:int; accepted_notional:float; reason_codes:tuple[str,...]; decision_id:str
  @property
  def accepted(self): return self.accepted_shares>0
@@ -52,7 +52,7 @@ class PyramidingV1:
   elif c.current_price<=c.original_entry_price: accepted=0; reasons=["POSITION_NOT_WINNING"]
   elif c.current_price+1e-12 < c.pyramid_anchor_price+c.current_atr*cfg.trigger_atr_multiple: accepted=0; reasons=["TRIGGER_NOT_REACHED"]
   else:
-   cap_shares=max(0,math.floor(c.decision_time_total_equity*c.hard_notional_cap/c.execution_price)-c.current_shares)
+   cap_shares=max(0,math.floor(c.decision_time_total_equity*c.hard_notional_cap/c.execution_price-c.current_shares))
    cash_shares=max(0,math.floor(c.available_cash/c.execution_price))
    risk_per_share=c.current_position_active_risk/c.current_shares
    risk_shares=(max(0,math.floor((c.maximum_active_portfolio_risk-c.active_portfolio_risk)/risk_per_share)) if risk_per_share>0 else target)
