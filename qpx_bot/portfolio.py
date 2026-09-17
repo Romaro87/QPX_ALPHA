@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+import math
 from typing import Mapping
 
 from qpx_bot.config import BotConfig
@@ -30,7 +31,9 @@ def reconcile_net_realized_tax_reserve_balances(
 @dataclass(slots=True)
 class Position:
     symbol: str
-    shares: int
+    # Entries remain integer-sized.  A governed corporate action may later
+    # create an exact fractional share quantity without a synthetic cash-out.
+    shares: float
     entry_date: date
     entry_price: float
     entry_atr: float
@@ -63,7 +66,7 @@ class ClosedTrade:
     symbol: str
     entry_date: date
     exit_date: date
-    shares: int
+    shares: float
     entry_price: float
     exit_price: float
     pnl: float
@@ -108,6 +111,58 @@ class Portfolio:
             position.active_risk
             for position in self.positions.values()
         )
+
+    def apply_split(
+        self, *, symbol: str, share_multiplier: float,
+    ) -> dict[str, float | str]:
+        """Apply one value-preserving corporate-action split to an open position."""
+        normalized_symbol = self._identity_key(symbol)
+        if (
+            isinstance(share_multiplier, bool)
+            or not isinstance(share_multiplier, (int, float))
+            or not math.isfinite(float(share_multiplier))
+            or float(share_multiplier) <= 0
+        ):
+            raise ValueError("Split share multiplier must be finite and positive.")
+        position = self.positions[normalized_symbol]
+        multiplier = float(share_multiplier)
+        inverse = 1.0 / multiplier
+        before_value = position.shares * position.entry_price
+        before_risk = position.active_risk
+        before = {
+            "shares": position.shares,
+            "entry_price": position.entry_price,
+            "entry_atr": position.entry_atr,
+            "stop_price": position.stop_price,
+            "target_price": position.target_price,
+            "highest_price": position.highest_price,
+            "cost_basis": before_value,
+            "dollar_risk": before_risk,
+        }
+        position.shares *= multiplier
+        position.entry_price *= inverse
+        position.entry_atr *= inverse
+        position.stop_price *= inverse
+        position.target_price *= inverse
+        position.highest_price *= inverse
+        after_value = position.shares * position.entry_price
+        after_risk = position.active_risk
+        if not math.isclose(before_value, after_value, rel_tol=1e-12, abs_tol=1e-9):
+            raise RuntimeError("Split transformation changed position cost basis.")
+        if not math.isclose(before_risk, after_risk, rel_tol=1e-12, abs_tol=1e-9):
+            raise RuntimeError("Split transformation changed position dollar risk.")
+        return {
+            "provider_asset_id": normalized_symbol,
+            **{f"pre_{key}": value for key, value in before.items()},
+            "post_shares": position.shares,
+            "post_entry_price": position.entry_price,
+            "post_entry_atr": position.entry_atr,
+            "post_stop_price": position.stop_price,
+            "post_target_price": position.target_price,
+            "post_highest_price": position.highest_price,
+            "post_cost_basis": after_value,
+            "post_dollar_risk": after_risk,
+        }
 
     def open_position(
         self,

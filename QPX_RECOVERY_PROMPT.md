@@ -1004,3 +1004,64 @@ simulated-only with the 90% cap and no broker-order authority.
 local/remote identity, safely restart only the supervised active IEX paper
 target without resetting its account, then launch and verify a distinct V3
 replay from the beginning.
+
+## September 17 frozen Top-100 causal-split replay implementation
+
+**USER REQUIREMENT / AUTHORITY:** Build a provider-asset-ID-bound form of the
+existing frozen Top-100 selection and include all 100 swing members, including
+split-affected assets. The user authorized a narrow evidence repair for missing
+split ratios/convention and provider identity only, with no price-bar
+reacquisition or universe reranking. Corporate actions may create fractional
+shares; entries remain integer-share transactions and no cash-in-lieu is
+fabricated.
+
+**VERIFIED REPO BASELINE:** Work began on `main` with local `HEAD` and
+`origin/main` both
+`05f6fc7397ff6be4743194140a2fbb91e1567e14`. Existing untracked `runtime/`
+content and the malformed `ystemctl --user show ...` path are unrelated and
+must remain unstaged. The existing full-universe replay and all live-paper
+services were not changed or signaled.
+
+**EVIDENCE REPAIR:** The frozen selection fingerprint remains
+`5e271e4a9e0d4a20b6f4d0cecc08e8bf9efe1d2123a64832d09ba1c1eb9ffd23`.
+The derived manifest binds 100 distinct swing provider asset IDs plus a separate
+QDTE income identity; derived universe fingerprint is
+`1840a7a2cc2048c844a104b8434e8cec72c4244bc2a7ed914c9d500be93d185a`.
+Manifest identity is
+`1bee0e7b1bfe2f654b5ef4c91ba798dc04d994c4bb704e8ecd8aaa70c122cd05`
+and file SHA-256 is
+`5dbefdc0753f869ea86293ea7bdb45a927f3a48e9a90cff6174db80f2aae1249`.
+The bundle records 36 explicit provider split events (31 reverse, five
+forward), zero price-bar requests, causal OPEN application, and checksummed
+provider/identity provenance. BBBY is resolved by governed name-change lineage
+plus 6,112 exactly matching historical bars.
+
+**IMPLEMENTED CONTRACT:** At each split-effective 09:30 OPEN, the historical
+runtime transforms exact-ID positions, pending-entry price/ATR inputs, and last
+marks before exits, settlements, rebalance, gap checks, sizing, fills, marking,
+or risk calculation. Shares scale by `new_rate / old_rate`; per-share prices
+scale inversely; cost basis, economic value, dollar risk, cash, reserve, and
+realized P&L reconcile. Accumulated indicator history is adjusted only when the
+event becomes effective, so no future split changes an earlier decision.
+Applied event IDs, evidence fingerprints, and pre/post reconciliation persist
+in checksummed checkpoints and prevent double application after restart.
+
+**CONFIGURATION:** Replay configuration fingerprint is
+`3a454d3e49453393885c462204527f3d2d58d1286c3ee7bcda70289ec656c6a6`.
+It preserves `$1,443.34`, volume-confirmation arbitration fingerprint
+`b9a5008ec61f919a4c9da9c4d8afe8fe20c36c1e10fca8690c880ade23b6e89b`,
+90% notional cap, momentum persistence 52, VIX exclusion `20 < VIX < 25`,
+maximum VIX 32, maximum six positions, and disabled profit recycling, dynamic
+sizing, pyramiding, and regime allocation. Training, promotion, live, broker,
+and capital authority remain `NONE`.
+
+**FOCUSED VERIFICATION:** `python3 -m unittest -v
+tests.test_top100_causal_splits tests.test_historical_paper_replay_runner
+tests.test_reservoir_replay_universe tests.test_portfolio_engine` passed 31/31.
+Changed Python compilation and `git diff --check` passed. No broad suite ran.
+
+**NEXT EXACT ACTION:** Explicitly stage and inspect only the intended source,
+manifest/config, focused test, recovery prompt, decision ledger, and September
+17 journal; commit/push accepted work to `main`; verify local/remote equality;
+then launch one isolated resumable Top-100 service and verify its first
+checksum-valid advancing checkpoint. Final ten-year result remains pending.

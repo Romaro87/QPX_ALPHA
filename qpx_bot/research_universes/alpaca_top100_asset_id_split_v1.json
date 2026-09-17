@@ -1,0 +1,1544 @@
+{
+  "corporate_action_ratio_artifact_fingerprint": "29f561a200560178678b10d88da9382ef0250a24897a4dc21d039132d9c24c25",
+  "dataset_root_identity": "research_data/qpx_ml_historical_v1",
+  "dataset_snapshot_fingerprint": "bcace64bb55c68de66c256c5b9ed443e6384f80904cff7debaefeb862792d595",
+  "dataset_state_checksum": "e2b3503347b8bfd5dc81b1726278d103229e9fcbe87ac2bc69465fab460915fc",
+  "dataset_state_sha256": "e2b3503347b8bfd5dc81b1726278d103229e9fcbe87ac2bc69465fab460915fc",
+  "derived_asset_id_universe_fingerprint": "1840a7a2cc2048c844a104b8434e8cec72c4244bc2a7ed914c9d500be93d185a",
+  "derived_identity_resolution_fingerprint": "da9275ee03b53cc506ca82499ac43cda9ee363cf5c604111d099baa769760e4c",
+  "entry_share_policy": "INTEGER_ONLY",
+  "fractional_share_policy": "CORPORATE_ACTIONS_ONLY_EXACT_NO_CASH_IN_LIEU",
+  "frozen_selection_fingerprint": "5e271e4a9e0d4a20b6f4d0cecc08e8bf9efe1d2123a64832d09ba1c1eb9ffd23",
+  "frozen_selection_reference": "qpx_bot/research_universes/alpaca_top100_qdte1300_thursday_v1.json",
+  "frozen_source_progress_sha256": "aa34986c0fc679325ced973e103d99bd50c3db6ed0f673d0de232be059315874",
+  "frozen_source_selection_fingerprint": "b88a51cf6133c8f31af7e9bfedb36cb6e3313b52f899daa4bb197d4d84dbd740",
+  "identity_requests": [
+    {
+      "label": "BBBY",
+      "lineage_event_ids": [
+        "09c15e8e-7673-45f1-9320-44b72863b552",
+        "154de221-c4a5-42c7-a319-4083fc4a4a97",
+        "1a62a634-2faf-4b10-b69a-abfb186ec6e1",
+        "1c6a0556-4fe3-4f29-96ce-d83a346df16d",
+        "27925c06-683d-4e6e-8468-ead512755bff",
+        "2c691bde-c40c-48cd-bc9e-441eb62e5ef0",
+        "66d93cab-f9ea-48f6-9b97-0c1e0d4fb0d3",
+        "6897e3b8-61a9-4097-a66a-ae0818171bff",
+        "6968e0fb-3f17-4ec1-99fa-2772db5a25d3",
+        "76b7429f-77bb-4fe2-a0e2-4ec4babe87be",
+        "92c08fbe-7f99-4ef1-b9e7-437d071a2ac9",
+        "bfd38d6e-fde6-4bc2-aa2b-e95ee6b9a154",
+        "c699fe98-71b1-4845-b29a-20867e2ad7e7",
+        "c7a55326-12c3-4cbd-adee-372576a19d4f",
+        "d2795153-d0d2-4fc3-a5ff-6c8c13950254",
+        "db17c4c1-0014-41c2-881c-268cb1a760c6",
+        "e1baa327-bb98-4231-9194-1205b2b74ed9"
+      ],
+      "lineage_symbols": [
+        "BBBY",
+        "BYON",
+        "NXH",
+        "OSTK"
+      ],
+      "provider": "alpaca",
+      "provider_asset_id": "96a49f53-6ed9-4900-b92a-44814b21cf92",
+      "request_evidence_fingerprint": "208b69a39d6e4fd2429de8b6aed3762dd66cfd93e7bfced08f183aee88ca6dd1"
+    },
+    {
+      "candidate_provider_asset_ids": [
+        "331fef59-d93c-4836-af6d-253093360530",
+        "644a3939-7c9d-495e-8fcd-2399ca5f1507"
+      ],
+      "endpoint": "https://paper-api.alpaca.markets/v2/assets/{symbol}",
+      "provider": "alpaca",
+      "provider_fact": {
+        "exchange": "NASDAQ",
+        "name": "EchoStar Corporation Common Stock",
+        "provider_asset_id": "644a3939-7c9d-495e-8fcd-2399ca5f1507",
+        "provider_response_fingerprint": "6b443acbe308acb026bac06c5fc26d6847cd3889f7bc89e684ece93f43db9a74",
+        "status": "active",
+        "symbol": "ECHO"
+      },
+      "request_evidence_fingerprint": "68876f00a23703f7ae47beb226a0173791e487c45c4a7510e89845c15817b0cd",
+      "selected_provider_asset_id": "644a3939-7c9d-495e-8fcd-2399ca5f1507",
+      "symbol": "ECHO"
+    },
+    {
+      "candidate_provider_asset_ids": [
+        "1b7fd307-e704-4f3d-b1ba-c5bcd883d04d",
+        "30fb01a4-8ef5-45c8-86f5-8006a3cb65ca"
+      ],
+      "endpoint": "https://paper-api.alpaca.markets/v2/assets/{symbol}",
+      "provider": "alpaca",
+      "provider_fact": {
+        "exchange": "NASDAQ",
+        "name": "Evolv Technologies Holdings, Inc. Class A Common Stock",
+        "provider_asset_id": "1b7fd307-e704-4f3d-b1ba-c5bcd883d04d",
+        "provider_response_fingerprint": "1053d77c32d3a83245887db354cd5da0ffdf4ee8888f3299a05bb2ca209310af",
+        "status": "active",
+        "symbol": "EVLV"
+      },
+      "request_evidence_fingerprint": "f0ff9d59116a07ac6b92dbe208d00ae36e33d0f3fb064bdfeaa3f2419befdd6d",
+      "selected_provider_asset_id": "1b7fd307-e704-4f3d-b1ba-c5bcd883d04d",
+      "symbol": "EVLV"
+    },
+    {
+      "candidate_provider_asset_ids": [
+        "7c02602a-afe0-4a02-81c4-f39ab5e15cfe",
+        "9ae18219-5ecf-4185-ae4d-5fc52a44bed8"
+      ],
+      "endpoint": "https://paper-api.alpaca.markets/v2/assets/{symbol}",
+      "provider": "alpaca",
+      "provider_fact": {
+        "exchange": "NASDAQ",
+        "name": "HIVE Digital Technologies Ltd. Common Shares",
+        "provider_asset_id": "7c02602a-afe0-4a02-81c4-f39ab5e15cfe",
+        "provider_response_fingerprint": "9d87cfa2750f549b967ae8a5d62f46e9c71fb94d7c3989db3b9d8de6e28e31dd",
+        "status": "active",
+        "symbol": "HIVE"
+      },
+      "request_evidence_fingerprint": "8e96c09e3375bd57f34772088274f86c72e3596ae61af42cedd56acd976e637e",
+      "selected_provider_asset_id": "7c02602a-afe0-4a02-81c4-f39ab5e15cfe",
+      "symbol": "HIVE"
+    },
+    {
+      "candidate_provider_asset_ids": [
+        "badc472d-332e-4300-8639-e50641afe2fe",
+        "f934a34f-35db-4043-92a6-bb970087f142"
+      ],
+      "endpoint": "https://paper-api.alpaca.markets/v2/assets/{symbol}",
+      "provider": "alpaca",
+      "provider_fact": {
+        "exchange": "NASDAQ",
+        "name": "Prime Medicine, Inc. Common Stock",
+        "provider_asset_id": "badc472d-332e-4300-8639-e50641afe2fe",
+        "provider_response_fingerprint": "7b45de48708ac0d11a2a42f083cabf5306e216571ee2bfdfc3b8f71644bb9bc1",
+        "status": "active",
+        "symbol": "PRME"
+      },
+      "request_evidence_fingerprint": "67a6dc9dd67daf143aa20e2471e495254f375c5f4e9e7e1da07a1681bdf6b34d",
+      "selected_provider_asset_id": "badc472d-332e-4300-8639-e50641afe2fe",
+      "symbol": "PRME"
+    },
+    {
+      "candidate_provider_asset_ids": [
+        "b4344ff5-3ab3-4c75-b7a0-be67746efc97",
+        "e27d54dd-4496-4164-9b10-9829558fe201"
+      ],
+      "endpoint": "https://paper-api.alpaca.markets/v2/assets/{symbol}",
+      "provider": "alpaca",
+      "provider_fact": {
+        "exchange": "NASDAQ",
+        "name": "Vistance Networks, Inc. Common Stock",
+        "provider_asset_id": "b4344ff5-3ab3-4c75-b7a0-be67746efc97",
+        "provider_response_fingerprint": "9320df5dd20a68be5ac806148055bd6143a6e757744589153891a35b191210c3",
+        "status": "active",
+        "symbol": "VISN"
+      },
+      "request_evidence_fingerprint": "0de865ca228558a6ef1edb2695ecff7eb102bdff03dc7dbe547a98585fb1c457",
+      "selected_provider_asset_id": "b4344ff5-3ab3-4c75-b7a0-be67746efc97",
+      "symbol": "VISN"
+    }
+  ],
+  "income_asset": {
+    "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+    "member_fingerprint": "677470ee5da5a08fb83eb4eae92f527bd922d37937601040533dcde54b9e288c",
+    "provider_asset_id": "d59e5b24-6b96-4b40-994f-3d1ccf4b16af",
+    "symbol_label": "QDTE"
+  },
+  "manifest_fingerprint": "1bee0e7b1bfe2f654b5ef4c91ba798dc04d994c4bb704e8ecd8aaa70c122cd05",
+  "members": [
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "88564e2cb1a5e6bb33d6d337de38dc502b2ef0e96c6cab931a81129b8053ccb8",
+      "provider_asset_id": "48e88baa-62a8-42b3-86ff-85546ff8ca75",
+      "rank": 1,
+      "symbol_label": "TSLL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "fd9499f45dda2ae95fddddb3ba86c53fd1e94d680729fbafdc8657c666ab3f22",
+      "provider_asset_id": "cf20edbf-77fb-4adf-a7b3-1a463396b094",
+      "rank": 2,
+      "symbol_label": "TSLT"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "3c09014f102550a53ce40056668b10e51d62e52d2b5faffed0918b8646a7bdd5",
+      "provider_asset_id": "8dd17b3b-bce0-4e59-88e4-375700b0a197",
+      "rank": 3,
+      "symbol_label": "TPET"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "c287e1d000a3312d331c0be1ca30a12d1190c4f8001619ce51e3d7aae0f69ceb",
+      "provider_asset_id": "ae3b08dc-0bfc-44e0-91a2-6703982b9a22",
+      "rank": 4,
+      "symbol_label": "SLS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "eee1c60e1ca676ed79912db056013cb6fa899153ef13d918606219121e60dd0d",
+      "provider_asset_id": "1ef18995-5094-4f62-a5c5-e00168611152",
+      "rank": 5,
+      "symbol_label": "MU"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "3f3a1e18c424433664b10c79bfdf48f403f68ac5d5a8d8ffb88dc19d49318c82",
+      "provider_asset_id": "548bb94e-da40-4dba-9b1f-5770d31d66f1",
+      "rank": 6,
+      "symbol_label": "ASTS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ec96c6fd870e4a9b9b65c07794805d5656d45ce41d9b38971ca58f5d9ad48c84",
+      "provider_asset_id": "1320b143-2d2c-41ae-8cb1-1577fd692d00",
+      "rank": 7,
+      "symbol_label": "JMIA"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "d46ba6e09d405b46877abc5d60f6a49c06b4647550137769478e2122db36cc80",
+      "provider_asset_id": "9eae922d-8d67-4c40-b6ea-faca9b092b89",
+      "rank": 8,
+      "symbol_label": "GME"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "4c22f2b01ab15a9363acb1eff6320c6cdd5b126c742b0a5215affed222906ba6",
+      "provider_asset_id": "8aeca3f2-e123-4857-918b-1785a683b430",
+      "rank": 9,
+      "symbol_label": "SOFI"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "d7ff68b5f7a7c2718ede6cd07c4492359c5481e9f9d5a2f78e191c28200cc25e",
+      "provider_asset_id": "f703cad8-f944-4cc9-8cc1-9d1c6cc8203d",
+      "rank": 10,
+      "symbol_label": "SEDG"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "198b4df4be36526b7fb31673711382c14dd26f7dce8670ed3af7b6cc53853570",
+      "provider_asset_id": "5b8dec9e-e5c5-4f2a-8efd-1c6a7c7c8aa4",
+      "rank": 11,
+      "symbol_label": "NXE"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "c9b9a3a12ee2a955483c8580fc2e2bd0c9a1b558344e8287439b8e6fbb43ddff",
+      "provider_asset_id": "a2cb3c2d-4965-4c35-9004-e591a718d67c",
+      "rank": 12,
+      "symbol_label": "OTLK"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "71155926a468b0ed0d4161254e6859e3dec433287a5d5101ee18397184ee1f93",
+      "provider_asset_id": "85c35b15-daed-4b8a-8d9d-3840fd338040",
+      "rank": 13,
+      "symbol_label": "KTOS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "758e0a81401e66af521969d7e5f72cede95531f4091f0ce90d1b8da5d73f8b95",
+      "provider_asset_id": "c1f64fbb-7768-4402-a72a-f1d20b44fd2b",
+      "rank": 14,
+      "symbol_label": "REPL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "008aaa9cf09487d151d734cf8f07d81993d9a0977e358969da140ef5855b6cf9",
+      "provider_asset_id": "057e0c63-54b4-419d-b46a-69051a55d359",
+      "rank": 15,
+      "symbol_label": "CLOV"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "6ad29e60bd2c2ba794aa9760d6616eec64faa4c2896aa2082beea5292d3b9268",
+      "provider_asset_id": "f43e07f1-e658-484b-87a8-5c5aee3c7e2b",
+      "rank": 16,
+      "symbol_label": "TSLQ"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "bc499ab9e8eeb73919eb18f7283540413e3a59f3882b6564b036d8f44ffc627b",
+      "provider_asset_id": "e2646200-493e-4a35-ac01-923390948eff",
+      "rank": 17,
+      "symbol_label": "PENG"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "199cca31d20e0d672047be946b2634135ad093223c0519efba970aaf7c88d166",
+      "provider_asset_id": "43f3130e-3556-40e2-88fc-a0b854cd99d4",
+      "rank": 18,
+      "symbol_label": "TSLZ"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "867f8a22f67cb906d234d3bd634a484593d4a6096f5683b443fcd8b52946e061",
+      "provider_asset_id": "b46a6a71-7b7b-4cd1-a70a-163125cd2dc7",
+      "rank": 19,
+      "symbol_label": "BE"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ce22e9a39f660634211381d80d9c6da19cf64d5069132a2eb2c1ef0906124246",
+      "provider_asset_id": "2652df43-e5bd-4504-80f2-4d4d672090bd",
+      "rank": 20,
+      "symbol_label": "ABCL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "0dacf4291e3496fc6edf4a475ac68779d4dad63a3661b2061748805656f4b75a",
+      "provider_asset_id": "80e04a93-e1a8-4503-ab61-2ef1992650b4",
+      "rank": 21,
+      "symbol_label": "PLTR"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "54de007c7043d96010483bfc058e142e37d660ec4c2e2687ec575734523c6e9b",
+      "provider_asset_id": "8712d117-2751-4642-9d69-66c0b6a0e780",
+      "rank": 22,
+      "symbol_label": "AFRM"
+    },
+    {
+      "historical_overlap": {
+        "common_bar_count": 11810,
+        "first_common_bar": "2024-03-07T09:30:00-05:00",
+        "last_common_bar": "2025-12-31T15:45:00-05:00",
+        "mismatch_count": 0,
+        "overlap_fingerprint": "25fd723ac3a5957c9020c30b3c8da185888ecf6fed1f656287c3e016b61271fe",
+        "provider_asset_id": "b4344ff5-3ab3-4c75-b7a0-be67746efc97",
+        "source_path": "research_data/qpx_frozen_alpaca_top100_v1/bars/VISN_15M.csv",
+        "source_sha256": "3820ba3c4e1536ab3636f8a729a6db0f65f444b126caaed808cb523427d5b902"
+      },
+      "identity_resolution_method": "TARGETED_PROVIDER_SYMBOL_IDENTITY",
+      "member_fingerprint": "fcf223e86bcbc33ee16f67ad3a44cb9b2728704a286e74e979628afa7efcb6a6",
+      "provider_asset_id": "b4344ff5-3ab3-4c75-b7a0-be67746efc97",
+      "rank": 23,
+      "symbol_label": "VISN"
+    },
+    {
+      "historical_overlap": {
+        "common_bar_count": 11810,
+        "first_common_bar": "2024-03-07T09:30:00-05:00",
+        "last_common_bar": "2025-12-31T15:45:00-05:00",
+        "mismatch_count": 0,
+        "overlap_fingerprint": "c6567728b011794129ff7e3f1e7f7418376c98218370d8e77f4a94f0f1774177",
+        "provider_asset_id": "badc472d-332e-4300-8639-e50641afe2fe",
+        "source_path": "research_data/qpx_frozen_alpaca_top100_v1/bars/PRME_15M.csv",
+        "source_sha256": "a9a0f008b2205402f230140e41fa6d445b3cfadb1af0255571ec1a39a84ad0d4"
+      },
+      "identity_resolution_method": "TARGETED_PROVIDER_SYMBOL_IDENTITY",
+      "member_fingerprint": "8de61716122e95fa53a3fd8c41f094817d8310b5191ab476d0c8479ea4e4b786",
+      "provider_asset_id": "badc472d-332e-4300-8639-e50641afe2fe",
+      "rank": 24,
+      "symbol_label": "PRME"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "bec68ca7a11d088e0dbe865a73cea77a42c83a7fda0781c8ab2979c3d65168c0",
+      "provider_asset_id": "0cf42aa3-9816-4f1f-aa84-6482ac9303e9",
+      "rank": 25,
+      "symbol_label": "INTC"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "e658dd82ea92ccdf8cdeb0816f55c2b0d7b562f28810ce6dc7171e0945132092",
+      "provider_asset_id": "f1aaf4b2-9bc5-43ea-b56d-4341a680b775",
+      "rank": 26,
+      "symbol_label": "RIVN"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "d69a18fa92546a02e9d1ad59dcafd6a20723c4ef0decaebda93e064ad2c10dc5",
+      "provider_asset_id": "1905ea83-0c3a-4621-89a3-78a4bbb3dedb",
+      "rank": 27,
+      "symbol_label": "EOSE"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "720fa99dac140d314d06b18efe4b10f4ee4b2de676ce608cda8df07789e61dae",
+      "provider_asset_id": "83e024ee-c33a-4e57-ad3c-bc7c6d68c4f5",
+      "rank": 28,
+      "symbol_label": "YINN"
+    },
+    {
+      "historical_overlap": {
+        "common_bar_count": 6112,
+        "first_common_bar": "2025-08-29T09:30:00-04:00",
+        "last_common_bar": "2026-08-07T15:45:00-04:00",
+        "mismatch_count": 0,
+        "overlap_fingerprint": "0ff708497422d4603ba0f9895bf290d175391c41718091bfea5b75122c8c544d",
+        "provider_asset_id": "96a49f53-6ed9-4900-b92a-44814b21cf92",
+        "source_path": "research_data/qpx_alpaca_sip/shared/aggregate_15m/BBBY_15M.csv",
+        "source_sha256": "ddbc40852f2c4c48ec561a944da5e845f27788f8776c28ffdf65b3ea4ab436d2"
+      },
+      "identity_resolution_method": "GOVERNED_NAME_CHANGE_LINEAGE_AND_EXACT_BAR_OVERLAP",
+      "member_fingerprint": "a973a929f92e6cf50bc95b1969ed8d074482d7e3186a0c9a669caafd608e18a4",
+      "provider_asset_id": "96a49f53-6ed9-4900-b92a-44814b21cf92",
+      "rank": 29,
+      "symbol_label": "BBBY"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ee8d9949d5653cf4f731975302b339096085533d775cf2c6ba2773e8449458be",
+      "provider_asset_id": "6354637c-943f-4fad-a3b6-de93c160ea20",
+      "rank": 30,
+      "symbol_label": "WTI"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "83e96136a3d1f2a6704d9269388e6257a82f936a1d89e88329ea65c011d9aec7",
+      "provider_asset_id": "c8024b9e-d4cf-4afe-a8d9-2fa2d7ed73ac",
+      "rank": 31,
+      "symbol_label": "NIO"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "fffb39221cb1b0f003298680fc779e3ba123f8cf5a3770c93316095218528d00",
+      "provider_asset_id": "8ccae427-5dd0-45b3-b5fe-7ba5e422c766",
+      "rank": 32,
+      "symbol_label": "TSLA"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ce6f58c4636fc66f3e0607a3e1166bd83b2f97e11b5a9d1bbc16f2ecded3f6d7",
+      "provider_asset_id": "c437328c-1a90-4670-8fcc-ca287a9f3899",
+      "rank": 33,
+      "symbol_label": "TNYA"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "fdbc3ec3baaf518d88b6a0ae207a1bc63ef3162055f496f3cd588bb58e83e792",
+      "provider_asset_id": "c8f0b5ae-4c95-44ff-962d-70905b264364",
+      "rank": 34,
+      "symbol_label": "PRCH"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "4cae4fdad72913482983f322787219240d7b4ed3bfc296136076a5d93e0506d0",
+      "provider_asset_id": "5ffee5c0-b935-4290-a092-dfd04a6d0c33",
+      "rank": 35,
+      "symbol_label": "DDD"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "d3862cc06d5e07ee0c5585281104016aa93c2e2287e9319b673bbdd726300360",
+      "provider_asset_id": "82efe6a7-35a4-40fb-99ba-2b3eaebe3b71",
+      "rank": 36,
+      "symbol_label": "DFLI"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "86ecba4850ab2bddc0ec7aa6cd539180f39f32f0ec44f85c5bb7fec79984901d",
+      "provider_asset_id": "973a86ed-a446-4110-851c-12dc2aeb161b",
+      "rank": 37,
+      "symbol_label": "FROG"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "6b01f918f8a6e73af05f6ec7a342839718c45cb933ac3a6e4d76d0c9a52514db",
+      "provider_asset_id": "e3139d00-21c1-4e9a-a3ed-ff52fd2b3627",
+      "rank": 38,
+      "symbol_label": "BEKE"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "22175c3c31e3825f0ba6b3096042e17cc8475dd5920b10d70a81e5983c887010",
+      "provider_asset_id": "d2dea23e-532d-4b8d-b934-a66a191389d1",
+      "rank": 39,
+      "symbol_label": "CMPX"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "f456e63010df6c0b6eb29961c55d41b5f8247efceebd1c7b6991701cf8b86337",
+      "provider_asset_id": "90771657-de50-427a-9042-6b257dae4b7d",
+      "rank": 40,
+      "symbol_label": "ALB"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "d16fc8da724ddcb0aee1439e4e83adc169f8e3c81780fb22842c28951cb853c7",
+      "provider_asset_id": "7137e75b-df3b-48d3-9f1c-5750ae9dfb93",
+      "rank": 41,
+      "symbol_label": "ACHR"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "5de9a15fb4344662d444008fc18d3a0b3f8b19c57e38312b7648e418a9a88bcc",
+      "provider_asset_id": "559320e3-acf7-4952-ac95-bff7910c6a6a",
+      "rank": 42,
+      "symbol_label": "PLUG"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "5b9b2f1515da7af89a0d2eb859c7a357b04d1f74960025e975bfe06907854afb",
+      "provider_asset_id": "c246693f-d7ef-449d-b026-9962de4d5d79",
+      "rank": 43,
+      "symbol_label": "NVTS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "548391be904b9b7adff80cd74f4058c18f4d88674d88ebe89b1214fd72a10101",
+      "provider_asset_id": "b02df0cc-0a0a-4ecb-8e92-201b1044ea21",
+      "rank": 44,
+      "symbol_label": "MRNA"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "e55498269a989f5faa00ac8da5042a121b6cb04d058debd4349f3618ccc6a0f8",
+      "provider_asset_id": "bd8d7ea4-531a-4642-b081-7ec28be4d6d7",
+      "rank": 45,
+      "symbol_label": "ASPN"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "4f23fd712e321b2927e5a6582692fef0b291fc730beac5faa96ada9499f6d966",
+      "provider_asset_id": "26def137-a7d1-4433-a86b-54da8ebd2d2f",
+      "rank": 46,
+      "symbol_label": "GDS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "cfdd7e313e7dc8faca9d7eca1707a8c383afc308ffbd63f5bd16a82328e7c1f7",
+      "provider_asset_id": "9067979a-40eb-49ef-b8e9-c43fa950e9c7",
+      "rank": 47,
+      "symbol_label": "SOXL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "7eeaf81a1c66aeb3977d772cb73a1e495c521d12ef81879c85b15b3208fcea71",
+      "provider_asset_id": "9c028c5a-14bd-4d11-b388-5cca57ee9ef3",
+      "rank": 48,
+      "symbol_label": "BTE"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "f7f6e7df2ae3889d0a10a164d59231329f2d784392d84b0192d554e4462bfc4b",
+      "provider_asset_id": "dbee8159-25ae-40e5-9b77-f118b8f877e5",
+      "rank": 49,
+      "symbol_label": "OLMA"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "b58cdff97ceb1aee9b9590adebc3fbcca30ce5a00a2f177dd05092b4a28e392b",
+      "provider_asset_id": "8ece6223-c699-4d88-b50f-4170ed6fd724",
+      "rank": 50,
+      "symbol_label": "ADMA"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ff1d8cf89317c96ebde692f51f60b0c548b0e9aa58e4528047a00aa4b01d49ec",
+      "provider_asset_id": "f5ad39b0-6c22-4eee-8954-00f700e63dfe",
+      "rank": 51,
+      "symbol_label": "IAUX"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "TARGETED_PROVIDER_SYMBOL_IDENTITY",
+      "member_fingerprint": "64ee2ff51603b0a7ef6d83ecfba9cdaa1bb4085e3af5cc7e8a0fa60914e64e1a",
+      "provider_asset_id": "7c02602a-afe0-4a02-81c4-f39ab5e15cfe",
+      "rank": 52,
+      "symbol_label": "HIVE"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "05314e3232690e5d17da02c2b74ea4dec8aa40b8d3063b285cb1ba5de2b1daf7",
+      "provider_asset_id": "698a0297-816c-43aa-8bfe-e4f7161bc11b",
+      "rank": 53,
+      "symbol_label": "KC"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "TARGETED_PROVIDER_SYMBOL_IDENTITY",
+      "member_fingerprint": "9eb8e9cf1f6036d5c1f97553f1aa178561b9908b156835789f9be9c64a615f95",
+      "provider_asset_id": "644a3939-7c9d-495e-8fcd-2399ca5f1507",
+      "rank": 54,
+      "symbol_label": "ECHO"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "bd23d0f546ff91e8a905a1dbc153305fce70ab5e17734e7137b57d53ffe4b4f0",
+      "provider_asset_id": "2accd158-bbde-4bd3-a864-277effb54099",
+      "rank": 55,
+      "symbol_label": "IVVD"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "c2485834b254c824417275d19d1ee4918060c6accdf7d8d72ff7ab46f908b038",
+      "provider_asset_id": "f076dc69-51aa-4df8-a464-05d6de1d419c",
+      "rank": 56,
+      "symbol_label": "BILL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "93041df3357b750702dcd93e5a201bf27950aa0276e0ad680aea55e6b4dbfe0e",
+      "provider_asset_id": "0ad15daa-ecfa-48e5-85e7-e9f5af988904",
+      "rank": 57,
+      "symbol_label": "BIDU"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "cc8e901325b1ff2843a49d37cacccbde74d1733c2ae26bce207e82a081396b40",
+      "provider_asset_id": "2ab62679-5f7c-478f-a108-8ed90a6f4930",
+      "rank": 58,
+      "symbol_label": "SGML"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "0609f61cc5b83b583a57a57ef481f835a0f2bff5b992b78f2f6f7edbe499e824",
+      "provider_asset_id": "269521d8-50c6-42c4-aeb6-7dcd636d9dc9",
+      "rank": 59,
+      "symbol_label": "SGMT"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "a0fc26be3cf6946637b773772a58d8bfb9ed4788c841be2befd19bf087c562f1",
+      "provider_asset_id": "1e680aae-9076-40d8-ad28-9f770474040d",
+      "rank": 60,
+      "symbol_label": "VIST"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "9b8226f48d4565952eba317421c77715df33d87f52fcb27e13729dfdc2919f27",
+      "provider_asset_id": "f7318c71-fa9e-4144-b23d-546d77559e62",
+      "rank": 61,
+      "symbol_label": "VOR"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "673ce9e4b3c3ea147dc2dd0df22454df37752d404214911e2890a44d5b53b0d1",
+      "provider_asset_id": "bb802c69-9df2-42ab-9b9c-058698d7617b",
+      "rank": 62,
+      "symbol_label": "CCJ"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "cebf7dacab58b5e04bf8fbc6414705f27cee7b786ccb2c2a9305d566862d8231",
+      "provider_asset_id": "efe79176-979a-47a6-a50b-ddaae1a91086",
+      "rank": 63,
+      "symbol_label": "PSNL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "aab2e33e55d61a4c9f8f9393ac25b580233d2d70f2faf3947fbf72f44fecca5a",
+      "provider_asset_id": "83d777d6-71d0-411c-b892-27f81c35ec94",
+      "rank": 64,
+      "symbol_label": "CSIQ"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "1b7f3c78d4a1e6a22603f7fa20702f6ec0351b939ffed4c6027144fd07ce666f",
+      "provider_asset_id": "bbf4a401-f1f6-45d2-95c5-2fc2b3d016fb",
+      "rank": 65,
+      "symbol_label": "TNDM"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "305c03b513c6f90c4373da43f1f54299792462b626d381945fb792fc67b5520d",
+      "provider_asset_id": "c1ba40e4-61d5-4940-9d7a-eba2f8ad9e38",
+      "rank": 66,
+      "symbol_label": "CAPR"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "47d25b2549cea6f4f88bb88948a27d53a3763238a9831a90c2e0ad67488835c8",
+      "provider_asset_id": "8c71bd01-e130-4c85-90b5-abef440c2029",
+      "rank": 67,
+      "symbol_label": "LUMN"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "c5242427608d538de2260a6ef6cb0661d7033301d76ef9ac4582bc027d14d5fe",
+      "provider_asset_id": "a82512ba-35b1-4325-9900-02e20886c8b6",
+      "rank": 68,
+      "symbol_label": "GCTS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "e26a7c8b98c03efb22c65da60de9774a5ae26656aef7e0e06e1e46ea0bae8929",
+      "provider_asset_id": "a18e7c9f-7444-4cac-b5d2-44e7d4712e18",
+      "rank": 69,
+      "symbol_label": "ERAS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "5d0b45f222a19c133e9f998ca3e2ab9c0bf20e4884bf7d316802f485f40823b5",
+      "provider_asset_id": "16a4a26f-e78e-4e9f-8438-b6fe63aa861d",
+      "rank": 70,
+      "symbol_label": "AAOI"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "32ce86f7c9209850789c1e113fdfeac7e275686c0eb7cae3c974e79a17589d94",
+      "provider_asset_id": "4831318c-901a-4b29-b508-28ca8ccb2518",
+      "rank": 71,
+      "symbol_label": "TWLO"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "92c252bfdc0010117adaca6a8a1f4c479ab23249da58075f273df0f54bc69fef",
+      "provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "rank": 72,
+      "symbol_label": "SOXS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "5a2d256d07e78e7a34390c7971978530ef20987baeea1fdc6f1f8c824417c0a7",
+      "provider_asset_id": "02487c82-115a-4bf8-91fc-023537b346ae",
+      "rank": 73,
+      "symbol_label": "BTU"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "8797057d81df2b0eb5c3047ec8f9d9e40e067cf67dfbe6ced08707719838d74c",
+      "provider_asset_id": "65d9a636-4cde-4bc5-85b2-8dda3e4eec39",
+      "rank": 74,
+      "symbol_label": "TSLR"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "28f5e19e81da5f603fd53a1926886212ac314d256551787fab0ee4b5c7d6a1dc",
+      "provider_asset_id": "27010f83-3627-4a30-88dd-132c43b5d493",
+      "rank": 75,
+      "symbol_label": "BRZE"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ae9cd7f3c72c8bb730acc98932d9c89a2c141dd0a60ed41742b337c3cc2449a7",
+      "provider_asset_id": "03fb07bb-5db1-4077-8dea-5d711b272625",
+      "rank": 76,
+      "symbol_label": "AMD"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "c11b4765e3149f64c3c41599bcc9076e55e11c5c4989700e85b85446c876382c",
+      "provider_asset_id": "c6e3f2da-8642-4dc6-9d38-fa9924d75efa",
+      "rank": 77,
+      "symbol_label": "MNSO"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "c0a271cec0dd61988f05a45d645732c2644962634d4f52f8ff8266aaef44907c",
+      "provider_asset_id": "fb5265df-ba56-4139-b4c0-49f43c673adb",
+      "rank": 78,
+      "symbol_label": "MNTS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ea0e886bb1ed7507eaecd3b21d9f9ef59fec31ca92129ad382f607ace65ecb8b",
+      "provider_asset_id": "023adfc6-b60e-473d-94dc-15a3015a7a1e",
+      "rank": 79,
+      "symbol_label": "VSXY"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "31271493c889c35c807aa993cbb33fdf71e1e4aed872505de1dd194838532781",
+      "provider_asset_id": "37e8204c-b392-41bb-b49b-c6edb8f667c1",
+      "rank": 80,
+      "symbol_label": "BLNK"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "aa7192ed464460a96e94f8c964b4f2708d2cb865222fc3e19731e8f107de7450",
+      "provider_asset_id": "1941584b-2476-4360-87c7-c224e31b0a9d",
+      "rank": 81,
+      "symbol_label": "TDUP"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "273cba2af5c820e09340570bee2edafb52777a9b1418fcc62369961739cf021e",
+      "provider_asset_id": "deba77f9-51f3-48bf-ac9d-c4186bec8823",
+      "rank": 82,
+      "symbol_label": "FLNA"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "b28a9ec99debba655484dd24c80895535c9103ee3d5cbfbd67a4b77d7999f4a9",
+      "provider_asset_id": "e2cded07-b2c4-4f28-8c57-ad6ca9927d94",
+      "rank": 83,
+      "symbol_label": "QUBT"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "1d24e6372b1f0042ce602099cfea30cc6d2877a977430e1d8659f9618c840bcf",
+      "provider_asset_id": "8fea5887-a5b5-4c84-87a6-0fad05130e60",
+      "rank": 84,
+      "symbol_label": "APP"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "a50fe90834f7d5fc3b9ed5dbdec8a9ef6ec8f5dae019085c6c89aed12820e354",
+      "provider_asset_id": "b1dca6a5-6502-455d-8c80-de5b83faba76",
+      "rank": 85,
+      "symbol_label": "AMC"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "f62383b20b6183564313b4c3bc5f0fa3f1730d96bc16d8be7bd0583c007f633d",
+      "provider_asset_id": "ceef0b8c-82b1-43d0-967e-b2769d5fd2a5",
+      "rank": 86,
+      "symbol_label": "USAS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "b98c825b75cb1be6bb102aae18c83b2aefa4d7a2883b9b365b8c0cef7093aae4",
+      "provider_asset_id": "b74ff3ea-545f-49e2-91ad-cd4e205642a4",
+      "rank": 87,
+      "symbol_label": "STX"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "ed43410f7294ed7d9401e8b5fd89cb8a3831a8234fdce15f098a2b1fdc95e350",
+      "provider_asset_id": "10a57523-d6de-4c36-a167-a22daf5d711d",
+      "rank": 88,
+      "symbol_label": "VSAT"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "753c083e17ee64a1141e93e36bb1f3f20da81fde312443665a8a96015e35bb54",
+      "provider_asset_id": "41aa24f9-a58f-486e-9318-02d1427723e2",
+      "rank": 89,
+      "symbol_label": "QS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "7ebcc0de299ec64d28bfe804c0ed0e1e5ef5f39bc277d2231d26b03f726c7b6b",
+      "provider_asset_id": "e034e619-6f5d-4c5e-a757-9006285f9b2a",
+      "rank": 90,
+      "symbol_label": "MIST"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "f7a2ea4bad67d2cba4dfe8e5be8395513226926a746b38742b7756f8fa5529e9",
+      "provider_asset_id": "a3f6daaa-b2f2-4973-9eeb-a6c4f397c044",
+      "rank": 91,
+      "symbol_label": "APPS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "53045b8e1ff6932c1fc6e048a8d0863207c5589e0558bd09d3397dadcc3111a2",
+      "provider_asset_id": "f2e3fa9a-a13b-47b4-a2f0-aaa150095673",
+      "rank": 92,
+      "symbol_label": "GGLL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "6d3cbba29965d2cf194f514de4f23e3f49921da396a7932a151a15a37f7ec9ac",
+      "provider_asset_id": "557abfb1-384e-4f2a-8a45-f81bacd4ab64",
+      "rank": 93,
+      "symbol_label": "VUZI"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "8cb33eb54b090d1b4450e10a694e01adf0b981c099f922a2fbc25f22165493c2",
+      "provider_asset_id": "4786235b-cddf-438d-ab23-a75cd7163bf0",
+      "rank": 94,
+      "symbol_label": "FIVN"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "6cd67a4bc029e7ed3c9bd2bd49b6832c8edc44880f292b2f3b4436efaa1e441b",
+      "provider_asset_id": "c8309058-b324-4afc-af7d-b45f288c975e",
+      "rank": 95,
+      "symbol_label": "ALKS"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "26422eab4844e8b6b50c715642fe2071fa97f38b0cf58f0a3da6ecac15b1e71b",
+      "provider_asset_id": "d811ca12-80f0-4cd0-a6b8-917655c82ded",
+      "rank": 96,
+      "symbol_label": "GGAL"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "9d01c7081a34df2b7801f6b84b440d81c871a4c288e2a0a7a36a02990feeacc6",
+      "provider_asset_id": "4d0a44bd-4e59-421d-9e93-056b281a7d31",
+      "rank": 97,
+      "symbol_label": "CGTX"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "TARGETED_PROVIDER_SYMBOL_IDENTITY",
+      "member_fingerprint": "bbc7d135aaedf1ba6a0d65580f3f2a4e19b79e64620936d13d38977c356e8637",
+      "provider_asset_id": "1b7fd307-e704-4f3d-b1ba-c5bcd883d04d",
+      "rank": 98,
+      "symbol_label": "EVLV"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "b392b4c9b203b05d7e6ad9b8cf0630c52698933ba890c26b7ee7f69549db3def",
+      "provider_asset_id": "f226d845-d61f-4679-905c-f11dd5521fdf",
+      "rank": 99,
+      "symbol_label": "MVST"
+    },
+    {
+      "historical_overlap": null,
+      "identity_resolution_method": "GOVERNED_PROVIDER_POPULATION_UNIQUE_SYMBOL",
+      "member_fingerprint": "3e1c80e652af9360ae6592344e739d4c140b25c5bb7d762513ad1dd7b8a86702",
+      "provider_asset_id": "91f9fdf9-2904-4a4c-85c7-a0d7ac396506",
+      "rank": 100,
+      "symbol_label": "HURA"
+    }
+  ],
+  "price_bar_requests": 0,
+  "provider_population_fingerprint": "31d74c00c6a0a6b48b29d876285cd9581310e4b07a911fef2ff435dfbe090b34",
+  "schema_version": 1,
+  "security_master_fingerprint": "2dcaf8a4f57c88df1a48da6cd7f5fd27318f4cd61e7f4691c6f2e61137bff4a0",
+  "selected_count": 100,
+  "selection_bias_label": "RETROSPECTIVELY_SELECTED_SELECTION_BIASED_IN_SAMPLE",
+  "semantic_version": "QPX_FROZEN_TOP100_ASSET_ID_SPLIT_EVIDENCE_V1",
+  "source_corporate_action_artifact_fingerprint": "c08e371f89ca654eee110ad8cae8e42f10943fc3b0cc1c40842cd9d1714a8b9d",
+  "source_identity_resolution_fingerprint": "bf36d339de8ceab65a4175d31c742a204b8af2b9efc7819757895e6f9af52f1b",
+  "split_accounting_semantic_version": "QPX_CAUSAL_SPLIT_ACCOUNTING_V1",
+  "split_event_count": 36,
+  "split_events": [
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "f7318c71-fa9e-4144-b23d-546d77559e62",
+      "effective_date": "2025-09-19",
+      "new_rate": 1.0,
+      "old_rate": 20.0,
+      "price_multiplier": 20.0,
+      "provider_event_id": "03a50bf8-95f8-4e22-a083-2a573ddcf529",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "c88e094e5729a213fbb838f90e09de4752f60abff2d8faf8e3cfde541fbd7b3a",
+      "share_multiplier": 0.05,
+      "source_corporate_action_provenance_fingerprint": "cd451b74556a5c27f30f99f9e8b105928e2dc5bfb0576366af01b8bbd0157506",
+      "split_record_fingerprint": "0fea8512f22a04d680883a612381b8d2479ecc6e4a8788ad4f4a63d4f26c198e",
+      "symbol_label": "VOR"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "ae3b08dc-0bfc-44e0-91a2-6703982b9a22",
+      "effective_date": "2019-11-08",
+      "new_rate": 1.0,
+      "old_rate": 50.0,
+      "price_multiplier": 50.0,
+      "provider_event_id": "09d0d2b2-bec6-4777-b9d8-0ef09399ca4e",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "24bfae97034c0fdf4a6590ed82867c1ca8a4a7c49d43a883da7aa6361adf23de",
+      "share_multiplier": 0.02,
+      "source_corporate_action_provenance_fingerprint": "0b21089f782eb7c6a1793c1f9a411252d6ccf20e37b77ab58f8668260e6e0bd8",
+      "split_record_fingerprint": "07611ccfbb870f678e26fde8040b4e3735cbf131f98983275eb8ab962fdef108",
+      "symbol_label": "SLS"
+    },
+    {
+      "action_type": "forward_split",
+      "affected_provider_asset_id": "e2646200-493e-4a35-ac01-923390948eff",
+      "effective_date": "2022-02-02",
+      "new_rate": 2.0,
+      "old_rate": 1.0,
+      "price_multiplier": 0.5,
+      "provider_event_id": "0c3da074-e567-4610-9359-d29447c2d86b",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "4f50cfd0ee04304639182a7e9eca2b89cd9b767ed031d8567554c808045e1415",
+      "share_multiplier": 2.0,
+      "source_corporate_action_provenance_fingerprint": "703d51e85eec93074712b98e93ae8719a2b0b3f227baff091356f91a9fcd5d2d",
+      "split_record_fingerprint": "2e5804f719ef92f2c2cb494642ae07e4bb78a78f511a049b0f40b850eced07de",
+      "symbol_label": "SGH"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "ceef0b8c-82b1-43d0-967e-b2769d5fd2a5",
+      "effective_date": "2025-08-26",
+      "new_rate": 1.0,
+      "old_rate": 2.5,
+      "price_multiplier": 2.5,
+      "provider_event_id": "0e805c1b-9b73-4d6c-a032-e7b0bc5c8a1f",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "5d34b884555436028da95fdb7f7276fffe1f22a401a8ba7653c2799e8ac5626c",
+      "share_multiplier": 0.4,
+      "source_corporate_action_provenance_fingerprint": "3d98505268d6b2d88efde3096681d118174e986c2f77e666526ef229aa9b371a",
+      "split_record_fingerprint": "8d71211bd937fd3c07440a9bd7b4696a642643366d6be20a18b8818c6163487e",
+      "symbol_label": "USAS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "83e024ee-c33a-4e57-ad3c-bc7c6d68c4f5",
+      "effective_date": "2022-05-31",
+      "new_rate": 1.0,
+      "old_rate": 20.0,
+      "price_multiplier": 20.0,
+      "provider_event_id": "130c221a-e385-408b-b0ed-0ab11807b158",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "95fa7347c2697801949e6794d4a4464bce513c7ed0d04d02c0beabf6e62890ad",
+      "share_multiplier": 0.05,
+      "source_corporate_action_provenance_fingerprint": "fd46f10347899286f09c3298a7f6cc8d5768195ade335d6cc7a8f4537c99d962",
+      "split_record_fingerprint": "12ae3128c2523895bc7e6b93f0465df2c8ff17acf34f78c011b10e146c530504",
+      "symbol_label": "YINN"
+    },
+    {
+      "action_type": "forward_split",
+      "affected_provider_asset_id": "8ccae427-5dd0-45b3-b5fe-7ba5e422c766",
+      "effective_date": "2020-08-31",
+      "new_rate": 5.0,
+      "old_rate": 1.0,
+      "price_multiplier": 0.2,
+      "provider_event_id": "1dbc7685-9517-4a77-a236-8527d49cefdc",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "28895fd4526a3c5547022933753f7089bfacc08df4d11658ae5eb240231d0164",
+      "share_multiplier": 5.0,
+      "source_corporate_action_provenance_fingerprint": "28d3e8156b287f91a0c894a91ea8b66a93233ed61e5036eded1abc1ae2ca9a35",
+      "split_record_fingerprint": "573a5d1f136a7cf84a14f2d0621032e435a319edc9fa5603d3f411965bacf7ef",
+      "symbol_label": "TSLA"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "effective_date": "2026-03-05",
+      "new_rate": 1.0,
+      "old_rate": 20.0,
+      "price_multiplier": 20.0,
+      "provider_event_id": "1e39031c-e945-4b75-9acd-fe407212bbee",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "b85b3bdb730ffe42422d76b91f8166603e1d3adfdb61933bcc3fccff8d103b4e",
+      "share_multiplier": 0.05,
+      "source_corporate_action_provenance_fingerprint": "580956c72973b72925dd9a55c72e4b6a41a24ac3d1ec765b638b50839e9daf1c",
+      "split_record_fingerprint": "7cb790a26bd42c8fefc29bb4ebe507352abcee7e0d15ecd95ebca69c95391f9f",
+      "symbol_label": "SOXS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "a2cb3c2d-4965-4c35-9004-e591a718d67c",
+      "effective_date": "2019-03-18",
+      "new_rate": 1.0,
+      "old_rate": 8.0,
+      "price_multiplier": 8.0,
+      "provider_event_id": "2dbb6fdc-ff1f-41a4-ba07-5f20a761db81",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "baeac65723873b83bb3be9d9bab0c708923d7d8a04cf03d139818a556cd3b9bb",
+      "share_multiplier": 0.125,
+      "source_corporate_action_provenance_fingerprint": "202f37cd0330a25ce1a066f3a0e1370d4d6882c75c679d525f0a0a13da24b20c",
+      "split_record_fingerprint": "051eb7d0845e0d374372a80d8ad3490dad192ad61936aec3803e66d60ae7f078",
+      "symbol_label": "OTLK"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "fb5265df-ba56-4139-b4c0-49f43c673adb",
+      "effective_date": "2024-12-13",
+      "new_rate": 1.0,
+      "old_rate": 14.0,
+      "price_multiplier": 14.0,
+      "provider_event_id": "3972bbf0-7ee4-4b2c-aef9-f70fe45c5a9f",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "ab06efc6ab32de6bf7276dc30933572e974d60fb503d594dfbb5fa510e1c139a",
+      "share_multiplier": 0.07142857142857142,
+      "source_corporate_action_provenance_fingerprint": "046eb9cd93bbce7abdc66be592a9c271f286278519f3478eead6aad09c3006d3",
+      "split_record_fingerprint": "6ac1a64c326599df05328bb5f175f79205e9dea7ec8353d81152d4ae3077a2a8",
+      "symbol_label": "MNTS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "82efe6a7-35a4-40fb-99ba-2b3eaebe3b71",
+      "effective_date": "2024-11-22",
+      "new_rate": 1.0,
+      "old_rate": 9.0,
+      "price_multiplier": 9.0,
+      "provider_event_id": "3a6a6d90-c0c8-44ef-9efa-e9f97fa680d7",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "436ba08087f3be611e61fd58b1086758690ec02c8f29a3de4770fe2ecd7c43b2",
+      "share_multiplier": 0.1111111111111111,
+      "source_corporate_action_provenance_fingerprint": "5405ce327f210283979af443d4169ba7b7c710e59c36847cb8c1b8bc321bd53f",
+      "split_record_fingerprint": "4ed76828929664a3f6b27a740d9f3074fdfae8c64f9e3e7cdd3a384fc3d0d015",
+      "symbol_label": "DFLI"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "8dd17b3b-bce0-4e59-88e4-375700b0a197",
+      "effective_date": "2024-11-15",
+      "new_rate": 1.0,
+      "old_rate": 20.0,
+      "price_multiplier": 20.0,
+      "provider_event_id": "3dfa812a-eed1-40ff-9293-b566b902ce6b",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "f8e10d8197828bc34b5a2793a4a16048f658e205c89334a9b3f5953ac8746eba",
+      "share_multiplier": 0.05,
+      "source_corporate_action_provenance_fingerprint": "91b31edcbce55c450d1dd71e9d58e0762980e36bef83a8c2037cfb5706d7d44f",
+      "split_record_fingerprint": "ad1ba5d0b4f2413b7edaa959f881b9a1e54a99888510a028b3297ab3bde83242",
+      "symbol_label": "TPET"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "91f9fdf9-2904-4a4c-85c7-a0d7ac396506",
+      "effective_date": "2022-11-14",
+      "new_rate": 1.0,
+      "old_rate": 50.0,
+      "price_multiplier": 50.0,
+      "provider_event_id": "4a4c173f-2489-4fe5-9fdf-34cbb9553952",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "fe77515c4c0b7874309d36128fa3f9d3f101791a2499d097572a7e5421907138",
+      "share_multiplier": 0.02,
+      "source_corporate_action_provenance_fingerprint": "a80576ddb3968c185ac908214d406ba5238a10f2eb3d21b3e3706e00d6c75917",
+      "split_record_fingerprint": "265133ac1a60b81560bf4077446746960bb182c0b322a66b9545bb076002f8ff",
+      "symbol_label": "KTRA"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "f43e07f1-e658-484b-87a8-5c5aee3c7e2b",
+      "effective_date": "2025-10-21",
+      "new_rate": 1.0,
+      "old_rate": 3.0,
+      "price_multiplier": 3.0,
+      "provider_event_id": "5c917cba-7ad3-4e2a-8208-fb6d74e9c78e",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "02b4057335970708b7fbae2ae8a4b414170e07d9a125cf4e3ff857d74888f21c",
+      "share_multiplier": 0.3333333333333333,
+      "source_corporate_action_provenance_fingerprint": "953a0bf8ea165ea34a48cc1e7432a0bbe8620b03e471da277106d99e5b3ebefc",
+      "split_record_fingerprint": "13be00dba9805e79dedc1f9c43c521dccbbabef17736e855deefe8ef540bd9ff",
+      "symbol_label": "TSLQ"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "a2cb3c2d-4965-4c35-9004-e591a718d67c",
+      "effective_date": "2024-03-14",
+      "new_rate": 1.0,
+      "old_rate": 20.0,
+      "price_multiplier": 20.0,
+      "provider_event_id": "6194d60c-a4de-4458-b749-29d646fb84a9",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "8386addd9fa1cd2774662ad7f4d8846e104df562067ea0a81d57760c7672d5c1",
+      "share_multiplier": 0.05,
+      "source_corporate_action_provenance_fingerprint": "81e4736a0d6a42ff61be68b05f8faa77a52ca17f5b7b817a6a8cfa8bc451f168",
+      "split_record_fingerprint": "2adf9fca20870bb1d2d6e7f343498c5174f257943139602467df08df6ebae59f",
+      "symbol_label": "OTLK"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "41aa24f9-a58f-486e-9318-02d1427723e2",
+      "effective_date": "2025-07-03",
+      "new_rate": 1.0,
+      "old_rate": 20.0,
+      "price_multiplier": 20.0,
+      "provider_event_id": "6425a3fb-01f3-4ce1-84d8-105f4d93ad0b",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "5cf6f5bf4cec3bab408440376c5a138bcbd65eff5eb1f7c60aa786b621a589aa",
+      "share_multiplier": 0.05,
+      "source_corporate_action_provenance_fingerprint": "adc225f552b9342d2b3a57c398535e2dcb89b20b88ece5cdef545f50983f2a6e",
+      "split_record_fingerprint": "555001aaf07854724ff4c811e37c57cfcd792dc6e079331e261944f3310bc631",
+      "symbol_label": "WBX"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "8dd17b3b-bce0-4e59-88e4-375700b0a197",
+      "effective_date": "2026-08-31",
+      "new_rate": 1.0,
+      "old_rate": 9.0,
+      "price_multiplier": 9.0,
+      "provider_event_id": "650e32ee-3803-466b-8591-604109325697",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "33c6839749d5fb626dcb83eec10ed9726bca5601f2f643f49d7fa1bbc8bdb2d9",
+      "share_multiplier": 0.1111111111111111,
+      "source_corporate_action_provenance_fingerprint": "267dd9a0cb366f3522c7e67dcc0fea79bd8c34ffb6dc0319894884ec0ab0bb22",
+      "split_record_fingerprint": "d5648cf170e8834f284e223b5f44aa654d58e7120c9beaffdcbf9b87547b5289",
+      "symbol_label": "TPET"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "effective_date": "2017-05-01",
+      "new_rate": 1.0,
+      "old_rate": 5.0,
+      "price_multiplier": 5.0,
+      "provider_event_id": "67386fda-6a0c-4c5d-8c10-e84336e953dc",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "a963c6342a4576b5ec6ea97123c49b7ec0a2bea5f5254b62fd3b4a19850eb2b8",
+      "share_multiplier": 0.2,
+      "source_corporate_action_provenance_fingerprint": "bc0062941d1f5151c60f799e39fef702f1bc771093fb4c12a1542a188209281b",
+      "split_record_fingerprint": "23714e920f0d3d1b881990879f928b2cd8e42c82eb4c25e4c7e56dabdd15b698",
+      "symbol_label": "SOXS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "effective_date": "2020-08-28",
+      "new_rate": 1.0,
+      "old_rate": 12.0,
+      "price_multiplier": 12.0,
+      "provider_event_id": "6bd8a05d-0b6b-4791-a48a-4fe4d2da3cfa",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "234d9ce676c5711c79b8e96f0741f1031436a69307054e885881c39bdb1cadf8",
+      "share_multiplier": 0.08333333333333333,
+      "source_corporate_action_provenance_fingerprint": "f19f76b4521bdd7a774b62137cc939c6c3df3e9f4847703c4cff478ace2eb714",
+      "split_record_fingerprint": "57a9ead1d43d58b198bb0f21fe5fa2d11d751a463cdfbc4bb7820af97d238466",
+      "symbol_label": "SOXS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "fb5265df-ba56-4139-b4c0-49f43c673adb",
+      "effective_date": "2025-12-18",
+      "new_rate": 1.0,
+      "old_rate": 17.85,
+      "price_multiplier": 17.85,
+      "provider_event_id": "6ea60218-a3fc-4e3a-8539-ef06a301b1ed",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "f67180840096a3b5bab8d481ed24c278e554854e82166b47de39b6076df63a41",
+      "share_multiplier": 0.05602240896358543,
+      "source_corporate_action_provenance_fingerprint": "3c89f11be0806501e7cca96e9a47961b63580c3ce302bc6b9ef18a50d0bc6067",
+      "split_record_fingerprint": "c5f6e5ba464f2f8427ac2a3fbb63bddb5fb2dc2c624b54d8db2bfc154bba10d1",
+      "symbol_label": "MNTS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "91f9fdf9-2904-4a4c-85c7-a0d7ac396506",
+      "effective_date": "2019-05-08",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "73501b08-ae67-4080-b420-ce7ce3174ed5",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "ab1a040655950a16e0f7411ad8ad9ed03b28625a1e812a273900d619b9bdc55e",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "18de34b8270028d50ee64716c90dbf8ac7188f4c2f0c25a54cce4ba33be52c4e",
+      "split_record_fingerprint": "923e218778bc70763752216d118142927ce62a603cdbcffa0adbbe6b591e7b0f",
+      "symbol_label": "DMPI"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "effective_date": "2019-06-28",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "8b14209c-0762-443f-b1f7-5c87cc8bacbd",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "402eea6137c77dc34e083bdcaad379cdf9f487680068d971c26fa5ba5eba9145",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "d88fab5214f9c14f1a5fe6cd0f98b3fb8a0edf8b85521284c6e25de475a3d3e6",
+      "split_record_fingerprint": "4d0f5178689b656875c2cdc72b197bdab145425374c4c29076d91357b5765c22",
+      "symbol_label": "SOXS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "fb5265df-ba56-4139-b4c0-49f43c673adb",
+      "effective_date": "2023-08-24",
+      "new_rate": 1.0,
+      "old_rate": 50.0,
+      "price_multiplier": 50.0,
+      "provider_event_id": "913de862-c02c-46dc-a89c-fc8779a50d30",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "867d072b55aa4896bad5058c6cde23c60774b2cf0129c2f47376bbdb916d9702",
+      "share_multiplier": 0.02,
+      "source_corporate_action_provenance_fingerprint": "9c7c17cc35ec624d311de4d48b0454f7c06dac13e138069e903ef2ef637def33",
+      "split_record_fingerprint": "93333263e3ad6273392ed54bbb6d1f47d419b8fd709894dbd4e6f6832edb6f52",
+      "symbol_label": "MNTS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "f43e07f1-e658-484b-87a8-5c5aee3c7e2b",
+      "effective_date": "2024-11-27",
+      "new_rate": 1.0,
+      "old_rate": 6.0,
+      "price_multiplier": 6.0,
+      "provider_event_id": "9197f4fa-1a5e-41c9-8a45-78e691c94266",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "57e8d6c453ed2a3823fd4985457e2eaf57689565f05d619974633a31a7f50819",
+      "share_multiplier": 0.16666666666666666,
+      "source_corporate_action_provenance_fingerprint": "c2c4cb6b0373a3f11a8fb94488174b78e7bee3375792b75496239b960912b76c",
+      "split_record_fingerprint": "a978e68ebb5dc004c7e4be134311ce43d3c3336d62a318ab28f5a97bb517834f",
+      "symbol_label": "TSLQ"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "effective_date": "2026-07-15",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "b23b26d8-e5ae-4729-a6bb-19191f61709c",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "eb0769fe03ef9124aef5363d2ddc4925a255fa6acb18f0f3609325f8abeaf1c1",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "eafd6216f5eaaea110bcd4adc210ab554d27060598977fa80acc836bf7b0fda8",
+      "split_record_fingerprint": "49b9ad3526b4bb6ef6c62c9bd46b3a6526fa9765427bbbaddc4356afe22e77d2",
+      "symbol_label": "SOXS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "91f9fdf9-2904-4a4c-85c7-a0d7ac396506",
+      "effective_date": "2024-10-18",
+      "new_rate": 1.0,
+      "old_rate": 35.0,
+      "price_multiplier": 35.0,
+      "provider_event_id": "b5718b11-9612-4f80-8e76-ce160fdcc458",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "214b1f5c469117dc67b64763d4572c5cb92f3fd229b67a57e1a48a0df6657d28",
+      "share_multiplier": 0.02857142857142857,
+      "source_corporate_action_provenance_fingerprint": "4ebc59b4406ed635455b16da41d9d4e0051aa50176919fcfa1c2f30a8cc65400",
+      "split_record_fingerprint": "58cbcde4ae1cb56488b70838145a9db65852d10dbef3dd10f5e87e6fe14cbc55",
+      "symbol_label": "HURA"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "43f3130e-3556-40e2-88fc-a0b854cd99d4",
+      "effective_date": "2025-10-29",
+      "new_rate": 1.0,
+      "old_rate": 20.0,
+      "price_multiplier": 20.0,
+      "provider_event_id": "b6d5a053-a996-4566-8eb2-5750c4106b47",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "60583ad2fad501467638c43cfd5d0563073b5685012d5c6e614eedc09c8e692c",
+      "share_multiplier": 0.05,
+      "source_corporate_action_provenance_fingerprint": "de8af484440475f7ebc04d3d9d39e6e68760d847a0aae66b78fe1b4e4bbdee14",
+      "split_record_fingerprint": "4322dcd6698d96afab7afe657b3ad3431d9dfd81b0898d06be4127cd192886c2",
+      "symbol_label": "TSLZ"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "effective_date": "2022-03-28",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "b757105a-99f7-4327-aab8-c306ac6a3975",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "c45feaa23cff41cb43bbe5c95e38a9fa215360e33cf161aabaaab4cfb3ffba0d",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "aa967707e18a844a52a815ab464dd766934219a3579c0c920f31534da3ccb3b2",
+      "split_record_fingerprint": "b3eef50fdc2f0789d3728a2f5ffd5ed593ed0d4dce2da68ea30da3672b0a8a1c",
+      "symbol_label": "SOXS"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "7c02602a-afe0-4a02-81c4-f39ab5e15cfe",
+      "effective_date": "2022-05-24",
+      "new_rate": 1.0,
+      "old_rate": 5.0,
+      "price_multiplier": 5.0,
+      "provider_event_id": "c0a1bc44-4af6-42db-a887-fd10fc646087",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "7b825b716654d104145fd8e57db6045268f5ad8eb5e89f34a403ac73925b7df6",
+      "share_multiplier": 0.2,
+      "source_corporate_action_provenance_fingerprint": "7fcc7c2e01f281ff972020ed02d6c3df5f1004b99b46792c77d624508fb47bc7",
+      "split_record_fingerprint": "e42247ce390e8660a584f45df1dc46cb23b945167c7578e7434c6a12f3d70a71",
+      "symbol_label": "HIVE"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "c1ba40e4-61d5-4940-9d7a-eba2f8ad9e38",
+      "effective_date": "2019-06-05",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "d0ccee80-94dd-4452-86b7-b0e77583c2a1",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "a386b53114d764b633428816f884267ad032ee5fad13811de08b4eef464f7f63",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "951282955fa21b394228a85577ba13067b136ebb57f516b771824f196e05c4b3",
+      "split_record_fingerprint": "2023b10b0891040a98a9fe2bf6cce553829041c72ca91615ab4284b655809de6",
+      "symbol_label": "CAPR"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "82efe6a7-35a4-40fb-99ba-2b3eaebe3b71",
+      "effective_date": "2025-12-18",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "d4d61414-c3ef-41df-b57d-91a1bca9e05a",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "a88dc420a85193e0ce41bd0b6e2a7705cc0d829be1b7b1897dec77e7e5e9bfd7",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "1d25d52828d69012c512e3f8b3fa6cde13c55bff275f42b49b6db0fb651d7a93",
+      "split_record_fingerprint": "db67c38158e668bc50fa212c0682ff72b9f49c1b9dc147fae5d08ba4fa025cf9",
+      "symbol_label": "DFLI"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "bbf4a401-f1f6-45d2-95c5-2fc2b3d016fb",
+      "effective_date": "2017-10-10",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "d608b3cb-8f03-49b9-8cdd-1b145eb5b10c",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "0b5397bb96f9f3b9983a29639b971a224f223621f129e70931ff9b74fe2704ac",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "ad2f487b22ab8e1f42f4cbdf0e7ec49551cd2a8e82705384fecf7631d4341e37",
+      "split_record_fingerprint": "1dc5b05719749138f83b33b40a9fa7da8f4e5a6b71212b512b98f4d287b9f8fe",
+      "symbol_label": "TNDM"
+    },
+    {
+      "action_type": "forward_split",
+      "affected_provider_asset_id": "9eae922d-8d67-4c40-b6ea-faca9b092b89",
+      "effective_date": "2022-07-22",
+      "new_rate": 4.0,
+      "old_rate": 1.0,
+      "price_multiplier": 0.25,
+      "provider_event_id": "dafbf910-e782-4a29-8a6b-feacaf27561f",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "3a21f4e8611cada31547bcb323b4f106b8b95bb76c10346d20b47092e2397a4c",
+      "share_multiplier": 4.0,
+      "source_corporate_action_provenance_fingerprint": "a227daa94775a27ccdd0aa18c97733bb880a65063c36469cc4041997fc9687a7",
+      "split_record_fingerprint": "8dcf9baa861b76f66de72c3c839c1452682c0d10a0db09018940e0c9a3588202",
+      "symbol_label": "GME"
+    },
+    {
+      "action_type": "forward_split",
+      "affected_provider_asset_id": "9067979a-40eb-49ef-b8e9-c43fa950e9c7",
+      "effective_date": "2021-03-02",
+      "new_rate": 15.0,
+      "old_rate": 1.0,
+      "price_multiplier": 0.06666666666666667,
+      "provider_event_id": "e593f1ee-1f48-4d9a-9fce-1eb6070bad5e",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "9ebb4d916ed88c128bfc4501df36fe259fd3dbab7bf08efb72d0efed8a990ad9",
+      "share_multiplier": 15.0,
+      "source_corporate_action_provenance_fingerprint": "c94416dd7f95b333cb17a0e006bd537d86f85d504f09ca3746989c80e48bfea8",
+      "split_record_fingerprint": "8bf9dec5a5501feead2da2d8c96eb5f48b625212cef762d79a39aa1a11cd6d30",
+      "symbol_label": "SOXL"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "de8712ea-c778-41c9-a042-5284d270226c",
+      "effective_date": "2024-04-15",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "f6586ed1-17e6-4466-9732-f593a037d77a",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "0b356c6be57e116a5b97d21d0e62bff403f8b33de54c395fd60a3e0dd5b35a15",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "14cc0d1a0e3e9fc813dc5aa0c2d0cf80f691774f90c7a6756de0ba1b0e553172",
+      "split_record_fingerprint": "ccbcbe6d94334ce3641419cefdecd8bdefe8b6b7a696323b0b27a889f2fafc9e",
+      "symbol_label": "SOXS"
+    },
+    {
+      "action_type": "forward_split",
+      "affected_provider_asset_id": "8ccae427-5dd0-45b3-b5fe-7ba5e422c766",
+      "effective_date": "2022-08-25",
+      "new_rate": 3.0,
+      "old_rate": 1.0,
+      "price_multiplier": 0.3333333333333333,
+      "provider_event_id": "f8489167-4e4b-431d-a0be-6017ae1cf08a",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "2dc1310cb6f627f49e7711b7746284864e50e22f90cd97e37d0decd47540bc81",
+      "share_multiplier": 3.0,
+      "source_corporate_action_provenance_fingerprint": "c2540e05882c97e2679e3ebae7fa524ffd5f32099b21839fee7d1582babb5e2d",
+      "split_record_fingerprint": "cafb529e7fd4662061d6218824d7d8c31540eaaa6d203438ec25bef4dbf548ac",
+      "symbol_label": "TSLA"
+    },
+    {
+      "action_type": "reverse_split",
+      "affected_provider_asset_id": "b1dca6a5-6502-455d-8c80-de5b83faba76",
+      "effective_date": "2023-08-24",
+      "new_rate": 1.0,
+      "old_rate": 10.0,
+      "price_multiplier": 10.0,
+      "provider_event_id": "fa9f8109-6b78-4b72-b172-ca7c9451c791",
+      "ratio_convention": "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE",
+      "raw_provider_record_fingerprint": "76e3ce962817d6d39d17f3dda9549abe65a9fbd456352675df8386d04c9a6855",
+      "share_multiplier": 0.1,
+      "source_corporate_action_provenance_fingerprint": "b06eb10c2a175c894bfc19fba7aaa2918607f1a287b82a9cce50c388dfccc63e",
+      "split_record_fingerprint": "ff7304f7f65475dd1071d63061ce617d2bfeeeb57bf6f6fd52d858f5d49393e4",
+      "symbol_label": "AMC"
+    }
+  ],
+  "split_excluded_count": 0,
+  "split_policy": "CAUSAL_APPLY_AT_EFFECTIVE_OPEN",
+  "split_request_evidence": {
+    "endpoint": "https://data.alpaca.markets/v1/corporate-actions",
+    "params": {
+      "ids": "03a50bf8-95f8-4e22-a083-2a573ddcf529,09d0d2b2-bec6-4777-b9d8-0ef09399ca4e,0c3da074-e567-4610-9359-d29447c2d86b,0e805c1b-9b73-4d6c-a032-e7b0bc5c8a1f,130c221a-e385-408b-b0ed-0ab11807b158,1dbc7685-9517-4a77-a236-8527d49cefdc,1e39031c-e945-4b75-9acd-fe407212bbee,2dbb6fdc-ff1f-41a4-ba07-5f20a761db81,3972bbf0-7ee4-4b2c-aef9-f70fe45c5a9f,3a6a6d90-c0c8-44ef-9efa-e9f97fa680d7,3dfa812a-eed1-40ff-9293-b566b902ce6b,4a4c173f-2489-4fe5-9fdf-34cbb9553952,5c917cba-7ad3-4e2a-8208-fb6d74e9c78e,6194d60c-a4de-4458-b749-29d646fb84a9,6425a3fb-01f3-4ce1-84d8-105f4d93ad0b,650e32ee-3803-466b-8591-604109325697,67386fda-6a0c-4c5d-8c10-e84336e953dc,6bd8a05d-0b6b-4791-a48a-4fe4d2da3cfa,6ea60218-a3fc-4e3a-8539-ef06a301b1ed,73501b08-ae67-4080-b420-ce7ce3174ed5,8b14209c-0762-443f-b1f7-5c87cc8bacbd,913de862-c02c-46dc-a89c-fc8779a50d30,9197f4fa-1a5e-41c9-8a45-78e691c94266,b23b26d8-e5ae-4729-a6bb-19191f61709c,b5718b11-9612-4f80-8e76-ce160fdcc458,b6d5a053-a996-4566-8eb2-5750c4106b47,b757105a-99f7-4327-aab8-c306ac6a3975,c0a1bc44-4af6-42db-a887-fd10fc646087,d0ccee80-94dd-4452-86b7-b0e77583c2a1,d4d61414-c3ef-41df-b57d-91a1bca9e05a,d608b3cb-8f03-49b9-8cdd-1b145eb5b10c,dafbf910-e782-4a29-8a6b-feacaf27561f,e593f1ee-1f48-4d9a-9fce-1eb6070bad5e,f6586ed1-17e6-4466-9732-f593a037d77a,f8489167-4e4b-431d-a0be-6017ae1cf08a,fa9f8109-6b78-4b72-b172-ca7c9451c791",
+      "limit": "36"
+    },
+    "provider": "alpaca",
+    "request_evidence_fingerprint": "7260a8f20f2f7935dfd109736c8a19b3f1f6c677b5628005059fabfa5c16333a",
+    "response_fingerprint": "a0b70836bd5da3d06032ad8225c98ebb2b3b61fbd073c4182192788f0fa3f46f"
+  }
+}

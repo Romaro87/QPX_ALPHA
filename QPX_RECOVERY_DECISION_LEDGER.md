@@ -2082,3 +2082,46 @@ Recovery threshold and evaluation/lookback windows are explicit research configu
   account was revision 134 with 50 QDTE shares, QDTE cost `$1,421.065`,
   `$22.275` cash, zero reserve/P&L, no swing positions, and no pending entries.
   The loaded contract remained simulated-only and bound the 90% cap.
+
+## Frozen Top-100 provider identity and causal split accounting — 2026-09-17
+
+- **USER REQUIREMENT:** Preserve the exact 100-member retrospective/in-sample
+  selection, include split-affected members, bind state by provider asset ID,
+  add governed causal split accounting, push accepted work to `main`, and start
+  a distinct ten-year replay without disturbing full-universe or live services.
+- **USER APPROVED EVIDENCE REPAIR:** Retrieve only missing provider identity and
+  split ratio/convention evidence. Do not reacquire price bars, rebuild or
+  rerank the universe, or tune strategy. Corporate actions may produce exact
+  fractional shares without cash-in-lieu; new entries remain integer-only.
+- **REVIEWED HIGH-RISK DESIGN:** Reuse the governed provider population,
+  corporate-action archive/identity resolution, historical event sequence,
+  portfolio owner, and checksummed restart mechanism. Apply a split at its
+  effective market OPEN before every affected exit, rebalance, pending-entry
+  check, sizing, fill, mark, or risk calculation. Adjust accumulated indicator
+  history only when the split becomes knowable. Persist event IDs and evidence
+  identities so restart is deterministic and idempotent.
+- **VERIFIED ARTIFACT:** Frozen selection fingerprint remains
+  `5e271e4a9e0d4a20b6f4d0cecc08e8bf9efe1d2123a64832d09ba1c1eb9ffd23`.
+  The new manifest binds 100 unique swing asset IDs, QDTE separately, universe
+  fingerprint `1840a7a2cc2048c844a104b8434e8cec72c4244bc2a7ed914c9d500be93d185a`,
+  manifest fingerprint
+  `1bee0e7b1bfe2f654b5ef4c91ba798dc04d994c4bb704e8ecd8aaa70c122cd05`,
+  and 36 provider split events. It records zero price-bar requests.
+- **SETTLED ACCOUNTING:** Shares scale by provider `new_rate / old_rate`; entry,
+  ATR, stop, target, highest/trailing reference, pending price/ATR inputs, and
+  last marks scale inversely where applicable. Economic value, cost basis,
+  dollar risk, cash, reserve, and realized P&L must reconcile across the event.
+- **FOCUSED VERIFICATION:** 31/31 targeted tests passed for exact membership and
+  provider identity, duplicate-symbol isolation, split direction, forward and
+  reverse positions, pending entries, causal indicators, event ordering,
+  multiple/deduplicated events, fingerprint-bound restart, accounting/outcome
+  reconciliation, prior tax-reserve correction, and corrected OPEN/CLOSE
+  behavior. Changed Python compiled and `git diff --check` passed; no broad
+  suite ran.
+- **AUTHORITY:** Historical paper only. Training, promotion, live, broker, and
+  capital authority remain `NONE`; live-paper behavior and state are outside
+  this change.
+- **NEXT EXACT ACTION:** Commit/push the explicitly staged implementation and
+  continuity transaction, verify `HEAD == origin/main`, then launch and verify
+  the first advancing checkpoint of one isolated Top-100 replay. Do not wait
+  synchronously for the final ten-year result.

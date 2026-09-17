@@ -14,6 +14,7 @@ import csv
 import gzip
 import hashlib
 import json
+import math
 from pathlib import Path
 import subprocess
 from typing import Any, Iterable, Iterator, Mapping, Sequence
@@ -381,12 +382,14 @@ class CandidateV1HistoricalPaperRuntime:
     __slots__ = (
         "config", "candidate", "policy", "state", "_portfolio", "_arbitration",
         "asset_symbols", "candidate_asset_ids", "income_asset_id", "rank_by_asset",
+        "_split_events_by_date", "_split_contract_identity",
     )
 
     def __init__(
         self, config: ReplayExperimentConfiguration, state: Mapping[str, Any] | None = None,
         *, candidate_snapshot: CandidateV1ConfigSnapshot | None = None,
         asset_symbols: Mapping[str, str] | None = None,
+        split_contract: Mapping[str, Any] | None = None,
     ):
         self.config = config
         snapshot = candidate_snapshot or load_candidate_v1_config()
@@ -416,6 +419,9 @@ class CandidateV1HistoricalPaperRuntime:
         self.income_asset_id = income_matches[0]
         self.candidate_asset_ids = tuple(asset_id for asset_id in self.asset_symbols if asset_id != self.income_asset_id)
         self.rank_by_asset = {asset_id: rank for rank, asset_id in enumerate(self.candidate_asset_ids, 1)}
+        self._split_contract_identity, self._split_events_by_date = self._validate_split_contract(
+            split_contract
+        )
         if state is None:
             starting = float(config.payload["starting_account"]["starting_cash"])
             self._portfolio = Portfolio(starting, preserve_identity=True)
@@ -432,6 +438,8 @@ class CandidateV1HistoricalPaperRuntime:
                 "risk_rejections": 0, "capacity_deferred": 0, "capacity_decisions": [],
                 "capacity_rejections": 0, "entry_outcomes": {},
                 "outcome_reconciliation": {},
+                "split_contract_identity": self._split_contract_identity,
+                "applied_split_event_ids": [], "applied_splits": [],
             }
         else:
             self.state = json.loads(json.dumps(state))
@@ -441,6 +449,15 @@ class CandidateV1HistoricalPaperRuntime:
                 or self.state.get("asset_symbols") != self.asset_symbols
             ):
                 raise ReplayConfigurationError("Replay checkpoint provider-asset identity differs from the selected universe.")
+            checkpoint_split_identity = self.state.get("split_contract_identity")
+            if checkpoint_split_identity is None and not any(self._split_events_by_date.values()):
+                self.state["split_contract_identity"] = self._split_contract_identity
+                self.state.setdefault("applied_split_event_ids", [])
+                self.state.setdefault("applied_splits", [])
+            elif checkpoint_split_identity != self._split_contract_identity:
+                raise ReplayConfigurationError(
+                    "Replay checkpoint corporate-action evidence differs from the selected split contract."
+                )
             p = self.state.pop("portfolio")
             self._portfolio = Portfolio(float(p["starting_cash"]), preserve_identity=True)
             self._portfolio.cash = float(p["cash"])
@@ -451,6 +468,64 @@ class CandidateV1HistoricalPaperRuntime:
             self._portfolio.closed_trades = [_trade_from_dict(v) for v in p["closed_trades"]]
             if any(key != position.symbol for key, position in self._portfolio.positions.items()):
                 raise ReplayConfigurationError("Checkpoint position identity differs from its provider-asset key.")
+
+    def _validate_split_contract(
+        self, contract: Mapping[str, Any] | None,
+    ) -> tuple[dict[str, Any] | None, dict[date, tuple[dict[str, Any], ...]]]:
+        if contract is None:
+            return None, {}
+        required_fingerprints = (
+            "manifest_fingerprint", "corporate_action_ratio_artifact_fingerprint",
+            "derived_identity_resolution_fingerprint",
+            "derived_asset_id_universe_fingerprint",
+            "source_corporate_action_artifact_fingerprint",
+            "source_identity_resolution_fingerprint",
+            "split_accounting_semantic_version",
+        )
+        identity = {key: contract.get(key) for key in required_fingerprints}
+        if any(not isinstance(value, str) or not value for value in identity.values()):
+            raise ReplayConfigurationError("Split contract fingerprints are incomplete.")
+        events = contract.get("split_events")
+        if not isinstance(events, list):
+            raise ReplayConfigurationError("Split contract events are malformed.")
+        by_date: dict[date, list[dict[str, Any]]] = {}
+        seen: set[str] = set()
+        candidate_ids = set(self.candidate_asset_ids)
+        for raw in events:
+            if not isinstance(raw, Mapping):
+                raise ReplayConfigurationError("Split contract event is malformed.")
+            event = dict(raw)
+            event_id = event.get("provider_event_id")
+            asset_id = event.get("affected_provider_asset_id")
+            if not isinstance(event_id, str) or not event_id or event_id in seen:
+                raise ReplayConfigurationError("Split contract event identity is duplicate or invalid.")
+            if asset_id not in candidate_ids:
+                raise ReplayConfigurationError("Split contract event targets an unselected provider asset.")
+            try:
+                effective = date.fromisoformat(str(event["effective_date"]))
+                share_multiplier = float(event["share_multiplier"])
+                price_multiplier = float(event["price_multiplier"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ReplayConfigurationError("Split contract ratio or date is invalid.") from exc
+            if (
+                not math.isfinite(share_multiplier) or share_multiplier <= 0
+                or not math.isfinite(price_multiplier) or price_multiplier <= 0
+                or not math.isclose(
+                    share_multiplier * price_multiplier, 1.0,
+                    rel_tol=1e-12, abs_tol=1e-12,
+                )
+                or event.get("ratio_convention")
+                != "NEW_SHARES_PER_OLD_SHARES_EQUALS_NEW_RATE_DIVIDED_BY_OLD_RATE"
+            ):
+                raise ReplayConfigurationError("Split contract ratio convention is invalid.")
+            seen.add(event_id)
+            by_date.setdefault(effective, []).append(event)
+        if len(events) != int(contract.get("split_event_count", -1)):
+            raise ReplayConfigurationError("Split contract event count does not reconcile.")
+        return identity, {
+            day: tuple(sorted(values, key=lambda item: item["provider_event_id"]))
+            for day, values in by_date.items()
+        }
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -480,7 +555,11 @@ class CandidateV1HistoricalPaperRuntime:
         candidate_assets = self.candidate_asset_ids
         current_candidates = {asset_id: bars[asset_id] for asset_id in candidate_assets if asset_id in bars}
 
-        # OPEN phase: entitlements and settlements are effective before account
+        # OPEN phase: corporate actions transform all affected state at the
+        # effective market open before exits, settlements, rebalancing, gap
+        # validation, sizing, fills, marking, or risk calculations.
+        self._apply_splits_open(start)
+        # Dividend entitlements and settlements are effective before account
         # allocation; exits available at the open release cash before rebalance.
         self._apply_dividends_open(start.date(), dividends)
         for asset_id, position in tuple(self._portfolio.positions.items()):
@@ -664,6 +743,84 @@ class CandidateV1HistoricalPaperRuntime:
         self.state["annual"][year] = {"ending_equity": equity, "last_boundary": boundary.completed_at.isoformat()}
         self.state["boundaries"] += 1
         self.state["last_completed_boundary"] = boundary.completed_at.isoformat()
+
+    def _apply_splits_open(self, start: datetime) -> None:
+        due = self._split_events_by_date.get(start.date(), ())
+        if not due:
+            return
+        applied = set(self.state["applied_split_event_ids"])
+        unapplied = [event for event in due if event["provider_event_id"] not in applied]
+        if not unapplied:
+            return
+        if start.hour != 9 or start.minute != 30:
+            raise ReplayConfigurationError(
+                "A split event was not delivered at its effective market-open boundary."
+            )
+        for event in unapplied:
+            event_id = str(event["provider_event_id"])
+            asset_id = str(event["affected_provider_asset_id"])
+            share_multiplier = float(event["share_multiplier"])
+            price_multiplier = float(event["price_multiplier"])
+            cash_before = self._portfolio.cash
+            reserve_before = self._portfolio.tax_reserve_cash
+            realized_before = self._portfolio.realized_pnl
+            position_reconciliation = None
+            if asset_id in self._portfolio.positions:
+                position_reconciliation = self._portfolio.apply_split(
+                    symbol=asset_id, share_multiplier=share_multiplier,
+                )
+            pending_reconciliation = None
+            pending = self.state["pending"].get(asset_id)
+            if pending is not None:
+                before = {
+                    "signal_atr": float(pending["signal_atr"]),
+                    "prior_close": float(pending["prior_close"]),
+                }
+                pending["signal_atr"] = before["signal_atr"] * price_multiplier
+                pending["prior_close"] = before["prior_close"] * price_multiplier
+                pending_reconciliation = {
+                    "pre_signal_atr": before["signal_atr"],
+                    "post_signal_atr": pending["signal_atr"],
+                    "pre_prior_close": before["prior_close"],
+                    "post_prior_close": pending["prior_close"],
+                    "expected_entry_price": None,
+                    "precomputed_share_count": None,
+                }
+            mark_reconciliation = None
+            if asset_id in self.state["last_marks"]:
+                before_mark = float(self.state["last_marks"][asset_id])
+                self.state["last_marks"][asset_id] = before_mark * price_multiplier
+                mark_reconciliation = {
+                    "pre_last_mark": before_mark,
+                    "post_last_mark": self.state["last_marks"][asset_id],
+                }
+            if (
+                self._portfolio.cash != cash_before
+                or self._portfolio.tax_reserve_cash != reserve_before
+                or self._portfolio.realized_pnl != realized_before
+            ):
+                raise ReplayConfigurationError("Split transformation changed cash or realized accounting.")
+            reconciliation = {
+                "provider_event_id": event_id,
+                "affected_provider_asset_id": asset_id,
+                "effective_boundary": start.isoformat(),
+                "action_type": event["action_type"],
+                "old_rate": event["old_rate"], "new_rate": event["new_rate"],
+                "share_multiplier": share_multiplier,
+                "price_multiplier": price_multiplier,
+                "split_record_fingerprint": event["split_record_fingerprint"],
+                "position_reconciliation": position_reconciliation,
+                "pending_reconciliation": pending_reconciliation,
+                "mark_reconciliation": mark_reconciliation,
+                "cash_before": cash_before, "cash_after": self._portfolio.cash,
+                "tax_reserve_before": reserve_before,
+                "tax_reserve_after": self._portfolio.tax_reserve_cash,
+                "realized_pnl_before": realized_before,
+                "realized_pnl_after": self._portfolio.realized_pnl,
+            }
+            self.state["applied_splits"].append(reconciliation)
+            applied.add(event_id)
+        self.state["applied_split_event_ids"] = sorted(applied)
 
     def _finish_entry(self, signal_id: str, status: str, reason: str | None) -> None:
         outcome = self.state["entry_outcomes"].get(signal_id)

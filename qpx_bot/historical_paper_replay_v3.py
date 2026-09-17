@@ -38,20 +38,53 @@ SEMANTIC = "QPX_ASSET_ID_RESERVOIR_REPLAY_V3"
 def load_bound_universe(config: Any, dataset: Path) -> tuple[dict[str, str], Mapping[str, Any]]:
     universe = config.payload["universe"]
     path = (ROOT / str(universe["manifest_reference"])).resolve()
+    checksum_path = path.with_suffix(path.suffix + ".sha256")
+    if checksum_path.exists() and _sha256(path) != checksum_path.read_text(encoding="utf-8").strip():
+        raise ReplayConfigurationError("V3 universe manifest file checksum mismatch.")
     manifest = json.loads(path.read_text(encoding="utf-8"))
     claimed = manifest.pop("manifest_fingerprint", None)
     actual = _fingerprint(manifest)
     manifest["manifest_fingerprint"] = claimed
     if actual != claimed or claimed != universe["manifest_fingerprint"]:
         raise ReplayConfigurationError("V3 universe manifest fingerprint mismatch.")
-    if manifest.get("selected_count") != 31431 or manifest.get("split_excluded_count") != 2044:
-        raise ReplayConfigurationError("V3 universe approved counts differ.")
     members = manifest.get("members")
-    asset_symbols = {str(item["provider_asset_id"]): str(item["canonical_symbol"]).upper() for item in members}
-    if len(asset_symbols) != 31431:
+    selected_count = manifest.get("selected_count")
+    if (
+        not isinstance(members, list) or type(selected_count) is not int
+        or selected_count < 1 or len(members) != selected_count
+    ):
+        raise ReplayConfigurationError("V3 universe manifest count does not reconcile.")
+    asset_symbols = {
+        str(item["provider_asset_id"]): str(
+            item.get("canonical_symbol", item.get("symbol_label", ""))
+        ).upper()
+        for item in members
+    }
+    if len(asset_symbols) != selected_count or any(not value for value in asset_symbols.values()):
         raise ReplayConfigurationError("V3 universe provider asset identities are not unique.")
-    if set(asset_symbols) & split_excluded_asset_ids(dataset):
-        raise ReplayConfigurationError("V3 universe contains a split-excluded provider asset.")
+    income = manifest.get("income_asset")
+    if income is not None:
+        if not isinstance(income, Mapping):
+            raise ReplayConfigurationError("V3 universe income asset is malformed.")
+        income_id = str(income.get("provider_asset_id", ""))
+        income_label = str(income.get("symbol_label", "")).upper()
+        if not income_id or not income_label or income_id in asset_symbols:
+            raise ReplayConfigurationError("V3 universe income identity is invalid.")
+        asset_symbols[income_id] = income_label
+    split_policy = manifest.get("split_policy", "EXCLUDE_SELECTED_SPLIT_ASSETS")
+    if split_policy == "EXCLUDE_SELECTED_SPLIT_ASSETS":
+        excluded_count = manifest.get("split_excluded_count")
+        if type(excluded_count) is not int or excluded_count < 1:
+            raise ReplayConfigurationError("V3 split-exclusion count is invalid.")
+        if set(asset_symbols) & split_excluded_asset_ids(dataset):
+            raise ReplayConfigurationError("V3 universe contains a split-excluded provider asset.")
+    elif split_policy == "CAUSAL_APPLY_AT_EFFECTIVE_OPEN":
+        if manifest.get("split_excluded_count") != 0:
+            raise ReplayConfigurationError("Causal-split universe cannot declare split exclusions.")
+        if manifest.get("split_event_count") != len(manifest.get("split_events", ())):
+            raise ReplayConfigurationError("Causal-split universe event count does not reconcile.")
+    else:
+        raise ReplayConfigurationError("V3 universe split policy is unsupported.")
     return asset_symbols, manifest
 
 
@@ -61,18 +94,19 @@ def _vix_for(start: datetime, vix: Mapping[Any, float], days: list[Any]) -> floa
     return vix[day] if day is not None and (start.date() - day).days <= 7 else None
 
 
-def _inputs(bars: list[IntradayBar], config: Any) -> list[CandidateV1CausalInputs | None]:
-    candles = [Candle(date=b.start.date(), open=b.open, high=b.high, low=b.low, close=b.close, volume=b.volume) for b in bars]
-    indicators = calculate_indicators(candles, config)
-    result: list[CandidateV1CausalInputs | None] = []
-    for index, bar in enumerate(bars):
+def _inputs_from_indicators(
+    bars: list[IntradayBar], candles: list[Candle], indicators: Any, config: Any,
+    result: list[CandidateV1CausalInputs | None], start_index: int, end_index: int,
+) -> None:
+    for index in range(start_index, end_index):
+        bar = bars[index]
         previous = index - 1; slope = index - config.sma_slope_lookback
         if previous < 0 or slope < 0 or index < config.breakout_lookback:
-            result.append(None); continue
+            result[index] = None; continue
         needed = (indicators.ema_fast[index], indicators.ema_slow[index], indicators.rsi[index], indicators.rmi[index], indicators.atr[index], indicators.sma_trend[index], indicators.average_volume[previous])
         if any(x is None for x in needed) or indicators.ema_fast[previous] is None or indicators.ema_slow[previous] is None or indicators.rsi[previous] is None or indicators.rmi[previous] is None or indicators.sma_trend[slope] is None:
-            result.append(None); continue
-        result.append(CandidateV1CausalInputs(
+            result[index] = None; continue
+        result[index] = CandidateV1CausalInputs(
             index=index, current_close=bar.close, current_volume=bar.volume,
             current_fast=float(indicators.ema_fast[index]), previous_fast=float(indicators.ema_fast[previous]),
             current_slow=float(indicators.ema_slow[index]), previous_slow=float(indicators.ema_slow[previous]),
@@ -81,7 +115,63 @@ def _inputs(bars: list[IntradayBar], config: Any) -> list[CandidateV1CausalInput
             current_sma=float(indicators.sma_trend[index]), slope_sma=float(indicators.sma_trend[slope]),
             baseline_volume=float(indicators.average_volume[previous]), current_atr=float(indicators.atr[index]),
             prior_high=max(c.high for c in candles[index-config.breakout_lookback:index]), vix=0.0,
-        ))
+        )
+
+
+def _inputs(
+    bars: list[IntradayBar], config: Any,
+    split_events: Sequence[Mapping[str, Any]] = (),
+) -> list[CandidateV1CausalInputs | None]:
+    """Compute causal inputs, rescaling accumulated history only when a split is effective."""
+    candles = [
+        Candle(
+            date=b.start.date(), open=b.open, high=b.high, low=b.low,
+            close=b.close, volume=b.volume,
+        )
+        for b in bars
+    ]
+    result: list[CandidateV1CausalInputs | None] = [None] * len(bars)
+    events_by_index: dict[int, list[Mapping[str, Any]]] = {}
+    starts = [bar.start.date() for bar in bars]
+    seen: set[str] = set()
+    for event in sorted(
+        split_events,
+        key=lambda item: (str(item["effective_date"]), str(item["provider_event_id"])),
+    ):
+        event_id = str(event["provider_event_id"])
+        if event_id in seen:
+            raise ReplayConfigurationError("Duplicate split event in causal indicator input.")
+        seen.add(event_id)
+        effective = datetime.fromisoformat(str(event["effective_date"])).date()
+        index = bisect_left(starts, effective)
+        if index < len(bars):
+            events_by_index.setdefault(index, []).append(event)
+    segment_start = 0
+    for index, events in sorted(events_by_index.items()):
+        indicators = calculate_indicators(candles, config)
+        _inputs_from_indicators(
+            bars, candles, indicators, config, result, segment_start, index,
+        )
+        for event in events:
+            share_multiplier = float(event["share_multiplier"])
+            price_multiplier = float(event["price_multiplier"])
+            if share_multiplier <= 0 or price_multiplier <= 0:
+                raise ReplayConfigurationError("Causal indicator split ratio is invalid.")
+            for prior in range(index):
+                candle = candles[prior]
+                candles[prior] = Candle(
+                    date=candle.date,
+                    open=candle.open * price_multiplier,
+                    high=candle.high * price_multiplier,
+                    low=candle.low * price_multiplier,
+                    close=candle.close * price_multiplier,
+                    volume=candle.volume * share_multiplier,
+                )
+        segment_start = index
+    indicators = calculate_indicators(candles, config)
+    _inputs_from_indicators(
+        bars, candles, indicators, config, result, segment_start, len(bars),
+    )
     return result
 
 
@@ -120,16 +210,34 @@ def _read_partition(path: Path, selected: set[str], rows: dict[str, dict[datetim
             rows[asset_id][start] = bar
 
 
-def prepare(run_dir: Path, dataset: Path, asset_symbols: Mapping[str, str], snapshot: Any, identity: Mapping[str, str]) -> sqlite3.Connection:
+def prepare(
+    run_dir: Path, dataset: Path, asset_symbols: Mapping[str, str], snapshot: Any,
+    identity: Mapping[str, str], split_events: Sequence[Mapping[str, Any]] = (),
+) -> sqlite3.Connection:
     state_path = dataset / "acquisition_state/state.json"
     state = json.loads(read_checksummed_state(state_path, state_path.with_suffix(".sha256"), label="Historical acquisition state"))
     db = _database(run_dir / "v3_replay_cache.sqlite3", identity)
     completed = {row[0] for row in db.execute("SELECT batch FROM prepared_batches")}
     vix = _read_vix_daily_cache(DEFAULT_VIX); vix_days = sorted(vix); port = CandidateV1ReplayPort(snapshot)
     by_batch: dict[int, list[Mapping[str, Any]]] = {}
+    selected_asset_ids = set(asset_symbols)
+    partition_asset_ids: set[str] = set()
     for part in state["partitions"]:
-        by_batch.setdefault(int(part["batch"]), []).append(part)
+        part_asset_ids = {str(item) for item in part["asset_ids"]}
+        partition_asset_ids.update(part_asset_ids & selected_asset_ids)
+        if part_asset_ids & selected_asset_ids:
+            by_batch.setdefault(int(part["batch"]), []).append(part)
+    missing = selected_asset_ids - partition_asset_ids
+    if missing:
+        raise ReplayConfigurationError(
+            f"Selected provider assets are absent from reservoir partitions: {sorted(missing)}"
+        )
     income_ids = {asset_id for asset_id, symbol in asset_symbols.items() if symbol == "QDTE"}
+    split_events_by_asset: dict[str, list[Mapping[str, Any]]] = {}
+    for event in split_events:
+        split_events_by_asset.setdefault(
+            str(event["affected_provider_asset_id"]), []
+        ).append(event)
     for batch, parts in sorted(by_batch.items()):
         if batch in completed:
             continue
@@ -146,7 +254,9 @@ def prepare(run_dir: Path, dataset: Path, asset_symbols: Mapping[str, str], snap
         with db:
             for asset_id, values in rows.items():
                 bars = [bar for _, bar in sorted(values.items())]
-                inputs = _inputs(bars, snapshot.bot_config)
+                inputs = _inputs(
+                    bars, snapshot.bot_config, split_events_by_asset.get(asset_id, ()),
+                )
                 qualifiers: list[int] = []
                 for index, item in enumerate(inputs):
                     if item is None: continue
@@ -167,15 +277,78 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
     config = load_replay_configuration(config_path); snapshot = _load_strategy_profile(profile_path, config)
     asset_symbols, universe = load_bound_universe(config, dataset)
     source_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    implementation = _fingerprint({"v3_runner":_sha256(Path(__file__)), "runtime":_sha256(ROOT / "qpx_bot/historical_paper_replay_runner.py")})
-    run_id = _fingerprint({"configuration_fingerprint":config.fingerprint, "implementation_fingerprint":implementation})
+    implementation = _fingerprint({
+        "v3_runner": _sha256(Path(__file__)),
+        "runtime": _sha256(ROOT / "qpx_bot/historical_paper_replay_runner.py"),
+        "portfolio": _sha256(ROOT / "qpx_bot/portfolio.py"),
+        "top100_evidence_builder": _sha256(ROOT / "qpx_bot/top100_split_evidence.py"),
+    })
+    run_identity = {
+        "configuration_fingerprint": config.fingerprint,
+        "implementation_fingerprint": implementation,
+        "universe_manifest_fingerprint": universe["manifest_fingerprint"],
+        "derived_asset_id_universe_fingerprint": universe.get(
+            "derived_asset_id_universe_fingerprint", universe["manifest_fingerprint"]
+        ),
+        "dataset_fingerprint": config.payload["dataset"]["snapshot_fingerprint"],
+        "frozen_selection_fingerprint": universe.get("frozen_selection_fingerprint"),
+        "corporate_action_artifact_fingerprint": universe.get(
+            "corporate_action_ratio_artifact_fingerprint",
+            universe.get("source_corporate_action_fingerprint"),
+        ),
+        "identity_resolution_fingerprint": universe.get(
+            "derived_identity_resolution_fingerprint",
+            universe.get("source_identity_resolution_fingerprint"),
+        ),
+        "split_accounting_semantic_version": universe.get(
+            "split_accounting_semantic_version", "SPLIT_EXCLUDED"
+        ),
+    }
+    run_id = _fingerprint(run_identity)
     run_dir = dataset / "historical_paper_replay_v3" / run_id; run_dir.mkdir(parents=True, exist_ok=True)
-    identity = {"run_id":run_id, "configuration_fingerprint":config.fingerprint, "universe_manifest_fingerprint":universe["manifest_fingerprint"], "implementation_fingerprint":implementation}
-    _write_evidence(run_dir / "run_manifest.json", {"schema_version":RUN_SCHEMA,"semantic_version":SEMANTIC,"status":"PREPARING","source_commit":source_commit,**identity,"asset_identity":"provider_asset_id","asset_count":len(asset_symbols),"symbol_role":"NON_UNIQUE_LABEL","configuration":config.as_dict(),"authority":config.payload["authority"],"started_at_utc":datetime.now(timezone.utc).isoformat()})
-    db = prepare(run_dir, dataset, asset_symbols, snapshot, identity)
+    identity = {
+        "run_id": run_id,
+        **{key: value for key, value in run_identity.items() if value is not None},
+    }
+    _write_evidence(run_dir / "run_manifest.json", {
+        "schema_version": RUN_SCHEMA, "semantic_version": SEMANTIC,
+        "status": "PREPARING", "source_commit": source_commit, **identity,
+        "asset_identity": "provider_asset_id",
+        "swing_asset_count": universe["selected_count"],
+        "total_asset_count_including_income": len(asset_symbols),
+        "symbol_role": "NON_UNIQUE_LABEL",
+        "selection_bias_label": universe.get("selection_bias_label"),
+        "split_policy": universe.get("split_policy", "EXCLUDE_SELECTED_SPLIT_ASSETS"),
+        "split_event_count": universe.get("split_event_count", 0),
+        "fractional_share_policy": universe.get("fractional_share_policy"),
+        "entry_share_policy": universe.get("entry_share_policy", "INTEGER_ONLY"),
+        "configuration": config.as_dict(), "authority": config.payload["authority"],
+        "started_at_utc": datetime.now(timezone.utc).isoformat(),
+    })
+    split_contract = (
+        universe if universe.get("split_policy") == "CAUSAL_APPLY_AT_EFFECTIVE_OPEN"
+        else None
+    )
+    db = prepare(
+        run_dir, dataset, asset_symbols, snapshot, identity,
+        universe.get("split_events", ()),
+    )
+    for event in universe.get("split_events", ()):
+        effective = str(event["effective_date"])
+        exists = db.execute(
+            "SELECT 1 FROM boundaries WHERE start LIKE ? LIMIT 1",
+            (effective + "T09:30:%",),
+        ).fetchone()
+        if exists is None:
+            raise ReplayConfigurationError(
+                f"Split event lacks an effective market-open boundary: {event['provider_event_id']}"
+            )
     from qpx_bot.historical_paper_replay_runner import _read_runtime_state
     restored = _read_runtime_state(run_dir, config)
-    runtime = CandidateV1HistoricalPaperRuntime(config, restored, candidate_snapshot=snapshot, asset_symbols=asset_symbols)
+    runtime = CandidateV1HistoricalPaperRuntime(
+        config, restored, candidate_snapshot=snapshot, asset_symbols=asset_symbols,
+        split_contract=split_contract,
+    )
     dividends = _load_dividends(dataset, "QDTE")
     after = runtime.state["last_completed_boundary"]
     after_start = (datetime.fromisoformat(after) - timedelta(minutes=15)).isoformat() if after else None
@@ -197,14 +370,33 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
     swing_value=sum(float(marks.get(asset_id,value["entry_price"]))*value["shares"] for asset_id,value in positions.items())
     income_value=float(state["income_shares"])*float(marks.get(runtime.income_asset_id,0.0))
     ending=state["portfolio"]["cash"]+state["portfolio"]["tax_reserve_cash"]+swing_value+income_value
+    closed = state["portfolio"]["closed_trades"]
+    gross_profit = sum(float(item["pnl"]) for item in closed if float(item["pnl"]) > 0)
+    gross_loss = -sum(float(item["pnl"]) for item in closed if float(item["pnl"]) < 0)
     report={"schema_version":RUN_SCHEMA,"semantic_version":SEMANTIC,"run_id":run_id,"status":"COMPLETE",**identity,
         "asset_identity":"provider_asset_id","symbol_role":"NON_UNIQUE_LABEL","starting_equity":config.payload["starting_account"]["starting_cash"],
         "ending_equity":ending,"net_profit_loss":ending-state["portfolio"]["total_contributions"],"maximum_drawdown":state["maximum_drawdown"],
         "completed_15m_boundaries":state["boundaries"],"candidate_v1_evaluations":state["candidate_evaluations"],"signals":state["signals"],"fills":state["fills"],
         "capacity_arbitration":config.payload["capacity_arbitration"],"capacity_decisions":state["capacity_decisions"],"capacity_deferred":state["capacity_deferred"],
-        "closed_trades":len(state["portfolio"]["closed_trades"]),"ending_positions":{asset_id:{**value,"symbol_label":asset_symbols[asset_id]} for asset_id,value in positions.items()},
+        "closed_trades":len(closed),
+        "wins":sum(1 for item in closed if float(item["pnl"]) > 0),
+        "losses":sum(1 for item in closed if float(item["pnl"]) < 0),
+        "win_rate":(sum(1 for item in closed if float(item["pnl"]) > 0) / len(closed) if closed else 0.0),
+        "profit_factor":(gross_profit / gross_loss if gross_loss else None),
+        "ending_cash":state["portfolio"]["cash"],
+        "ending_tax_reserve":state["portfolio"]["tax_reserve_cash"],
+        "ending_positions":{asset_id:{**value,"symbol_label":asset_symbols[asset_id]} for asset_id,value in positions.items()},
         "outcome_reconciliation":state["outcome_reconciliation"],
+        "selection_bias_label":universe.get("selection_bias_label"),
+        "frozen_selection_fingerprint":universe.get("frozen_selection_fingerprint"),
+        "derived_asset_id_universe_fingerprint":universe.get("derived_asset_id_universe_fingerprint"),
+        "corporate_action_ratio_artifact_fingerprint":universe.get("corporate_action_ratio_artifact_fingerprint"),
+        "derived_identity_resolution_fingerprint":universe.get("derived_identity_resolution_fingerprint"),
+        "split_accounting_semantic_version":universe.get("split_accounting_semantic_version"),
+        "applied_split_count":len(state.get("applied_splits", ())),
+        "applied_splits":state.get("applied_splits", []),
         "authority":config.payload["authority"],"completed_at_utc":datetime.now(timezone.utc).isoformat()}
+    report["experiment_report_fingerprint"] = _fingerprint(report)
     _write_evidence(run_dir / "final_report.json",report)
     _write_evidence(run_dir / "exit_status.json", {"run_id":run_id,"status":"COMPLETE","exit_code":0})
     run_manifest=json.loads(read_checksummed_state(run_dir/"run_manifest.json",run_dir/"run_manifest.json.sha256",label="V3 run manifest"))
