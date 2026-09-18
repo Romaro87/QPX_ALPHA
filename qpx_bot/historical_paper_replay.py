@@ -29,6 +29,8 @@ CONFIG_SCHEMA_VERSION = 1
 CONFIG_SEMANTIC_VERSION = "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CONFIG_V1"
 ACCELERATED_CONFIG_SCHEMA_VERSION = 2
 ACCELERATED_CONFIG_SEMANTIC_VERSION = "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CONFIG_V2"
+EXPERIMENT_RISK_CONFIG_SCHEMA_VERSION = 3
+EXPERIMENT_RISK_CONFIG_SEMANTIC_VERSION = "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CONFIG_V3"
 CHECKPOINT_SCHEMA_VERSION = 1
 CHECKPOINT_SEMANTIC_VERSION = "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CHECKPOINT_V1"
 
@@ -52,6 +54,11 @@ _ROOT_FIELDS = {
 _ACCELERATOR_FIELDS = {
     "enabled", "configuration_path", "configuration_fingerprint",
     "source_file_sha256",
+}
+_EXPERIMENT_RISK_FIELDS = {
+    "sizing_semantic_version", "initial_stop_fraction",
+    "maximum_provider_asset_exposure_fraction",
+    "per_position_risk_cap_enabled",
 }
 _RECONSTITUTED_FIELDS = {
     "eligibility_source", "selection_rule", "membership_count", "lookback",
@@ -160,19 +167,26 @@ def replay_configuration_from_mapping(
         raise ReplayConfigurationError("Replay configuration must be a JSON object.")
     schema_version = raw.get("schema_version")
     semantic_version = raw.get("semantic_version")
-    accelerated = (
-        schema_version == ACCELERATED_CONFIG_SCHEMA_VERSION
-        and semantic_version == ACCELERATED_CONFIG_SEMANTIC_VERSION
+    accelerated = schema_version in {
+        ACCELERATED_CONFIG_SCHEMA_VERSION, EXPERIMENT_RISK_CONFIG_SCHEMA_VERSION,
+    }
+    experiment_risk = (
+        schema_version == EXPERIMENT_RISK_CONFIG_SCHEMA_VERSION
+        and semantic_version == EXPERIMENT_RISK_CONFIG_SEMANTIC_VERSION
     )
     fields = _ROOT_FIELDS | ({"accelerators"} if accelerated else set())
+    if experiment_risk:
+        fields.add("experiment_risk")
     root = _object(raw, "Replay configuration", fields)
     if type(root["schema_version"]) is not int or root["schema_version"] not in {
         CONFIG_SCHEMA_VERSION, ACCELERATED_CONFIG_SCHEMA_VERSION,
+        EXPERIMENT_RISK_CONFIG_SCHEMA_VERSION,
     }:
         raise ReplayConfigurationError("Unsupported replay configuration schema.")
     expected_semantic = (
-        ACCELERATED_CONFIG_SEMANTIC_VERSION if accelerated
-        else CONFIG_SEMANTIC_VERSION
+        EXPERIMENT_RISK_CONFIG_SEMANTIC_VERSION if experiment_risk else
+        ACCELERATED_CONFIG_SEMANTIC_VERSION if accelerated else
+        CONFIG_SEMANTIC_VERSION
     )
     if root["semantic_version"] != expected_semantic:
         raise ReplayConfigurationError("Unsupported replay configuration semantics.")
@@ -303,6 +317,36 @@ def replay_configuration_from_mapping(
             "paired_caps_file_sha256",
         ):
             _fingerprint(dynamic[field], f"accelerators.dynamic_sizing.{field}")
+
+    if experiment_risk:
+        risk = _object(
+            root["experiment_risk"], "experiment_risk", _EXPERIMENT_RISK_FIELDS,
+        )
+        _identifier(
+            risk["sizing_semantic_version"],
+            "experiment_risk.sizing_semantic_version",
+        )
+        stop = _number(
+            risk["initial_stop_fraction"],
+            "experiment_risk.initial_stop_fraction", minimum=0.0,
+        )
+        exposure = _number(
+            risk["maximum_provider_asset_exposure_fraction"],
+            "experiment_risk.maximum_provider_asset_exposure_fraction",
+            minimum=0.0,
+        )
+        if not 0.0 < stop < 1.0:
+            raise ReplayConfigurationError(
+                "experiment_risk.initial_stop_fraction must be between zero and one."
+            )
+        if not 0.0 < exposure <= 1.0:
+            raise ReplayConfigurationError(
+                "experiment_risk.maximum_provider_asset_exposure_fraction must be in (0, 1]."
+            )
+        if risk["per_position_risk_cap_enabled"] is not False:
+            raise ReplayConfigurationError(
+                "Experiment per-position risk cap must be explicitly disabled."
+            )
 
     runtime = _object(root["runtime"], "runtime", {
         "causal_driver_version", "accounting_version", "execution_version",

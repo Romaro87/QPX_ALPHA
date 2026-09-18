@@ -60,6 +60,19 @@ class Position:
             * self.shares
         )
 
+    def initial_risk_per_share(self, config: BotConfig) -> float:
+        """Return the immutable entry risk under the captured entry semantics."""
+        semantics = self.entry_semantic_snapshot or {}
+        if semantics.get("initial_stop_mode") == "ENTRY_PRICE_FRACTION":
+            fraction = float(semantics["initial_stop_fraction"])
+            return self.entry_price * fraction
+        multiple = (
+            self.entry_stop_atr_multiple
+            if self.entry_stop_atr_multiple is not None
+            else config.stop_atr_multiple
+        )
+        return self.entry_atr * multiple
+
 
 @dataclass(frozen=True, slots=True)
 class ClosedTrade:
@@ -323,18 +336,7 @@ class Portfolio:
         self.tax_reserve_cash += tax_reserved
         self.realized_pnl += pnl
 
-        entry_stop_multiple = (
-            position.entry_stop_atr_multiple
-            if position.entry_stop_atr_multiple
-            is not None
-            else config.stop_atr_multiple
-        )
-
-        initial_risk = (
-            position.entry_atr
-            * entry_stop_multiple
-            * position.shares
-        )
+        initial_risk = position.initial_risk_per_share(config) * position.shares
         result_r = (
             pnl / initial_risk
             if initial_risk > 0

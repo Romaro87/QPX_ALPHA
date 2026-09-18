@@ -1,0 +1,24 @@
+{
+  "schema_version": 3,
+  "semantic_version": "QPX_CAUSAL_HISTORICAL_PAPER_REPLAY_CONFIG_V3",
+  "experiment_id": "VOLUME.CONFIRMATION.90.TEN.YEAR.SIP.FROZEN.TOP100.AGGRESSIVE.ACCELERATED.STOP05.EXPOSURE17.V1",
+  "market_data": {"provider": "ALPACA", "feed": "SIP", "decision_bar_interval": "15m", "adjustment_mode": "CAUSAL_SPLIT_ADJUSTED", "adapter_identity": "QPX.HISTORICAL.RESERVOIR.SIP.15M.V1"},
+  "execution": {"model": "NEXT_ELIGIBLE_15M_OPEN", "adapter_identity": "QPX.HISTORICAL.PAPER.NEXT.15M.OPEN.V1", "semantic_version": "NEXT.ELIGIBLE.15M.OPEN.V1"},
+  "income": {"implementation_identity": "QDTE.INCOME.ROLE.V1", "bootstrap_mode": "CASH_UNTIL_INCOME_IMPLEMENTATION_AVAILABLE", "availability_source": "CAUSAL.SIP.COMPLETED.BAR.AVAILABILITY.V1"},
+  "volatility": {"source": "CBOE.VIX.PREVIOUS.COMPLETED.SESSION", "adapter_identity": "QPX.CBOE.VIX.PREVIOUS.SESSION.V1", "evidence_fingerprint": "b40f4236d40cb9f6979206bf794f17c7ddd58fa66bd9f3bfda0c3116dd24c6c6"},
+  "universe": {"mode": "STATIC_FROZEN", "identity": "QPX.FROZEN.TOP100.ASSET.ID.CAUSAL.SPLIT.V1", "manifest_reference": "qpx_bot/research_universes/alpaca_top100_asset_id_split_v1.json", "manifest_fingerprint": "1bee0e7b1bfe2f654b5ef4c91ba798dc04d994c4bb704e8ecd8aaa70c122cd05", "retrospective_selection": true, "policy": null},
+  "starting_account": {"configuration_identity": "VOLUME.CONFIRMATION.90.TOP100.AGGRESSIVE.ACCELERATED.HISTORICAL.ACCOUNT.V1", "currency": "USD", "starting_cash": 1443.34},
+  "contributions": {"schedule_identity": "CANDIDATE.V1.NO.EXTERNAL.CONTRIBUTIONS.V1", "currency": "USD", "amount": 0.0},
+  "strategy": {"identity": "QPX.CANDIDATE.V1.TOP100.AGGRESSIVE.ACCELERATED", "configuration_fingerprint": "13fba53fea5af66cc22ee10e1597b91be98574bedd3b10dc39c81251d5c98f87", "entry_semantics_fingerprint": "fc581b7310b16f9485e9383e11fe0d2058ee310ff90f6412c71c1c862e98fb32"},
+  "experiment_risk": {"sizing_semantic_version": "QPX.EXPOSURE.CAPPED.NO.PER.POSITION.RISK.V1", "initial_stop_fraction": 0.05, "maximum_provider_asset_exposure_fraction": 0.17, "per_position_risk_cap_enabled": false},
+  "capacity_arbitration": {"enabled": true, "policy": "volume_confirmation", "policy_version": "1.0.0", "configuration_fingerprint": "b9a5008ec61f919a4c9da9c4d8afe8fe20c36c1e10fca8690c880ade23b6e89b"},
+  "accelerators": {
+    "profit_recycling": {"enabled": true, "configuration_path": "qpx_bot/accelerators/configs/profit_recycling_fraction_100_v1.json", "configuration_fingerprint": "148f702f9ba50ec788b0554ade08c9bebedb7219ddbe796d62feda884739f691", "source_file_sha256": "f909946da13f4bcf233f2caabf9c0c5d8c603184a16849450c31ef7de4d9c09d"},
+    "dynamic_sizing": {"enabled": true, "configuration_path": "qpx_bot/accelerators/configs/dynamic_sizing_v1.json", "configuration_fingerprint": "beb5f970c92ddaa114b01f72f3f2ced23d2cfb2d9d1faceca6be755430c356d1", "source_file_sha256": "6141c3fabff38c18d37d43a06de7aaf5ffce748c88007363ea651ecbd6bf13e7", "paired_caps_path": "qpx_bot/accelerators/configs/dynamic_sizing_v1_paired_caps.json", "paired_caps_file_sha256": "78f5a539307d8fc74b2076176c63b8514dfffed99295620e47abcd049fa2ce54", "paired_cap": "90"},
+    "pyramiding": {"enabled": true, "configuration_path": "qpx_bot/accelerators/configs/pyramiding_v1.json", "configuration_fingerprint": "4e69add84dec7aac26952231ef90b24578df29310d86b60cc2b7ba977877a1c4", "source_file_sha256": "6ead92d44c5b2928e85a1ada0f4b3720e68668a5ad9eeba8a79d73d9d9666855"},
+    "regime_allocation": {"enabled": true, "configuration_path": "qpx_bot/accelerators/configs/regime_two_sided_ladder_v1.json", "configuration_fingerprint": "da9ba35f5f30d6515770b8d48fe92c4cd0a088f792a4151848fdd4262d3ca9dd", "source_file_sha256": "b14bc4c65ea012869ee90e2959f0285c6e7b10b775ba0657e1664db67bdc2f50"}
+  },
+  "runtime": {"causal_driver_version": "QPX.SIP.RESERVOIR.CAUSAL.SPLIT.DRIVER.V1", "accounting_version": "QPX.CANDIDATE.V1.PAPER.CAUSAL.SPLIT.ACCELERATED.ACCOUNTING.V1", "execution_version": "QPX.NEXT.ELIGIBLE.15M.OPEN.V1"},
+  "dataset": {"root_identity": "research_data/qpx_ml_historical_v1", "snapshot_fingerprint": "bcace64bb55c68de66c256c5b9ed443e6384f80904cff7debaefeb862792d595", "qualification_status": "ACQUISITION_COMPLETE_NOT_TRAINING_ELIGIBLE"},
+  "authority": {"training": "NONE", "promotion": "NONE", "live": "NONE", "broker": "NONE", "capital": "NONE"}
+}

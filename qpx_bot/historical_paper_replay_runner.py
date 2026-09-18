@@ -57,7 +57,7 @@ from qpx_bot.ml_historical_calendar_repair import AUDITED_FALSE_OPEN_DATES
 from qpx_bot.ml_experimental_causal_baseline import build_input_snapshot
 from qpx_bot.paper_state import read_checksummed_state, write_checksummed_state
 from qpx_bot.portfolio import ClosedTrade, Portfolio, Position, contribution_allocation
-from qpx_bot.risk import buy_fill, calculate_position_size
+from qpx_bot.risk import PositionSize, buy_fill, calculate_position_size
 from qpx_bot.strategy import evaluate_exit
 
 
@@ -404,6 +404,66 @@ def _trade_from_dict(value: Mapping[str, Any]) -> ClosedTrade:
     return ClosedTrade(**payload)
 
 
+def _account_valuation_from_state(
+    state: Mapping[str, Any], config: ReplayExperimentConfiguration,
+) -> dict[str, Any]:
+    """Recompute checkpoint valuation evidence without archive access."""
+    portfolio = state["portfolio"]
+    marks = state["last_marks"]
+    swing_market_value = sum(
+        float(marks.get(asset_id, position["entry_price"]))
+        * float(position["shares"])
+        for asset_id, position in portfolio["positions"].items()
+    )
+    income_ids = [
+        asset_id for asset_id, symbol in state["asset_symbols"].items()
+        if symbol == "QDTE"
+    ]
+    if len(income_ids) != 1:
+        raise ReplayConfigurationError(
+            "Checkpoint valuation lacks one exact income asset identity."
+        )
+    income_market_value = (
+        float(state["income_shares"])
+        * float(marks.get(income_ids[0], 0.0))
+    )
+    cash = float(portfolio["cash"])
+    tax_reserve = float(portfolio["tax_reserve_cash"])
+    current_marked_equity = (
+        cash + tax_reserve + swing_market_value + income_market_value
+    )
+    deployable_cash = cash
+    accelerator_state = state.get("accelerators")
+    if accelerator_state is not None:
+        accelerators = load_historical_replay_accelerators(
+            config.payload, root=ROOT, sha256=_sha256,
+        )
+        if accelerators is None:
+            raise ReplayConfigurationError(
+                "Checkpoint valuation accelerator evidence is missing."
+            )
+        profit_state = accelerator_state["profit_recycling"]
+        profit_runtime = restore_profit_runtime(
+            accelerators.profit_recycling_config,
+            float(config.payload["starting_account"]["starting_cash"]),
+            profit_state["ledger"],
+        )
+        deployable_cash = profit_runtime.ledger.available_swing_cash(
+            cash, int(profit_state["event_sequence"]) + 1,
+        )
+    return {
+        "valuation_boundary": state["last_completed_boundary"],
+        "current_marked_equity": current_marked_equity,
+        "net_profit_loss": (
+            current_marked_equity - float(portfolio["total_contributions"])
+        ),
+        "deployable_cash": deployable_cash,
+        "tax_reserve": tax_reserve,
+        "swing_market_value": swing_market_value,
+        "income_sleeve_market_value": income_market_value,
+    }
+
+
 class CandidateV1HistoricalPaperRuntime:
     """Current Candidate V1 paper/account logic with no archive capability."""
 
@@ -678,6 +738,80 @@ class CandidateV1HistoricalPaperRuntime:
         income_price = float(self.state["last_marks"].get(self.income_asset_id, 0.0))
         return self._portfolio.equity(marks) + self.state["income_shares"] * income_price
 
+    def account_valuation(self) -> dict[str, Any]:
+        """Return directly persisted marked-account evidence for this boundary."""
+        swing_market_value = sum(
+            float(self.state["last_marks"].get(asset_id, position.entry_price))
+            * position.shares
+            for asset_id, position in self._portfolio.positions.items()
+        )
+        income_market_value = (
+            float(self.state["income_shares"])
+            * float(self.state["last_marks"].get(self.income_asset_id, 0.0))
+        )
+        current_marked_equity = (
+            self._portfolio.cash + self._portfolio.tax_reserve_cash
+            + swing_market_value + income_market_value
+        )
+        return {
+            "valuation_boundary": self.state["last_completed_boundary"],
+            "current_marked_equity": current_marked_equity,
+            "net_profit_loss": (
+                current_marked_equity - self._portfolio.total_contributions
+            ),
+            "deployable_cash": self._deployable_cash(),
+            "tax_reserve": self._portfolio.tax_reserve_cash,
+            "swing_market_value": swing_market_value,
+            "income_sleeve_market_value": income_market_value,
+        }
+
+    def _experiment_position_size(
+        self, *, account_equity: float, available_cash: float,
+        entry_price: float, atr: float, active_risk: float,
+    ) -> PositionSize:
+        risk = self.config.payload.get("experiment_risk")
+        if risk is None:
+            return calculate_position_size(
+                account_equity=account_equity, available_cash=available_cash,
+                entry_price=entry_price, atr=atr, active_risk=active_risk,
+                config=self.candidate._snapshot.bot_config,
+                trade_results_r=disabled_kelly_trade_history(self.candidate._snapshot),
+            )
+        if risk["per_position_risk_cap_enabled"] is not False:
+            raise ReplayConfigurationError(
+                "Experiment per-position risk cap is not disabled."
+            )
+        config = self.candidate._snapshot.bot_config
+        entry_fill = buy_fill(entry_price, config.slippage_rate)
+        stop_fraction = float(risk["initial_stop_fraction"])
+        risk_per_share = entry_fill * stop_fraction
+        remaining_active_risk = max(
+            0.0,
+            account_equity * config.maximum_active_portfolio_risk - active_risk,
+        )
+        exposure_cap = (
+            account_equity
+            * float(risk["maximum_provider_asset_exposure_fraction"])
+        )
+        shares = max(0, min(
+            math.floor(available_cash / entry_fill),
+            math.floor(exposure_cap / entry_fill),
+            math.floor(remaining_active_risk / risk_per_share),
+        ))
+        blocked = None if shares > 0 else (
+            "Cash, provider-asset exposure, or active-risk capacity is below one share."
+        )
+        return PositionSize(
+            shares=shares,
+            entry_fill=entry_fill,
+            stop_price=entry_fill * (1.0 - stop_fraction),
+            target_price=entry_fill + atr * config.target_atr_multiple,
+            risk_per_share=risk_per_share,
+            planned_risk=shares * risk_per_share,
+            risk_fraction=0.0,
+            blocked_reason=blocked,
+        )
+
     def _close_position(
         self, *, asset_id: str, exit_price: float, exit_date: date,
         reason: str, decision_timestamp: datetime,
@@ -700,10 +834,7 @@ class CandidateV1HistoricalPaperRuntime:
                 self._portfolio.realized_pnl += correction
                 self._portfolio.tax_reserve_cash += actual_tax - trade.tax_reserved
                 self._portfolio.cash -= actual_tax - trade.tax_reserved
-                initial_risk = (
-                    trade.shares * meta["original_entry_atr"]
-                    * self.candidate._snapshot.bot_config.stop_atr_multiple
-                )
+                initial_risk = trade.shares * float(meta["initial_risk_per_share"])
                 trade = replace(
                     trade, pnl=actual_pnl, tax_reserved=actual_tax,
                     result_r=(actual_pnl / initial_risk if initial_risk > 0 else 0.0),
@@ -749,6 +880,9 @@ class CandidateV1HistoricalPaperRuntime:
             "original_entry_shares": float(position.shares),
             "original_entry_price": position.entry_price,
             "original_entry_atr": position.entry_atr,
+            "initial_risk_per_share": position.initial_risk_per_share(
+                self.candidate._snapshot.bot_config
+            ),
             "anchor_price": position.entry_price,
             "additions": [],
         }
@@ -839,7 +973,12 @@ class CandidateV1HistoricalPaperRuntime:
                     equity * self.candidate._snapshot.bot_config.maximum_active_portfolio_risk
                 ),
                 current_position_active_risk=position.active_risk,
-                hard_notional_cap=self.candidate._snapshot.maximum_position_notional_fraction,
+                hard_notional_cap=float(
+                    self.config.payload.get("experiment_risk", {}).get(
+                        "maximum_provider_asset_exposure_fraction",
+                        self.candidate._snapshot.maximum_position_notional_fraction,
+                    )
+                ),
             ))
             state["opportunities"] += 1
             state["decisions"].append(_json_safe(asdict(decision)))
@@ -970,11 +1109,10 @@ class CandidateV1HistoricalPaperRuntime:
             equity = self._portfolio.equity(marks) + self.state["income_shares"] * income_price
             active_risk = self._portfolio.active_risk()
             deployable_cash = self._deployable_cash()
-            sizing = calculate_position_size(
+            sizing = self._experiment_position_size(
                 account_equity=equity, available_cash=deployable_cash,
                 entry_price=evidence.bar.open, atr=signal.signal_atr,
-                active_risk=active_risk, config=self.candidate._snapshot.bot_config,
-                trade_results_r=disabled_kelly_trade_history(self.candidate._snapshot),
+                active_risk=active_risk,
             )
             risk_budget_shares = sizing.shares
             maximum_notional = equity * self.candidate._snapshot.maximum_position_notional_fraction
@@ -990,21 +1128,36 @@ class CandidateV1HistoricalPaperRuntime:
             )
             if not sizing.is_tradeable:
                 self.state["risk_rejections"] += 1
-                self._finish_entry(
-                    signal.signal_id, "REJECTED",
-                    _position_size_rejection_diagnostic(
+                rejection_reason = (
+                    sizing.blocked_reason
+                    if self.config.payload.get("experiment_risk") is not None
+                    else _position_size_rejection_diagnostic(
                         account_equity=equity,
                         available_cash=deployable_cash,
                         active_risk=active_risk,
                         sizing=sizing,
                         config=self.candidate._snapshot.bot_config,
-                    ),
+                    )
+                )
+                self._finish_entry(
+                    signal.signal_id, "REJECTED", rejection_reason,
                 )
                 continue
             position = self._portfolio.open_position(
                 symbol=signal.provider_asset_id, sizing=sizing, entry_date=start.date(),
                 entry_atr=signal.signal_atr, config=self.candidate._snapshot.bot_config,
             )
+            experiment_risk = self.config.payload.get("experiment_risk")
+            if experiment_risk is not None:
+                position.entry_semantic_snapshot = {
+                    "sizing_semantic_version": experiment_risk["sizing_semantic_version"],
+                    "initial_stop_mode": "ENTRY_PRICE_FRACTION",
+                    "initial_stop_fraction": experiment_risk["initial_stop_fraction"],
+                    "maximum_provider_asset_exposure_fraction": experiment_risk[
+                        "maximum_provider_asset_exposure_fraction"
+                    ],
+                    "per_position_risk_cap_enabled": False,
+                }
             self._register_position_for_pyramiding(signal.provider_asset_id, position)
             self._consume_recycled_cash(sizing.entry_fill * sizing.shares)
             self.state["fills"] += 1
@@ -1177,6 +1330,7 @@ class CandidateV1HistoricalPaperRuntime:
                     meta["original_entry_shares"] *= share_multiplier
                     meta["original_entry_price"] *= price_multiplier
                     meta["original_entry_atr"] *= price_multiplier
+                    meta["initial_risk_per_share"] *= price_multiplier
                     meta["anchor_price"] *= price_multiplier
                     for addition in meta["additions"]:
                         addition["shares_added"] *= share_multiplier
@@ -1400,17 +1554,36 @@ def _read_runtime_state(run_dir: Path, config: ReplayExperimentConfiguration) ->
     state = payload.get("paper_state")
     if not isinstance(state, Mapping) or payload.get("paper_state_fingerprint") != _fingerprint(state):
         raise ReplayConfigurationError("Historical replay paper-state fingerprint mismatch.")
+    valuation = payload.get("account_valuation")
+    if valuation is not None:
+        recomputed = _account_valuation_from_state(state, config)
+        if (
+            not isinstance(valuation, Mapping)
+            or payload.get("account_valuation_fingerprint") != _fingerprint(valuation)
+            or valuation.get("valuation_boundary") != state.get("last_completed_boundary")
+            or _fingerprint(valuation) != _fingerprint(recomputed)
+        ):
+            raise ReplayConfigurationError(
+                "Historical replay checkpoint account valuation is invalid."
+            )
+    elif config.payload.get("experiment_risk") is not None:
+        raise ReplayConfigurationError(
+            "Historical replay checkpoint lacks required account valuation."
+        )
     return state
 
 
 def _write_runtime_state(run_dir: Path, run_id: str, config: ReplayExperimentConfiguration, runtime: CandidateV1HistoricalPaperRuntime) -> str:
     state = runtime.snapshot()
+    valuation = runtime.account_valuation()
     core = {
         "schema_version": RUN_SCHEMA, "semantic_version": RUN_SEMANTIC,
         "run_id": run_id, "configuration_fingerprint": config.fingerprint,
         "capacity_arbitration": config.payload["capacity_arbitration"],
         "accelerators": config.payload.get("accelerators"),
         "last_completed_boundary": state["last_completed_boundary"],
+        "account_valuation": valuation,
+        "account_valuation_fingerprint": _fingerprint(valuation),
         "paper_state_fingerprint": _fingerprint(state), "paper_state": state,
         "authority": config.payload["authority"],
     }

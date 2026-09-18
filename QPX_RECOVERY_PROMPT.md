@@ -1112,3 +1112,43 @@ verify local/remote equality; then launch one isolated resumable aggressive
 Top-100 replay and verify its first checksummed advancing checkpoint. Preserve
 the active baseline replay and live paper. Final historical result remains
 pending.
+
+## September 18 Top-100 stop/exposure experiment trio
+
+**USER AUTHORITY:** Launch three simultaneous, isolated, research-only
+ten-year Top-100 replays with configured initial stops of 5%, 7%, and 9%.
+All three preserve the aggressive accelerated experiment, four governed
+accelerators, frozen in-sample/selection-biased universe, `$1,443.34`, and
+all other settings. Each uses a 17% aggregate provider-asset exposure ceiling
+including pyramids and disables the separate per-position risk budget; the 60%
+aggregate active-risk ceiling remains.
+
+**REVIEWED HIGH-RISK DESIGN:** Replay configuration schema V3 owns the
+experiment-only stop fraction, provider-asset exposure ceiling, and explicit
+per-position-risk-cap disablement. Entry sizing is limited by integer cash,
+17% exposure, and remaining aggregate active risk. Percentage initial stops
+are captured in immutable position semantics while ATR targets/trailing remain
+unchanged. Pyramiding receives the same 17% provider-asset ceiling.
+
+**EVIDENCE CONTRACT:** Every new completed-boundary checkpoint atomically
+persists and fingerprints valuation boundary, marked equity, net P&L,
+deployable cash, tax reserve, swing market value, and income-sleeve market
+value. Restart recomputes those values from checksummed state and fails closed
+on mismatch. Final reports bind the same direct fields.
+
+**CONFIGURATIONS:** Stop-5 fingerprint
+`f1b31b1f5310db967c2257cae96603cf6a67cd730bd6d72853593d29f7378ea9`;
+stop-7 `b7a77f13e09b14903c0f5c0e03768749562dde45bb231005894ef7a3ff6683c4`;
+stop-9 `780821b03737a7853c072f875e8ef92258923d13913e32713959c44014958d84`.
+Normalized effective strategy surfaces differ only by initial stop fraction.
+
+**FOCUSED VERIFICATION:** `python3 -m unittest
+tests.test_top100_stop_exposure_replays tests.test_historical_paper_replay
+tests.test_historical_paper_replay_runner
+tests.test_historical_replay_accelerators tests.test_top100_causal_splits
+tests.test_qpx_bot_portfolio_risk` passed 54/54. No broad suite ran.
+
+**NEXT EXACT ACTION:** Audit/stage only the intended implementation,
+three versioned configs, focused test, and continuity files; commit/push to
+`main`; verify local and remote equality; launch three isolated resumable
+services in parallel and verify each first checksum-valid valuation checkpoint.

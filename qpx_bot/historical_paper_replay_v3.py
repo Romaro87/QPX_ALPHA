@@ -35,6 +35,18 @@ DEFAULT_PROFILE = ROOT / "qpx_bot/paper_profiles/volume_confirmation_25_v1.json"
 SEMANTIC = "QPX_ASSET_ID_RESERVOIR_REPLAY_V3"
 
 
+def _account_report_fields(valuation: Mapping[str, Any]) -> dict[str, Any]:
+    """Bind final-report account fields to the checkpoint valuation contract."""
+    return {
+        "valuation_boundary": valuation["valuation_boundary"],
+        "current_marked_equity": valuation["current_marked_equity"],
+        "deployable_cash": valuation["deployable_cash"],
+        "tax_reserve": valuation["tax_reserve"],
+        "swing_market_value": valuation["swing_market_value"],
+        "income_sleeve_market_value": valuation["income_sleeve_market_value"],
+    }
+
+
 def load_bound_universe(config: Any, dataset: Path) -> tuple[dict[str, str], Mapping[str, Any]]:
     universe = config.payload["universe"]
     path = (ROOT / str(universe["manifest_reference"])).resolve()
@@ -289,6 +301,7 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
     source_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     implementation = _fingerprint({
         "v3_runner": _sha256(Path(__file__)),
+        "replay_configuration": _sha256(ROOT / "qpx_bot/historical_paper_replay.py"),
         "runtime": _sha256(ROOT / "qpx_bot/historical_paper_replay_runner.py"),
         "portfolio": _sha256(ROOT / "qpx_bot/portfolio.py"),
         "top100_evidence_builder": _sha256(ROOT / "qpx_bot/top100_split_evidence.py"),
@@ -342,6 +355,7 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         "fractional_share_policy": universe.get("fractional_share_policy"),
         "entry_share_policy": universe.get("entry_share_policy", "INTEGER_ONLY"),
         "accelerators": config.payload.get("accelerators"),
+        "experiment_risk": config.payload.get("experiment_risk"),
         "configuration": config.as_dict(), "authority": config.payload["authority"],
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
     })
@@ -390,18 +404,21 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
             completed, tuple(evidence), prior_vix, prior_vix_at,
         ),dividends)
         _write_runtime_state(run_dir,run_id,config,runtime)
-    state = runtime.snapshot(); marks=state["last_marks"]; positions=state["portfolio"]["positions"]
-    swing_value=sum(float(marks.get(asset_id,value["entry_price"]))*value["shares"] for asset_id,value in positions.items())
-    income_value=float(state["income_shares"])*float(marks.get(runtime.income_asset_id,0.0))
-    ending=state["portfolio"]["cash"]+state["portfolio"]["tax_reserve_cash"]+swing_value+income_value
+    state = runtime.snapshot(); positions=state["portfolio"]["positions"]
+    valuation = runtime.account_valuation()
+    swing_value = valuation["swing_market_value"]
+    income_value = valuation["income_sleeve_market_value"]
+    ending = valuation["current_marked_equity"]
     closed = state["portfolio"]["closed_trades"]
     gross_profit = sum(float(item["pnl"]) for item in closed if float(item["pnl"]) > 0)
     gross_loss = -sum(float(item["pnl"]) for item in closed if float(item["pnl"]) < 0)
     report={"schema_version":RUN_SCHEMA,"semantic_version":SEMANTIC,"run_id":run_id,"status":"COMPLETE",**identity,
         "asset_identity":"provider_asset_id","symbol_role":"NON_UNIQUE_LABEL","starting_equity":config.payload["starting_account"]["starting_cash"],
         "ending_equity":ending,"net_profit_loss":ending-state["portfolio"]["total_contributions"],"maximum_drawdown":state["maximum_drawdown"],
+        **_account_report_fields(valuation),
         "completed_15m_boundaries":state["boundaries"],"candidate_v1_evaluations":state["candidate_evaluations"],"signals":state["signals"],"fills":state["fills"],
         "capacity_arbitration":config.payload["capacity_arbitration"],"capacity_decisions":state["capacity_decisions"],"capacity_deferred":state["capacity_deferred"],
+        "experiment_risk": config.payload.get("experiment_risk"),
         "closed_trades":len(closed),
         "wins":sum(1 for item in closed if float(item["pnl"]) > 0),
         "losses":sum(1 for item in closed if float(item["pnl"]) < 0),

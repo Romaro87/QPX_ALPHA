@@ -2172,3 +2172,30 @@ synchronously for the final ten-year result.
   `HEAD == origin/main`, launch the distinct unattended service, and validate
   its manifest plus first advancing checksummed checkpoint. Final replay
   acceptance is pending completion.
+
+## Three configured stop variants with provider-asset exposure cap — 2026-09-18
+
+- **DECISION:** Run exactly three simultaneous Top-100 aggressive accelerated
+  replays. Initial stops are versioned 5%, 7%, and 9% of actual entry fill.
+  Aggregate exposure per provider asset ID is capped at 17% of marked equity,
+  including pyramid additions. The experiment-specific per-position risk
+  budget is disabled; aggregate active risk remains 60%.
+- **CONFIGURATION BOUNDARY:** Replay configuration V3 contains the experiment
+  sizing semantic, stop fraction, 17% exposure ceiling, and explicit disabled
+  per-position risk cap. The base Candidate/profile and accelerator
+  configurations remain unchanged. After normalizing experiment identity and
+  stop fraction, the three effective configurations are identical.
+- **ACCOUNT EVIDENCE:** Completed replay checkpoints directly and atomically
+  persist valuation boundary, marked equity, net P&L, deployable cash, reserve,
+  swing value, and income value. The valuation has its own fingerprint and is
+  recomputed from restored checksummed state. Final reports use the identical
+  valuation-field contract.
+- **RECOVERY:** Each configuration creates a distinct fingerprint/run/service
+  and may resume only its own compatible checkpoint. No prior portfolio state
+  or preparation database is reused. Existing replays and live paper remain
+  outside the mutation boundary.
+- **VERIFICATION:** 54/54 focused configuration, sizing, exposure, checkpoint,
+  report-field, restart, accelerator, causal-split, portfolio, and risk tests
+  passed. No broad suite or unrelated audit ran.
+- **AUTHORITY:** Retrospective/in-sample historical research only. Training,
+  promotion, live, broker, and capital authority remain `NONE`.
