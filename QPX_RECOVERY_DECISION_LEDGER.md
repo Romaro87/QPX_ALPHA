@@ -2199,3 +2199,26 @@ synchronously for the final ten-year result.
   passed. No broad suite or unrelated audit ran.
 - **AUTHORITY:** Retrospective/in-sample historical research only. Training,
   promotion, live, broker, and capital authority remain `NONE`.
+
+## Four 25%-exposure stop variants — 2026-09-19
+
+- **DECISION:** Add four configuration-only Top-100 aggressive accelerated
+  replays: 9%, 11%, 13%, and 15% initial stops, each with a 25% aggregate
+  provider-asset exposure ceiling including pyramids and no separate
+  per-position risk cap.
+- **PRESERVATION:** Starting equity, dataset, frozen biased/in-sample universe,
+  causal splits, volume-confirmation arbitration, Candidate profile, all four
+  accelerator configurations, accounting, execution ordering, tax reserve,
+  and direct valuation evidence remain unchanged. Existing replay and
+  live-paper services and all prior portfolio state remain untouched.
+- **VALIDATION:** The 9%/25% bridge differs from 9%/17% only by exposure after
+  normalizing experiment identity. The four new configurations differ only by
+  stop after normalizing identity. Schema parsing passed with fingerprints
+  `874d0e70...b8a9b`, `f996dd17...f6eec`, `dc830b36...a73ea`, and
+  `292d70a4...e26d0`. No broad or focused test suite ran because production
+  code and schema were unchanged; direct loader/difference validation was the
+  proportionate proof.
+- **AUTHORITY:** Historical research only; training, promotion, live, broker,
+  and capital authority remain `NONE`.
+- **NEXT EXACT ACTION:** Commit/push explicit configs plus continuity, verify
+  `HEAD == origin/main`, then launch and validate four isolated services.

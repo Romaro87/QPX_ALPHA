@@ -1152,3 +1152,38 @@ tests.test_qpx_bot_portfolio_risk` passed 54/54. No broad suite ran.
 three versioned configs, focused test, and continuity files; commit/push to
 `main`; verify local and remote equality; launch three isolated resumable
 services in parallel and verify each first checksum-valid valuation checkpoint.
+
+## September 19 Top-100 25%-exposure stop variants
+
+**USER AUTHORITY:** Launch four additional simultaneous, isolated,
+research-only ten-year Top-100 replays from the accepted 9%-stop/17%-exposure
+configuration. The new stop/cap pairs are 9%/25%, 11%/25%, 13%/25%, and
+15%/25%. Existing replay and live-paper services are preservation boundaries.
+
+**REVIEWED HIGH-RISK DESIGN:** This is configuration-only. Replay configuration
+V3 continues to own the percentage initial stop, provider-asset aggregate
+exposure ceiling including pyramids, and explicit disabled per-position risk
+cap. Runtime, accounting, causal splits, OPEN/CLOSE order, tax reserve,
+accelerators, direct checkpoint valuation, and restart semantics are unchanged.
+Every new configuration creates an isolated run identity and must not reuse a
+checkpoint, portfolio, trade ledger, or accounting state.
+
+**CONFIGURATIONS:** 9%/25% fingerprint
+`874d0e7040bd39b5afc23c104eb4278be4aa0f63f565c9ccbe46b1a01c7b8a9b`;
+11%/25% `f996dd17749ab50f688aa7786f7a567a7cb70b5f1f45af547b13729074ef6eec`;
+13%/25% `dc830b3609558b733646e87e11cdde101164dd9c0d02c989380f5e18a4ea73ea`;
+15%/25% `292d70a4cd46bdb7769a7bfe03a0084dcf63d55b0d288260fcdb110f3a2e26d0`.
+The bridge differs from 9%/17% only by aggregate exposure after normalizing
+experiment identity. The four new configs are identical after normalizing
+identity and initial stop.
+
+**FOCUSED VALIDATION:** All four configurations passed the governed schema-V3
+loader. Exact recursive-difference validation and `git diff --check` passed; no
+test suite or source change was required. Resource evidence before launch was
+28 CPUs, 7.2 GiB available memory, 345 GiB free disk, and under 0.9 GiB RSS per
+existing replay, supporting four more low-priority workers.
+
+**NEXT EXACT ACTION:** Stage and inspect only the four configurations and
+required continuity files, commit/push to `main`, verify local/remote equality,
+then launch four isolated low-priority resumable services and verify manifests
+plus first checksum-valid advancing checkpoints. Final results remain pending.
