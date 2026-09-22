@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "semantic_version": "QPX_V3_REPLAY_RESOURCE_QUEUE_V1",
+  "dataset": "research_data/qpx_ml_historical_v1",
+  "strategy_profile": "qpx_bot/paper_profiles/top100_aggressive_accelerated_v1.json",
+  "checkpoint_interval_boundaries": 32,
+  "gaming_inhibit_path": "runtime/qpx_v3_replay_queue/GAMING",
+  "poll_seconds": 5,
+  "stop_timeout_seconds": 30,
+  "jobs": [
+    {
+      "job_id": "top100-aggressive-stop05-exposure17",
+      "configuration": "qpx_bot/replay_configs/top100_aggressive_stop05_exposure17_v1.json"
+    },
+    {
+      "job_id": "top100-aggressive-stop07-exposure17",
+      "configuration": "qpx_bot/replay_configs/top100_aggressive_stop07_exposure17_v1.json"
+    },
+    {
+      "job_id": "top100-aggressive-stop09-exposure17",
+      "configuration": "qpx_bot/replay_configs/top100_aggressive_stop09_exposure17_v1.json"
+    },
+    {
+      "job_id": "top100-aggressive-stop09-exposure25",
+      "configuration": "qpx_bot/replay_configs/top100_aggressive_stop09_exposure25_v1.json"
+    },
+    {
+      "job_id": "top100-aggressive-stop11-exposure25",
+      "configuration": "qpx_bot/replay_configs/top100_aggressive_stop11_exposure25_v1.json"
+    },
+    {
+      "job_id": "top100-aggressive-stop13-exposure25",
+      "configuration": "qpx_bot/replay_configs/top100_aggressive_stop13_exposure25_v1.json"
+    },
+    {
+      "job_id": "top100-aggressive-stop15-exposure25",
+      "configuration": "qpx_bot/replay_configs/top100_aggressive_stop15_exposure25_v1.json"
+    }
+  ]
+}

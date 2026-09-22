@@ -6,6 +6,7 @@ StartLimitBurst=3
 
 [Service]
 Type=simple
+Slice=qpx.slice
 WorkingDirectory=/home/ron/QPX_ALPHA
 ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_CONTROL_CLEAN_V2_MARKET_SCHEDULE.py --daemon
 Restart=always

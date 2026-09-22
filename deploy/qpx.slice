@@ -1,0 +1,10 @@
+[Unit]
+Description=QPX aggregate 2 GiB resource budget
+
+[Slice]
+MemoryAccounting=yes
+MemoryHigh=1792M
+MemoryMax=2G
+MemorySwapMax=0
+CPUWeight=20
+IOWeight=20

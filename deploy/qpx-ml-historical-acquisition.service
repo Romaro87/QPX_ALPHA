@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+Slice=qpx.slice
 Restart=on-failure
 RestartSec=60
 RestartPreventExitStatus=78

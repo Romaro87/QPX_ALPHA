@@ -7,6 +7,7 @@ StartLimitBurst=3
 
 [Service]
 Type=simple
+Slice=qpx.slice
 WorkingDirectory=/home/ron/QPX_ALPHA
 Environment=QPX_PAPER_PROFILE=/home/ron/QPX_ALPHA/qpx_bot/paper_profiles/volume_confirmation_25_v1.json
 Environment=QPX_SHADOW_MATRIX_ENABLED=0

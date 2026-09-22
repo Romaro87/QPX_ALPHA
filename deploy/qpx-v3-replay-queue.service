@@ -1,0 +1,26 @@
+[Unit]
+Description=QPX resource-bounded sequential V3 replay queue
+After=default.target
+
+[Service]
+Type=simple
+Slice=qpx.slice
+WorkingDirectory=/home/ron/QPX_ALPHA
+ExecStart=/usr/bin/python3 -u /home/ron/QPX_ALPHA/QPX_CONTROL_V3_REPLAY_QUEUE.py
+Restart=on-failure
+RestartSec=60
+Nice=15
+IOSchedulingClass=idle
+CPUWeight=10
+IOWeight=10
+MemoryHigh=1536M
+MemoryMax=1792M
+MemorySwapMax=0
+TimeoutStopSec=45
+KillSignal=SIGTERM
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

@@ -1187,3 +1187,38 @@ existing replay, supporting four more low-priority workers.
 required continuity files, commit/push to `main`, verify local/remote equality,
 then launch four isolated low-priority resumable services and verify manifests
 plus first checksum-valid advancing checkpoints. Final results remain pending.
+
+<!-- QPX_V3_BOUNDED_EVIDENCE_DEPLOYMENT_20260922 -->
+## V3 bounded-evidence deployment checkpoint — 2026-09-22
+
+**STATUS: USER_APPROVED / VERIFIED_REPO**
+
+Parent implementation commit:
+`e306be256d1492f67fe6c7974e9ec415f5e641ba`
+
+The bounded-evidence V3 implementation is committed in that parent. Its
+implementation fingerprint is:
+`5f190be4edf74aeaf17bbfa2b836997c7b93ba996c5d495b964a78c851e5f88f`.
+
+The authorized follow-up deployment checkpoint contains only the recovery
+artifacts, the previously implemented V3 queue/controller/configuration,
+systemd queue and aggregate-resource controls, the six existing service-unit
+`Slice=qpx.slice` bindings, the focused queue test, and the applicable journal
+update. The replay queue must remain inactive; completed replays and live paper
+are preservation boundaries. No cache, run directory, report, or paper-account
+state may be copied, deleted, relabelled, or restarted.
+
+Required deployment verification:
+
+- local `main`, `origin/main`, and remote `main` equal the pushed follow-up
+  commit;
+- V3 defaults to checkpoint interval 32 and reports the parent implementation
+  fingerprint above;
+- bounded evidence batching is present;
+- `qpx.slice` has `MemoryMax=2G` and `MemorySwapMax=0`;
+- the replay queue remains inactive and live-paper identities/restart counts are
+  unchanged.
+
+The worktree contains unrelated dirty service edits, runtime state, prior
+journal material, and queue runtime artifacts. They remain excluded from the
+deployment commit.

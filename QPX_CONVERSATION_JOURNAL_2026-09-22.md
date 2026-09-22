@@ -18,3 +18,15 @@
 - Controlled real-cache replay on ext4, 2,048 identical boundaries and 64 checkpoints: legacy block writes 244,260,864 B and 517.06 boundaries/s; bounded block writes 15,613,952 B and 744.61 boundaries/s. This is a 93.6% checkpoint-workload block-write reduction, not a claim about total system disk I/O.
 - Completion audit: 44 directly affected tests passed after expanding restart equivalence to compare every persisted capacity, terminal outcome, profit-recycling, dynamic-sizing, pyramiding, and regime-allocation record against uninterrupted execution. `git diff --check` and Python compilation passed. Worktree V3 implementation fingerprint is `5f190be4edf74aeaf17bbfa2b836997c7b93ba996c5d495b964a78c851e5f88f`, distinct from the seven preserved completed runs (`56d4a2aa...9fed5`). The seven manifests remain `COMPLETE`; no run was launched or migrated. Replay queue remains inactive with PID 0/restart count 0. Live-paper supervisor remains PID 709504/restart count 0 and its current worker PID 774150/restart count 0. `qpx.slice` was 553,791,488 B, zero swap, 2 GiB maximum at final check.
 - Removed only the generated benchmark directories after recording measurements: `/tmp/qpx-v3-evidence-benchmark-20260922` (67 MB) and `/home/ron/QPX_ALPHA/runtime/v3-evidence-measurement.hDXnwZ` (16 MB). They contained no source cache or run evidence and are not recoverable; the completed run directories were read-only inputs.
+
+### Push/deployment follow-up — 2026-09-22
+
+- User authorized preserving `e306be256d1492f67fe6c7974e9ec415f5e641ba` and
+  creating a separate follow-up commit rather than rewriting it.
+- Follow-up scope is limited to required recovery prompt/decision-ledger
+  continuity, the previously implemented V3 queue/controller/configuration,
+  queue and aggregate `qpx.slice` systemd controls, six existing service-unit
+  `Slice=qpx.slice` bindings, focused queue tests, and this journal update.
+- Unrelated service edits, runtime state, prior journal material, and queue
+  runtime artifacts remain excluded. The queue must stay inactive and live paper
+  must not be restarted or modified.

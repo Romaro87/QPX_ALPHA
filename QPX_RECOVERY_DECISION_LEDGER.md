@@ -2222,3 +2222,28 @@ synchronously for the final ten-year result.
   and capital authority remain `NONE`.
 - **NEXT EXACT ACTION:** Commit/push explicit configs plus continuity, verify
   `HEAD == origin/main`, then launch and validate four isolated services.
+
+## Bounded-evidence V3 implementation and future-replay deployment — 2026-09-22
+
+- **DECISION:** Preserve parent implementation commit
+  `e306be256d1492f67fe6c7974e9ec415f5e641ba` unchanged. Create one follow-up
+  commit containing required recovery continuity plus only the previously
+  implemented queue/controller/configuration, systemd queue and `qpx.slice`
+  resource controls, existing service-unit slice bindings, focused queue test,
+  and applicable journal update.
+- **IMPLEMENTATION IDENTITY:** V3 bounded-evidence fingerprint
+  `5f190be4edf74aeaf17bbfa2b836997c7b93ba996c5d495b964a78c851e5f88f`.
+  Checkpoint interval is configuration-driven with default/queue value 32.
+  Evidence batches are append-only, checksummed, hash-chained, checkpointed
+  before RAM release, and final reports stream verified batches.
+- **RESOURCE CONTRACT:** Future replay queue remains sequential, game-yielding,
+  inside `qpx.slice`, with aggregate `MemoryMax=2G` and `MemorySwapMax=0`.
+  The replay queue remains inactive during deployment; live paper, completed
+  replay runs, caches, reports, and account state remain untouched.
+- **AUTHORITY:** User-approved operational deployment for future historical
+  replays only. No training, promotion, live-capital, broker, or account
+  authority is granted.
+- **VERIFICATION REQUIRED:** Push both commits and verify local `main`,
+  `origin/main`, and remote `main` agree; verify the implementation fingerprint,
+  interval 32, bounded evidence, resource limits, inactive queue, and unchanged
+  live-paper identities/restart counts. No replay launch or future-state wait.
