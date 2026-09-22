@@ -22,6 +22,11 @@ from qpx_bot.historical_paper_replay_runner import (
     CompletedBarEvidence, CompletedBoundary, _fingerprint, _load_dividends,
     _load_strategy_profile, _sha256, _write_evidence, _write_runtime_state,
 )
+from qpx_bot.historical_paper_replay_v3_evidence import (
+    EVIDENCE_SEMANTIC_VERSION,
+    V3EvidenceArchive,
+    initial_archive_state,
+)
 from qpx_bot.indicators import calculate_indicators
 from qpx_bot.intraday_six_paper import IntradayBar
 from qpx_bot.ml_historical_calendar_repair import AUDITED_FALSE_OPEN_DATES
@@ -33,6 +38,77 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = ROOT / "qpx_bot/replay_configs/volume_confirmation_90_ten_year_sip_reservoir_split_excluded_v3.json"
 DEFAULT_PROFILE = ROOT / "qpx_bot/paper_profiles/volume_confirmation_25_v1.json"
 SEMANTIC = "QPX_ASSET_ID_RESERVOIR_REPLAY_V3"
+DEFAULT_CHECKPOINT_INTERVAL_BOUNDARIES = 32
+
+
+def _validate_checkpoint_interval_boundaries(value: int) -> int:
+    if type(value) is not int or value < 1:
+        raise ReplayConfigurationError(
+            "V3 checkpoint interval boundaries must be a positive integer."
+        )
+    return value
+
+
+def _pending_boundary_rows(
+    db: sqlite3.Connection, last_completed_boundary: str | None,
+) -> Iterable[tuple[str]]:
+    if last_completed_boundary is None:
+        return db.execute("SELECT start FROM boundaries ORDER BY start")
+    last_durable_start = (
+        datetime.fromisoformat(last_completed_boundary) - timedelta(minutes=15)
+    ).isoformat()
+    return db.execute(
+        "SELECT start FROM boundaries WHERE start>? ORDER BY start",
+        (last_durable_start,),
+    )
+
+
+def _checkpoint_replay_state(
+    run_dir: Path,
+    run_id: str,
+    config: Any,
+    runtime: CandidateV1HistoricalPaperRuntime,
+    boundaries_since_checkpoint: int,
+    checkpoint_interval_boundaries: int,
+    evidence_archive: V3EvidenceArchive | None = None,
+) -> int:
+    if boundaries_since_checkpoint >= checkpoint_interval_boundaries:
+        _write_checkpoint_transaction(
+            run_dir, run_id, config, runtime, evidence_archive,
+        )
+        return 0
+    return boundaries_since_checkpoint
+
+
+def _checkpoint_final_replay_state(
+    run_dir: Path,
+    run_id: str,
+    config: Any,
+    runtime: CandidateV1HistoricalPaperRuntime,
+    boundaries_since_checkpoint: int,
+    evidence_archive: V3EvidenceArchive | None = None,
+) -> None:
+    if boundaries_since_checkpoint > 0 or not (run_dir / "checkpoint.json").exists():
+        _write_checkpoint_transaction(
+            run_dir, run_id, config, runtime, evidence_archive,
+        )
+
+
+def _write_checkpoint_transaction(
+    run_dir: Path, run_id: str, config: Any,
+    runtime: CandidateV1HistoricalPaperRuntime,
+    evidence_archive: V3EvidenceArchive | None,
+) -> None:
+    if evidence_archive is None:
+        _write_runtime_state(run_dir, run_id, config, runtime)
+        return
+    flush = evidence_archive.prepare_flush(runtime)
+    evidence_archive.persist_and_verify_batch(flush)
+    _write_runtime_state(
+        run_dir, run_id, config, runtime, paper_state=flush.compact_state,
+    )
+    evidence_archive.commit_flush(runtime, flush)
+    evidence_archive.write_progress_report(runtime)
 
 
 def _account_report_fields(valuation: Mapping[str, Any]) -> dict[str, Any]:
@@ -295,12 +371,23 @@ def prepare(
     return db
 
 
-def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, profile_path: Path = DEFAULT_PROFILE) -> Path:
+def run(
+    config_path: Path = DEFAULT_CONFIG,
+    dataset: Path = DEFAULT_DATASET,
+    profile_path: Path = DEFAULT_PROFILE,
+    checkpoint_interval_boundaries: int = DEFAULT_CHECKPOINT_INTERVAL_BOUNDARIES,
+) -> Path:
+    checkpoint_interval_boundaries = _validate_checkpoint_interval_boundaries(
+        checkpoint_interval_boundaries
+    )
     config = load_replay_configuration(config_path); snapshot = _load_strategy_profile(profile_path, config)
     asset_symbols, universe = load_bound_universe(config, dataset)
     source_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     implementation = _fingerprint({
         "v3_runner": _sha256(Path(__file__)),
+        "bounded_evidence": _sha256(
+            ROOT / "qpx_bot/historical_paper_replay_v3_evidence.py"
+        ),
         "replay_configuration": _sha256(ROOT / "qpx_bot/historical_paper_replay.py"),
         "runtime": _sha256(ROOT / "qpx_bot/historical_paper_replay_runner.py"),
         "portfolio": _sha256(ROOT / "qpx_bot/portfolio.py"),
@@ -354,6 +441,8 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         "split_event_count": universe.get("split_event_count", 0),
         "fractional_share_policy": universe.get("fractional_share_policy"),
         "entry_share_policy": universe.get("entry_share_policy", "INTEGER_ONLY"),
+        "checkpoint_interval_boundaries": checkpoint_interval_boundaries,
+        "evidence_batch_semantic_version": EVIDENCE_SEMANTIC_VERSION,
         "accelerators": config.payload.get("accelerators"),
         "experiment_risk": config.payload.get("experiment_risk"),
         "configuration": config.as_dict(), "authority": config.payload["authority"],
@@ -383,12 +472,18 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         config, restored, candidate_snapshot=snapshot, asset_symbols=asset_symbols,
         split_contract=split_contract,
     )
+    if restored is None:
+        runtime.state["evidence_archive"] = initial_archive_state()
+    elif "evidence_archive" not in runtime.state:
+        raise ReplayConfigurationError(
+            "V3 checkpoint predates bounded evidence and cannot be reused under this implementation."
+        )
+    evidence_archive = V3EvidenceArchive(run_dir, identity, runtime)
     dividends = _load_dividends(dataset, "QDTE")
     after = runtime.state["last_completed_boundary"]
-    after_start = (datetime.fromisoformat(after) - timedelta(minutes=15)).isoformat() if after else None
-    query = "SELECT start FROM boundaries" + (" WHERE start>?" if after_start else "") + " ORDER BY start"
+    boundaries_since_checkpoint = 0
     vix=_read_vix_daily_cache(DEFAULT_VIX); days=sorted(vix)
-    for (start_text,) in db.execute(query, (after_start,) if after_start else ()):
+    for (start_text,) in _pending_boundary_rows(db, after):
         start = datetime.fromisoformat(start_text); wanted = set(runtime.state["pending"]) | set(runtime._portfolio.positions) | {runtime.income_asset_id}
         wanted |= {row[0] for row in db.execute("SELECT asset_id FROM qualifiers WHERE start=?", (start_text,))}
         evidence=[]
@@ -403,8 +498,17 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
             _fingerprint({"kind":"COMPLETED_15M","time":completed.isoformat()}),
             completed, tuple(evidence), prior_vix, prior_vix_at,
         ),dividends)
-        _write_runtime_state(run_dir,run_id,config,runtime)
-    state = runtime.snapshot(); positions=state["portfolio"]["positions"]
+        boundaries_since_checkpoint += 1
+        boundaries_since_checkpoint = _checkpoint_replay_state(
+            run_dir, run_id, config, runtime, boundaries_since_checkpoint,
+            checkpoint_interval_boundaries, evidence_archive,
+        )
+    _checkpoint_final_replay_state(
+        run_dir, run_id, config, runtime, boundaries_since_checkpoint,
+        evidence_archive,
+    )
+    state = runtime.persistence_state(); positions=state["portfolio"]["positions"]
+    archived_evidence = evidence_archive.report_evidence(state)
     valuation = runtime.account_valuation()
     swing_value = valuation["swing_market_value"]
     income_value = valuation["income_sleeve_market_value"]
@@ -417,7 +521,7 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
         "ending_equity":ending,"net_profit_loss":ending-state["portfolio"]["total_contributions"],"maximum_drawdown":state["maximum_drawdown"],
         **_account_report_fields(valuation),
         "completed_15m_boundaries":state["boundaries"],"candidate_v1_evaluations":state["candidate_evaluations"],"signals":state["signals"],"fills":state["fills"],
-        "capacity_arbitration":config.payload["capacity_arbitration"],"capacity_decisions":state["capacity_decisions"],"capacity_deferred":state["capacity_deferred"],
+        "capacity_arbitration":config.payload["capacity_arbitration"],"capacity_decisions":archived_evidence["capacity_decisions"],"capacity_deferred":state["capacity_deferred"],
         "experiment_risk": config.payload.get("experiment_risk"),
         "closed_trades":len(closed),
         "wins":sum(1 for item in closed if float(item["pnl"]) > 0),
@@ -440,59 +544,48 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
     if state.get("accelerators") is not None:
         accelerator_state = state["accelerators"]
         profit = accelerator_state["profit_recycling"]
+        archived_profit = archived_evidence["profit_recycling"]
         ledger = profit["ledger"]
         dynamic = accelerator_state["dynamic_sizing"]
+        archived_dynamic = archived_evidence["dynamic_sizing"]
         pyramid = accelerator_state["pyramiding"]
+        archived_pyramid = archived_evidence["pyramiding"]
         regime = accelerator_state["regime_allocation"]
+        archived_regime = archived_evidence["regime_allocation"]
         report["accelerators"] = {
             "configuration": config.payload["accelerators"],
             "configuration_fingerprints": accelerator_state["configuration_fingerprints"],
             "profit_recycling": {
-                "decision_count": len(profit["decisions"]),
-                "decision_ids": [item["decision_id"] for item in profit["decisions"]],
-                "dollars_made_available": sum(
-                    float(item["amount_proposed_for_recycling"])
-                    for item in profit["decisions"]
-                ),
+                "decision_count": archived_profit["decision_count"],
+                "decision_ids": archived_profit["decision_ids"],
+                "dollars_made_available": archived_profit["dollars_made_available"],
                 "dollars_deployed": ledger["already_recycled_amount"],
                 "unused_recycled_dollars": ledger["recycled_profit_balance"],
                 "released_at_sleeve_rebalance": ledger["released_at_sleeve_rebalance"],
                 "ledger": ledger,
             },
             "dynamic_sizing": {
-                "decision_count": len(dynamic["decisions"]),
+                "decision_count": archived_dynamic["decision_count"],
                 "opportunity_count": dynamic["opportunities"],
                 "increases": 0, "reductions": dynamic["reductions"],
                 "unchanged": dynamic["unchanged"], "blocked": dynamic["blocked"],
-                "decision_ids": [item["decision_id"] for item in dynamic["decisions"]],
-                "multiplier_counts": {
-                    str(multiplier): sum(
-                        item["sizing_multiplier"] == multiplier
-                        for item in dynamic["decisions"]
-                    )
-                    for multiplier in (1.0, 0.85, 0.7, 0.5)
-                },
+                "decision_ids": archived_dynamic["decision_ids"],
+                "multiplier_counts": archived_dynamic["multiplier_counts"],
             },
             "pyramiding": {
-                "decision_count": len(pyramid["decisions"]),
+                "decision_count": archived_pyramid["decision_count"],
                 "opportunity_count": pyramid["opportunities"],
                 "addition_count": pyramid["additions"],
                 "shares_added": pyramid["shares_added"],
                 "notional_added": pyramid["notional_added"],
-                "affected_provider_asset_ids": sorted({
-                    item["symbol"] for item in pyramid["decisions"]
-                    if item["accepted_shares"] > 0
-                }),
-                "accepted_additions": [
-                    item for item in pyramid["decisions"]
-                    if item["accepted_shares"] > 0
-                ],
+                "affected_provider_asset_ids": archived_pyramid["affected_provider_asset_ids"],
+                "accepted_additions": archived_pyramid["accepted_additions"],
             },
             "regime_allocation": {
-                "decision_count": len(regime["decisions"]),
+                "decision_count": archived_regime["decision_count"],
                 "opportunity_count": regime["opportunities"],
                 "transition_count": regime["transitions"],
-                "decisions": regime["decisions"],
+                "decisions": archived_regime["decisions"],
             },
             "observed": accelerator_state["observed"],
         }
@@ -502,12 +595,17 @@ def run(config_path: Path = DEFAULT_CONFIG, dataset: Path = DEFAULT_DATASET, pro
     run_manifest=json.loads(read_checksummed_state(run_dir/"run_manifest.json",run_dir/"run_manifest.json.sha256",label="V3 run manifest"))
     run_manifest.update({"status":"COMPLETE","completed_at_utc":report["completed_at_utc"],"final_report_fingerprint":_fingerprint(report)})
     _write_evidence(run_dir/"run_manifest.json",run_manifest)
+    evidence_archive.write_progress_report(runtime, status="COMPLETE")
     return run_dir
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser=argparse.ArgumentParser(); parser.add_argument("--config",type=Path,default=DEFAULT_CONFIG); parser.add_argument("--dataset",type=Path,default=DEFAULT_DATASET); parser.add_argument("--strategy-profile",type=Path,default=DEFAULT_PROFILE)
-    args=parser.parse_args(argv); print(run(args.config.resolve(),args.dataset.resolve(),args.strategy_profile.resolve())); return 0
+    parser.add_argument(
+        "--checkpoint-interval-boundaries", type=int,
+        default=DEFAULT_CHECKPOINT_INTERVAL_BOUNDARIES,
+    )
+    args=parser.parse_args(argv); print(run(args.config.resolve(),args.dataset.resolve(),args.strategy_profile.resolve(),args.checkpoint_interval_boundaries)); return 0
 
 
 if __name__ == "__main__": raise SystemExit(main())

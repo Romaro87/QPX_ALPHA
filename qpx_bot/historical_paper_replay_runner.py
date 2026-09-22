@@ -678,8 +678,12 @@ class CandidateV1HistoricalPaperRuntime:
         }
 
     def snapshot(self) -> dict[str, Any]:
+        return json.loads(json.dumps(self.persistence_state()))
+
+    def persistence_state(self) -> dict[str, Any]:
+        """Return the synchronous serialization view without copying retained evidence."""
         return {
-            **json.loads(json.dumps(self.state)),
+            **self.state,
             "portfolio": {
                 "starting_cash": self._portfolio.starting_cash,
                 "cash": self._portfolio.cash,
@@ -1377,11 +1381,33 @@ class CandidateV1HistoricalPaperRuntime:
         outcome["reason"] = reason
 
     def _reconcile_outcomes(self) -> None:
-        qualifying = sum(len(item["qualifying_asset_ids"]) for item in self.state["capacity_decisions"])
-        selected = sum(len(item["selected_asset_ids"]) for item in self.state["capacity_decisions"])
-        deferred = sum(len(item["deferred_asset_ids"]) for item in self.state["capacity_decisions"])
-        statuses: dict[str, int] = {}
-        reasons: dict[str, int] = {}
+        archive = self.state.get("evidence_archive")
+        archived_capacity = (
+            archive["rolling_totals"]["capacity"] if archive is not None else {}
+        )
+        archived_outcomes = (
+            archive["rolling_totals"]["entry_outcomes"]
+            if archive is not None else {}
+        )
+        qualifying = int(archived_capacity.get("qualifying", 0)) + sum(
+            len(item["qualifying_asset_ids"])
+            for item in self.state["capacity_decisions"]
+        )
+        selected = int(archived_capacity.get("selected", 0)) + sum(
+            len(item["selected_asset_ids"])
+            for item in self.state["capacity_decisions"]
+        )
+        deferred = int(archived_capacity.get("deferred", 0)) + sum(
+            len(item["deferred_asset_ids"])
+            for item in self.state["capacity_decisions"]
+        )
+        statuses: dict[str, int] = {
+            "FILLED": int(archived_outcomes.get("filled", 0)),
+            "REJECTED": int(archived_outcomes.get("rejected", 0)),
+        }
+        reasons: dict[str, int] = dict(
+            archived_outcomes.get("sizing_rejection_reasons", {})
+        )
         for item in self.state["entry_outcomes"].values():
             status = str(item["status"])
             statuses[status] = statuses.get(status, 0) + 1
@@ -1545,6 +1571,7 @@ def _read_runtime_state(run_dir: Path, config: ReplayExperimentConfiguration) ->
         return None
     encoded = read_checksummed_state(path, run_dir / "checkpoint.json.sha256", label="Historical paper replay state")
     payload = json.loads(encoded)
+    del encoded
     if payload.get("configuration_fingerprint") != config.fingerprint:
         raise ReplayConfigurationError("Historical replay checkpoint configuration mismatch.")
     if payload.get("capacity_arbitration") != config.payload["capacity_arbitration"]:
@@ -1573,8 +1600,12 @@ def _read_runtime_state(run_dir: Path, config: ReplayExperimentConfiguration) ->
     return state
 
 
-def _write_runtime_state(run_dir: Path, run_id: str, config: ReplayExperimentConfiguration, runtime: CandidateV1HistoricalPaperRuntime) -> str:
-    state = runtime.snapshot()
+def _write_runtime_state(
+    run_dir: Path, run_id: str, config: ReplayExperimentConfiguration,
+    runtime: CandidateV1HistoricalPaperRuntime,
+    *, paper_state: Mapping[str, Any] | None = None,
+) -> str:
+    state = paper_state if paper_state is not None else runtime.persistence_state()
     valuation = runtime.account_valuation()
     core = {
         "schema_version": RUN_SCHEMA, "semantic_version": RUN_SEMANTIC,

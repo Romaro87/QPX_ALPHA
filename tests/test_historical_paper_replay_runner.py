@@ -186,6 +186,33 @@ class CandidateV1HistoricalPaperRunnerTests(unittest.TestCase):
         )
         self.assertEqual(restored.snapshot(), runtime.snapshot())
 
+    def test_persistence_view_serializes_identically_without_weakening_snapshot_isolation(self):
+        runtime = CandidateV1HistoricalPaperRuntime(self.config)
+        first = datetime(2025, 1, 2, 9, 30, tzinfo=self.ny)
+        runtime.process_boundary(self._boundary(first), {})
+        expected = runtime.snapshot()
+        persistence = runtime.persistence_state()
+
+        self.assertEqual(json.loads(json.dumps(persistence)), expected)
+        self.assertIs(
+            persistence["capacity_decisions"], runtime.state["capacity_decisions"]
+        )
+        self.assertIsNot(
+            expected["capacity_decisions"], runtime.state["capacity_decisions"]
+        )
+        expected["capacity_decisions"].append({"test": "snapshot-isolated"})
+        self.assertNotEqual(
+            expected, json.loads(json.dumps(runtime.persistence_state()))
+        )
+
+        with tempfile.TemporaryDirectory() as folder:
+            run_dir = Path(folder)
+            _write_runtime_state(run_dir, "run-id", self.config, runtime)
+            payload = json.loads((run_dir / "checkpoint.json").read_text())
+            self.assertEqual(payload["paper_state"], runtime.snapshot())
+            restored = _read_runtime_state(run_dir, self.config)
+        self.assertEqual(restored, runtime.snapshot())
+
     def test_volume_confirmation_profile_is_bound_to_selection_and_restart(self):
         config = load_replay_configuration(
             Path(__file__).parents[1]
