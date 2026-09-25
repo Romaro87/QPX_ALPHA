@@ -1,6 +1,26 @@
 # QPX_ALPHA RECOVERY PROMPT
 
-## Live-paper correction — 2026-09-24 (implementation verified; deployment next)
+## Live-paper correction — 2026-09-24 (implementation deployed; market proof pending)
+
+VERIFIED_ARTIFACT, 20:18 CDT: implementation commit
+`50961f599c9cf695478b68a45b1fd0979e17e569` pushed; local main/origin/main/remote
+agreed. Isolated committed package installed through existing worker unit;
+supervisor unchanged. Finite systemd metrics refresh succeeded in1.493s,
+29.6MiB peak/zero swap; transient unit collected, no worker remains. Runtime
+fingerprint matches the source fingerprint below. State/heartbeat/performance
+checksums valid, all37 original state fields unchanged, entire audit digest
+unchanged. Current marked equity1488.0282/net44.6882/realized0/unrealized38.935;
+cash28.0282/tax0/QDTE50×29.20=1460/swing0; mark time Sep24 20:00Z.
+Dividends recorded11.25155/released5.7532/pending5.49835. Fills/closed/wins/losses0;
+win rate/profit factor null (no closed/losing trades). Prior window-start equity
+cannot be recovered because it was never persisted; new daily mark records now
+support future windows. No fabricated historic equity or trades.
+Supervisor still PID709504/restarts0, enabled; worker inactive/PID0/restarts0.
+Next start Sep25 08:25 CDT; market08:30 CDT. Systemd, not Codex, owns execution.
+Authentic minute observation and first corrected signal-to-fill are PENDING.
+This continuity-only follow-up is to be pushed, its identical committed code
+export selected as the final release, and finite verification repeated; no market
+wait, temporary monitor, or manual daemon. All historical replays untouched.
 
 Active scope: live paper only; causal execution and persisted account metrics;
 commit/push/deploy, then exit tonight. No market-open wait or replay-queue changes.

@@ -2,6 +2,16 @@
 
 ## 2026-09-24 — live-paper causal minute observation and metrics
 
+Deployment evidence, 20:18 CDT: 50961f599c9cf695478b68a45b1fd0979e17e569
+pushed and deployed from committed export. Existing worker unit installed and
+daemon-reloaded, supervisor PID709504 retained. Finite supervised valuation-only
+migration exited0; all37 original fields and1887686-byte audit unchanged. Three
+artifact checksums validate. Persisted equity1488.0282/net44.6882/realized0/
+unrealized38.935, cash28.0282, QDTE50@29.20 (1460), swing0/tax0. Source/runtime
+fingerprint eb4fca116146e78427ee73a5504ef5488c2206a1138714f94bc6a841cad3a009;
+candidate/contract authority unchanged. No fake trades, no history rewrite.
+Market proof remains pending Sep25 supervised start08:25CDT; no session wait.
+
 USER_REQUIREMENT: fix, focused-test, commit/push and deploy without account reset,
 strategy-parameter changes, broker orders, replay changes, or waiting for market.
 VERIFIED_ARTIFACT: Sep17 INTC 13:48Z and Sep24 TSLL 16:33Z windows were observed;

@@ -58,3 +58,23 @@ Baseline original-field hashes captured, audit1887686bytes SHA256
 Pre-commit audit: governance/design satisfied; focused affected surfaces updated
 and passing; source/staged review and continuity required before push; deployment
 and real runtime migration verification still pending, no completion claim.
+
+20:18 CDT deployment delta: committed/pushed50961f599c9cf695478b68a45b1fd0979e17e569;
+HEAD/origin/main/remote all matched. Exported committed wrapper/qpx package/config
+and unit under /home/ron/.local/lib/qpx-live-paper/releases/50961f599c9cf695478b68a45b1fd0979e17e569,
+selected current symlink, installed existing worker unit and daemon-reloaded.
+Ran systemd-owned finite qpx-live-paper-metrics-refresh-20260924.service with
+--refresh-account-metrics; exited0,1.493s,29.6MiB peak,0Bswap; transient unit gone.
+All37 pre-existing account fields unchanged and prior audit byte-for-byte equal;
+state/heartbeat/performance checksums valid. Metrics agree across three artifacts.
+Equity1488.0282; net44.6882; realized0; unrealized38.935; cash28.0282; QDTE50,
+mark29.20/value1460, swing0,reserve0; dividends11.25155recorded/5.7532released/
+5.49835pending. Market-data timestamp2026-09-24T20:00:00Z; no historical window
+equity baseline exists, explicitly null. Runtime fingerprinteb4fca116146e78427ee73a5504ef5488c2206a1138714f94bc6a841cad3a009.
+Healthy finite-refresh heartbeat explicitly records worker inactive, not a false
+daemon-alive claim. Supervisor still enabled/PID709504/restarts0; workerinactive,
+PID0/restarts0. Read-only schedule nextstart2026-09-25T09:25:00-04:00; regular
+session09:30-16:00EDT. No temporary monitor or manually launched session worker.
+Authentic minute and first signal-to-fill pending scheduled operation, not failure.
+Next: continuity-only commit/push, select identical code from final committed
+tree and finite/read-only verify. No tests need rerunning for documentation alone.
