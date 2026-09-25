@@ -1,5 +1,26 @@
 # QPX_ALPHA RECOVERY & DECISION LEDGER
 
+## 2026-09-25 — canonical governance consolidation
+
+- **USER_REQUIREMENT:** Preserve every substantive rule while replacing the
+  five-file per-prompt mandatory archive read with one compact canonical read
+  before actual QPX work; ordinary conversation/planning requires no reread.
+- **SETTLED STRUCTURE:** `QPX_CODEX_RULES.md` is the sole operative rule set;
+  `AGENTS.md` is a minimal bootstrap; traceability is human-audit-only. Former
+  mandatory documents remain verbatim in a dated archive and root paths remain
+  nonoperative compatibility pointers.
+- **SEMANTIC PRESERVATION:** Fifty-four stable rules cover authority, scope,
+  gates, implementation, causal/accounting/state safety, proportional testing,
+  Git/deployment authorization, continuity, evidence, and reporting. Every old
+  operative clause has a checked mapping row; historical narrative is retained
+  but is not automatically operative.
+- **AMENDMENT RULE:** Future governance changes update the canonical file and
+  traceability map in the same commit. Narrative incident/accountability/recovery
+  records never become mandatory reading automatically.
+- **SCOPE:** Documentation and references only. No application/runtime/service,
+  strategy, configuration, data, backtest, or live-paper change or deployment.
+
+
 ## 2026-09-24 — live-paper causal minute observation and metrics
 
 Deployment evidence, 20:18 CDT: 50961f599c9cf695478b68a45b1fd0979e17e569

@@ -1,5 +1,38 @@
 # QPX_ALPHA RECOVERY PROMPT
 
+## Governance consolidation — 2026-09-25 (documentation-only, pre-commit)
+
+USER_REQUIREMENT: replace the five-document per-prompt mandatory reading chain
+with one compact canonical rules file, preserve every operative clause by stable
+ID and traceability, retain verbatim historical/accountability evidence, and
+commit/push without touching application or runtime state.
+
+Current intended result: `QPX_CODEX_RULES.md` is the sole mandatory governance
+read before first actual QPX work in a continuous session; ordinary discussion,
+explanation, and planning require no read unless they operate or mutate QPX.
+`AGENTS.md` is an 11-line bootstrap. Fifty-four canonical rules occupy 75 lines
+and 1,777 words. `docs/governance/QPX_RULE_TRACEABILITY.md` maps every old
+operative clause/checklist row to canonical IDs. The five former mandatory files
+are preserved verbatim under
+`docs/governance/archive/pre_consolidation_2026-09-25/`; root names are now
+nonoperative compatibility pointers. Constitution remains unchanged.
+
+Baseline mandatory set (five files including old `AGENTS.md`): 968 lines, 5,921
+words, 41,944 bytes. New mandatory startup set (`AGENTS.md` plus canonical): 86
+lines, 1,850 words, 14,430 bytes. Final deterministic mapping/contradiction,
+documentation-link/count, archive-integrity, and `git diff --check` validations
+must pass before the explicit paths are staged and committed. No application
+tests, deployment, service action, runtime inspection, or data modification is
+authorized. Preserve unrelated untracked Sep21 journal, runtime, and shell-name.
+
+VERIFIED_ARTIFACT: deterministic documentation validation passed: 54 unique
+canonical IDs, 90/90 trace rows mapped, zero unmapped rows, zero contradictory
+duplicate authorities, no circular mandatory reads, phase/size/link/amendment
+checks passed, Constitution unchanged, archives byte-identical, and
+`git diff --check` passed. Reductions are 91.12% lines, 68.76% words, and 65.60%
+bytes. Next exact action: commit the inspected explicit documentation stage,
+push `main`, verify local HEAD/`origin/main`/remote `main`, and exit.
+
 ## Live-paper correction — 2026-09-24 (implementation deployed; market proof pending)
 
 VERIFIED_ARTIFACT, 20:18 CDT: implementation commit
