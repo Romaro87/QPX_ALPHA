@@ -106,8 +106,8 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
             store = IEXResearchStore(Path(folder))
             store.event("TEST_RUNTIME_INITIALIZED", {})
             with patch(
-                "qpx_bot.pr50_iex_forward_research_paper.request_bars",
-                return_value=exact,
+                "qpx_bot.pr50_iex_forward_research_paper.request_authentic_open",
+                side_effect=lambda symbol, *_: exact[symbol][0],
             ), patch(
                 "qpx_bot.pr50_iex_forward_research_paper.sip.evaluate_exit",
                 return_value=SimpleNamespace(
@@ -168,8 +168,8 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
             }
             row = {"t": "2026-09-03T13:30:00Z", "o": 30.0}
             with patch(
-                "qpx_bot.pr50_iex_forward_research_paper.request_bars",
-                return_value={"QDTE": [row]},
+                "qpx_bot.pr50_iex_forward_research_paper.request_authentic_open",
+                return_value=row,
             ):
                 self.assertFalse(process_open_phase_clock(state, store, observed))
                 cash_after = state["cash"]
@@ -1492,6 +1492,7 @@ class UnattendedClockAndHeartbeatTests(unittest.TestCase):
             "mode": VARIANT,
             "contract_fingerprint": sip.fingerprint(contract),
             "last_decision_bar": "2026-08-31T15:45:00-04:00",
+            "cash": 28.0282, "qdte_shares": 50, "positions": {},
             "last_corporate_action_observation_at_utc": observed.isoformat(),
             "pending": {},
             "revision": 10,
@@ -1501,7 +1502,9 @@ class UnattendedClockAndHeartbeatTests(unittest.TestCase):
             store.event("TEST_INITIALIZED", {"revision": 10})
             store.save(state)
             with patch.object(sip, "process_latest_decision") as process:
-                self.assertEqual(_cycle(store, observed), state)
+                result = _cycle(store, observed)
+                self.assertEqual(result["cash"], state["cash"])
+                self.assertEqual(result["qdte_shares"], state["qdte_shares"])
             process.assert_not_called()
             self.assertFalse(decision_processing_due(state, observed))
 

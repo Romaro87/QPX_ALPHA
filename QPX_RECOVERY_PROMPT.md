@@ -1,5 +1,44 @@
 # QPX_ALPHA RECOVERY PROMPT
 
+## Live-paper correction — 2026-09-24 (implementation verified; deployment next)
+
+Active scope: live paper only; causal execution and persisted account metrics;
+commit/push/deploy, then exit tonight. No market-open wait or replay-queue changes.
+The daemon was running: completed 1-minute bars could not supply OPEN inside
+their own minute. INTC Sep17 and TSLL Sep24 windows were observed but mislabeled
+absent; Sep17 TSLL was starved by the first-symbol early return.
+
+HIGH-risk design reuses ADR-0010, authentic OPEN/CLOSE, checksummed state and
+idempotent audit. Current-minute first eligible IEX trades replace completed-bar
+OPEN reads; pending execution preempts slow decision catch-up; state-first audit
+outbox survives restart without duplicate fills. Calendar early closes and
+five-second daemon polling are explicit. Admission now reads the persisted 90%
+cap rather than the obsolete Fixed25 fallback; no configuration parameter changed.
+State/report/heartbeat carry causal marks, P&L, dividends and performance totals;
+historical window equity without a persisted baseline remains explicitly null.
+
+Focused command: `python3 -m unittest tests.test_iex_live_execution_repair
+tests.test_pr50_iex_forward_research_paper tests.test_fixed25_forward_paper
+tests.test_clean_v2_market_supervisor -q` — 78 passed. Diff/unit validation passed
+(only unrelated installed spice-vdagent Install warning).
+Implementation: `eb4fca116146e78427ee73a5504ef5488c2206a1138714f94bc6a841cad3a009`.
+Contract: `65d6f7c50e8b7efb9e08dfe5bee855e0b90fd52772a36ed78de1a8422ca5b0bc`.
+Candidate: `347a2831e4f67ab4e7afd895430ef04b0503eb33b32e65a9aac9bf9a08fadf1f`.
+Baseline revision776: QDTE50/cost1421.065, cash28.02820000000009, realized0,
+reserve0, no positions/pending; dividends released5.7532/pending5.49835.
+Audit SHA256 `59d229ec89d5f11ecdac0b6eeeb2cdd5ab80386680a1535f737e18cba18dbca6`
+(1,887,686 bytes). Existing field hashes captured for post-deployment comparison.
+
+Next: push with continuity, export committed runner/package to
+`/home/ron/.local/lib/qpx-live-paper/releases/<commit>`, select via `current`,
+install committed existing worker unit, daemon-reload without starting overnight
+worker. Run finite supervised `--refresh-account-metrics` against existing
+clean_v3 state; verify original fields/audit, checksums/metrics/identity and
+supervisor schedule. Supervisor PID709504 active/restarts0; worker inactive.
+Next start Sep25 09:25 EDT / 08:25 CDT; market09:30 EDT. Authentic observation
+and signal-to-fill remain pending the scheduled session, not an overnight failure.
+Preserve unrelated untracked Sep21 journal, runtime, and shell-named file.
+
 **Checkpoint date:** 2026-08-11T12:34:41-05:00
 
 Use this file to resume QPX_ALPHA after a lost or frozen ChatGPT conversation.

@@ -1,5 +1,24 @@
 # QPX_ALPHA RECOVERY & DECISION LEDGER
 
+## 2026-09-24 — live-paper causal minute observation and metrics
+
+USER_REQUIREMENT: fix, focused-test, commit/push and deploy without account reset,
+strategy-parameter changes, broker orders, replay changes, or waiting for market.
+VERIFIED_ARTIFACT: Sep17 INTC 13:48Z and Sep24 TSLL 16:33Z windows were observed;
+the impossible completed-bar OPEN query still caused false absent-process labels.
+Sep17 TSLL shared INTC's minute but early return starved it. Supervisor/session
+lifetime was continuous, not decision-boundary-only.
+Reviewed HIGH-risk correction retains authentic OPEN/CLOSE and existing account
+ownership: bounded read-only current-minute first eligible IEX trade, exact
+availability timestamps, no late fills, all-symbol pending servicing, durable
+state-first audit outbox, configured 90% cap instead of legacy25 fallback, calendar
+session boundaries, additive persisted valuations/performance and finite refresh.
+No strategy/configuration identity change. Existing journal remains append-only.
+78 focused tests passed including completed CLOSE→pending→restart→OPEN fill,
+duplicate polls, interruption before audit delivery, unavailable minutes, priority,
+early close/DST, metrics/dividends and GET-only data authority. Deployed runtime
+proof is next; authentic market-open acceptance explicitly awaits Sep25 schedule.
+
 **Status:** Active authoritative recovery ledger  
 **Repository:** Romaro87/QPX_ALPHA  
 **Primary local workspace:** `/storage/emulated/0/QPX_ALPHA`  

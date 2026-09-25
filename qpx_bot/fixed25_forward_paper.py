@@ -1247,6 +1247,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                     ))
                     state["profit_recycling"]["decision_ids"].append(decision.decision_id)
                     store.event("SIMULATED_EXIT_FILLED", {"symbol": symbol, "execution_id": execution_id,
+                        "realized_pnl": pnl,
                         "shares": position.shares, "fill_price": fill, "reason": evaluation.reason,
                         "sip_1m_bar": str(minute["t"]), "tax_reserved": tax_reserved,
                         "tax_reserve_released": tax_reserve_released,
@@ -1344,6 +1345,15 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             store.event("ENTRY_STAGED_15M", event_details)
         state["positions"] = {symbol: _position_dict(value) for symbol, value in positions.items()}
         _persist_profit_runtime(state, profit_runtime)
+        if state["contract"].get("feed") == "iex":
+            marks = state.setdefault("account_marks", {})
+            for name in ("QDTE", *state["positions"]):
+                causal_rows = [row for row in histories.get(name, []) if row["start"] <= bar_time]
+                if causal_rows:
+                    row = causal_rows[-1]
+                    marks[name] = {"price": row["close"],
+                                   "market_data_timestamp": (row["start"] + timedelta(minutes=15)).astimezone(timezone.utc).isoformat(),
+                                   "observed_at_utc": observed_at.isoformat(), "source": "ALPACA_IEX_COMPLETED_15M_CLOSE"}
         state["completed_execution_ids"].append(completed_id)
         state["last_decision_bar"] = bar_time.isoformat()
         state["revision"] += 1
@@ -1388,6 +1398,10 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
         _flush_pending_decision_cycle_telemetry(state, store)
         if state.get("shadow_matrix_event_pending") is not None:
             flush_pending_event(state, store)
+        if state["contract"].get("feed") == "iex" and state["pending"]:
+            # The newly staged minute has priority over additional catch-up work.
+            store.save(state)
+            break
 
 
 def select_causal_execution_bar(rows: list[dict[str, Any]], observed_at: datetime) -> dict[str, Any]:

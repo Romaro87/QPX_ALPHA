@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import errno
+import hashlib
 import json
 import math
 import os
@@ -41,7 +42,8 @@ from qpx_bot.broker_account_provider import (
     build_broker_account_provider,
     load_provider_selection,
 )
-from qpx_bot.market_calendar import is_market_session
+from qpx_bot.market_calendar import is_market_session, market_session
+from qpx_bot.iex_paper_observability import performance
 from qpx_bot.paper_state import read_checksummed_state, write_checksummed_state
 
 
@@ -255,6 +257,8 @@ def _request_json(
     endpoint: str,
     parameters: Mapping[str, Any],
     user_agent: str,
+    timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
+    attempts: int = MAX_REQUEST_ATTEMPTS,
 ) -> Mapping[str, Any]:
     try:
         key, secret = sip.credentials()
@@ -270,7 +274,7 @@ def _request_json(
             request_parameters=_request_context(parameters),
         ) from exc
     url = endpoint + "?" + urllib.parse.urlencode(parameters)
-    for attempt in range(1, MAX_REQUEST_ATTEMPTS + 1):
+    for attempt in range(1, attempts + 1):
         request = urllib.request.Request(
             url,
             headers={
@@ -285,7 +289,7 @@ def _request_json(
         try:
             with urllib.request.urlopen(
                 request,
-                timeout=REQUEST_TIMEOUT_SECONDS,
+                timeout=timeout_seconds,
             ) as response:
                 raw = response.read()
             payload = json.loads(raw.decode("utf-8"))
@@ -320,7 +324,7 @@ def _request_json(
                 endpoint=endpoint,
                 parameters=parameters,
             )
-        if not failure.recoverable or attempt == MAX_REQUEST_ATTEMPTS:
+        if not failure.recoverable or attempt == attempts:
             raise failure
         time.sleep(_request_retry_delay(failure, attempt))
     raise AssertionError("Provider retry loop terminated unexpectedly.")
@@ -1075,6 +1079,40 @@ class IEXResearchStore(sip.Store):
         self.heartbeat_checksum = (
             self.directory / "iex_research_paper_heartbeat.sha256"
         )
+        self.bound_state: dict[str, Any] | None = None
+
+    def bind(self, state: dict[str, Any]) -> None:
+        self.bound_state = state
+
+    def save(self, state: dict[str, Any]) -> None:
+        # Commit account + outcome together before delivering idempotent audit.
+        super().save(state)
+        for item in state.get("audit_outbox", []):
+            super().event(item["event_type"], item["details"])
+        if state.get("audit_outbox"):
+            state["audit_outbox"] = []
+            super().save(state)
+
+    def publish_metrics(self, state: dict[str, Any], observed_at: datetime) -> None:
+        self.save(state)
+        records = [json.loads(line) for line in self.journal.read_text().splitlines() if line.strip()]
+        report = performance(state, records, observed_at, sip.NY)
+        if "profit_recycling" in state and "contributed_capital" in state:
+            runtime = sip._profit_runtime(state)
+            sequence = state["profit_recycling"]["current_event_sequence"]
+            report["current"]["deployable_cash"] = runtime.ledger.available_swing_cash(state["cash"], sequence)
+        else:
+            report["current"]["deployable_cash"] = None
+        report["current"].update({key: value for key, value in report["account_to_date"].items()
+                                  if key not in {"dividends_recorded", "dividends_released"}})
+        state["account_metrics"] = report["current"]
+        state["performance"] = report
+        self.save(state)
+        write_checksummed_state(
+            self.directory / "iex_research_paper_performance.json",
+            self.directory / "iex_research_paper_performance.sha256",
+            json.dumps(report, sort_keys=True, indent=2, allow_nan=False).encode() + b"\n",
+        )
 
     def event(self, event_type: str, details: Mapping[str, Any]) -> bool:
         labeled = {
@@ -1082,6 +1120,12 @@ class IEXResearchStore(sip.Store):
             for key, value in details.items()
         }
         labeled.update({"runner_variant": VARIANT, "market_data_feed": FEED})
+        if self.bound_state is not None:
+            item = {"event_type": event_type, "details": labeled}
+            outbox = self.bound_state.setdefault("audit_outbox", [])
+            if item not in outbox:
+                outbox.append(item)
+            return True
         return super().event(event_type, labeled)
 
     def read_heartbeat(self) -> dict[str, Any] | None:
@@ -1111,9 +1155,76 @@ class IEXResearchStore(sip.Store):
         write_checksummed_state(self.heartbeat, self.heartbeat_checksum, encoded)
 
     def reconcile(self) -> dict[str, Any] | None:
+        self.bound_state = None
         state = super().reconcile()
         self.read_heartbeat()
+        if state is not None and state.get("audit_outbox"):
+            self.save(state)
         return state
+
+
+def implementation_fingerprint() -> str:
+    paths = (Path(__file__), Path(sip.__file__), Path(__file__).with_name("iex_paper_observability.py"))
+    return sip.fingerprint({p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in paths})
+
+
+def request_authentic_open(symbol: str, eligible: datetime, observed_at: datetime) -> dict[str, Any] | None:
+    """First minute-open-eligible IEX trade, acquired during that same minute.
+
+    Alpaca market-data FAQ: most restrictive condition wins; unknown conditions
+    fail closed. Never use a completed bar obtained after the execution window.
+    """
+    end = eligible + timedelta(minutes=1)
+    if not eligible <= observed_at < end:
+        return None
+    parameters = {"start": eligible.isoformat(), "end": observed_at.isoformat(),
+                  "feed": FEED, "sort": "asc", "limit": 10000}
+    allowed = {"A": set(" EFKLOTX56"), "B": set(" EFKLOTX56"), "C": set("@ABDFKLOTXY56")}
+    for _ in range(3):
+        payload = _request_json(provider="ALPACA_IEX", operation="authentic_minute_open",
+                                endpoint=f"https://data.alpaca.markets/v2/stocks/{urllib.parse.quote(symbol, safe='')}/trades",
+                                parameters=parameters, user_agent="QPX-IEX-causal-open",
+                                timeout_seconds=2, attempts=1)
+        received = datetime.now(timezone.utc)
+        if received >= end:
+            return None
+        trades = payload.get("trades") or []
+        prior = eligible
+        for trade in trades:
+            timestamp = sip._parse(str(trade["t"])).astimezone(timezone.utc)
+            if timestamp < prior or timestamp > observed_at:
+                raise RuntimeError("IEX trade sequence violates causal request bounds.")
+            prior = timestamp
+            conditions = trade.get("c")
+            tape = str(trade.get("z", ""))
+            if not conditions or tape not in allowed or not set(conditions) <= allowed[tape]:
+                continue
+            price = float(trade["p"])
+            if not math.isfinite(price) or price <= 0 or float(trade["s"]) <= 0:
+                raise RuntimeError("Invalid IEX open trade price/size.")
+            if trade.get("x") != "V":
+                raise RuntimeError("Non-IEX execution observation.")
+            return {"t": eligible.isoformat(), "o": price, "trade": trade,
+                    "observed_at_utc": received.isoformat(),
+                    "price_source": "ALPACA_IEX_FIRST_ELIGIBLE_TRADE", "causal_status": "OBSERVED_WITHIN_ELIGIBLE_MINUTE"}
+        token = payload.get("next_page_token")
+        if not token:
+            return None
+        parameters["page_token"] = token
+    raise RuntimeError("IEX open trade pagination bound exceeded; no open assumed.")
+
+
+def refresh_account_marks(state: dict[str, Any], observed_at: datetime) -> None:
+    symbols = tuple(dict.fromkeys(("QDTE", *state["positions"])))
+    raw = request_bars(symbols, "15Min", observed_at - timedelta(days=7), observed_at)
+    marks = state.setdefault("account_marks", {})
+    for symbol in symbols:
+        rows = sip._completed_15m(raw.get(symbol, []), observed_at)
+        if rows:
+            row = rows[-1]
+            marks[symbol] = {"price": row["close"], "market_data_timestamp": (row["start"] + timedelta(minutes=15)).astimezone(timezone.utc).isoformat(),
+                             "observed_at_utc": observed_at.isoformat(), "source": "ALPACA_IEX_COMPLETED_15M_CLOSE"}
+    state["last_account_mark_refresh_at_utc"] = observed_at.isoformat()
 
 
 def select_causal_execution_bar(
@@ -1145,14 +1256,14 @@ def market_session_state(observed_at: datetime) -> str:
     market = observed_at.astimezone(sip.NY)
     if not is_market_session(market.date()):
         return "NON_SESSION"
-    wall = market.time().replace(tzinfo=None)
-    if wall < clock_time(9, 30):
+    session = market_session(market.date())
+    if market < session.regular_open:
         return "PRE_MARKET"
-    if wall < clock_time(9, 45):
+    if market < session.regular_open + timedelta(minutes=15):
         return "OPEN_NO_COMPLETED_DECISION_BAR"
-    if wall < clock_time(16, 0):
+    if market < session.regular_close:
         return "REGULAR_SESSION"
-    if wall < clock_time(16, 15):
+    if market < session.regular_close + timedelta(minutes=15):
         return "POST_CLOSE_DECISION_FINALIZATION"
     return "AFTER_HOURS"
 
@@ -1161,7 +1272,7 @@ def expected_completed_decision_start(observed_at: datetime) -> datetime | None:
     market = observed_at.astimezone(sip.NY)
     phase = market_session_state(observed_at)
     if phase == "POST_CLOSE_DECISION_FINALIZATION":
-        return market.replace(hour=15, minute=45, second=0, microsecond=0)
+        return market_session(market.date()).regular_close - timedelta(minutes=15)
     if phase != "REGULAR_SESSION":
         return None
     elapsed = (market.hour * 60 + market.minute) - (9 * 60 + 30)
@@ -1242,6 +1353,12 @@ def _heartbeat_payload(
     broker_snapshot = broker.get("last_snapshot") or {}
     return {
         "schema_version": HEARTBEAT_SCHEMA_VERSION,
+        "implementation_fingerprint": implementation_fingerprint(),
+        "account_metrics": state.get("account_metrics") if state else None,
+        "performance": state.get("performance") if state else None,
+        "minute_observer": state.get("minute_observer") if state else None,
+        "last_authentic_open_phase": state.get("last_authentic_open_phase") if state else None,
+        "last_open_phase_error": state.get("last_open_phase_error") if state else None,
         "runner_variant": state.get("mode", VARIANT) if state else VARIANT,
         "market_data_feed": FEED,
         "research_only": True,
@@ -1335,14 +1452,24 @@ def _expire_pending(
     signal: Mapping[str, Any], observed_at: datetime, reason: str,
 ) -> None:
     execution_id = _entry_execution_id(state, symbol, signal)
+    store.bind(state)
     store.event("IEX_RESEARCH_ENTRY_EXECUTION_MISSED", {
         "symbol": symbol, "signal_id": signal["signal_id"],
         "execution_id": execution_id, "reason": reason,
         "decision_observed_at_utc": signal["decision_observed_at_utc"],
         "first_eligible_execution_minute_utc": signal["first_eligible_execution_minute_utc"],
         "missed_recorded_at_utc": observed_at.astimezone(timezone.utc).isoformat(),
+        "signal_boundary": signal.get("decision_bar_interval"),
+        "execution_window_observed_at_utc": signal.get("execution_window_observed_at_utc"),
+        "last_open_observation_error": signal.get("last_open_observation_error"),
+        "last_open_attempt_at_utc": signal.get("last_open_attempt_at_utc"),
+        "authentic_open": signal.get("authentic_open"),
+        "execution_observed_at_utc": (signal.get("authentic_open") or {}).get("observed_at_utc"),
+        "price_source": (signal.get("authentic_open") or {}).get("price_source"),
+        "causal_status": "NO_RETROSPECTIVE_FILL",
     })
-    state["completed_execution_ids"].append(execution_id)
+    if execution_id not in state["completed_execution_ids"]:
+        state["completed_execution_ids"].append(execution_id)
     state["pending"].pop(symbol, None)
     state["last_completed_execution_observation_utc"] = (
         observed_at.astimezone(timezone.utc).isoformat()
@@ -1350,14 +1477,20 @@ def _expire_pending(
 
 
 def process_pending_execution_clock(
-    state: dict[str, Any], store: IEXResearchStore, observed_at: datetime
+    state: dict[str, Any], store: IEXResearchStore, observed_at: datetime,
+    *, allow_execution: bool = True,
 ) -> bool:
     """Handle committed one-minute opportunities before slower decision work.
 
     Returns true while a pending signal is waiting for or inside its execution
     minute, so the cycle avoids slow catch-up work until the opportunity closes.
     """
-    fixed25_notional_fraction = sip.load_qualified_fixed25_notional_fraction()
+    fixed25_notional_fraction = float(state.get("contract", {}).get(
+        "maximum_position_notional_fraction", sip.load_qualified_fixed25_notional_fraction()
+    ))
+    if not math.isfinite(fixed25_notional_fraction) or not 0 < fixed25_notional_fraction <= 1:
+        raise RuntimeError("Invalid persisted maximum position notional fraction.")
+    store.bind(state)
     broker_block = state.get("broker_reconciliation", {}).get("risk_block_reason")
     if broker_block:
         had_pending = bool(state["pending"])
@@ -1376,7 +1509,15 @@ def process_pending_execution_clock(
     for symbol, signal in sorted(list(state["pending"].items())):
         action = execution_clock_action(signal, observed_at)
         if action == "WAIT":
-            return True
+            continue
+        eligible = datetime.fromisoformat(signal["first_eligible_execution_minute_utc"])
+        local = eligible.astimezone(sip.NY)
+        if not is_market_session(local.date()) or not (
+            market_session(local.date()).regular_open <= local < market_session(local.date()).regular_close
+        ):
+            _expire_pending(state, store, symbol, signal, observed_at, "ELIGIBLE_MINUTE_OUTSIDE_REGULAR_SESSION")
+            store.save(state)
+            continue
         if action == "WINDOW_ACTIVE" and not signal.get("execution_window_observed_at_utc"):
             signal["execution_window_observed_at_utc"] = (
                 observed_at.astimezone(timezone.utc).isoformat()
@@ -1390,44 +1531,49 @@ def process_pending_execution_clock(
             store.save(state)
         if action == "EXPIRE_MISSED_WINDOW":
             _expire_pending(state, store, symbol, signal, observed_at,
-                            "PROCESS_NOT_OBSERVED_DURING_ELIGIBLE_MINUTE")
+                            ("AUTHENTIC_OPEN_UNAVAILABLE_DURING_ELIGIBLE_MINUTE" if signal.get("execution_window_observed_at_utc")
+                             else "PROCESS_NOT_OBSERVED_DURING_ELIGIBLE_MINUTE"))
             store.save(state)
             continue
 
-        eligible = datetime.fromisoformat(signal["first_eligible_execution_minute_utc"])
-        minute_rows = request_bars((symbol,), "1Min", eligible, eligible + timedelta(minutes=2))[symbol]
-        execution_observed_at = datetime.now(timezone.utc)
-        if execution_observed_at >= eligible + timedelta(minutes=1):
-            _expire_pending(
-                state,
-                store,
-                symbol,
-                signal,
-                execution_observed_at,
-                "EXECUTION_BAR_NOT_OBSERVED_WITHIN_ELIGIBLE_MINUTE",
-            )
+        signal["last_open_attempt_at_utc"] = observed_at.isoformat()
+        try:
+            one = signal.get("authentic_open") or request_authentic_open(symbol, eligible, datetime.now(timezone.utc))
+        except (ProviderFailure, RuntimeError) as exc:
+            signal["last_open_observation_error"] = exc.as_dict() if isinstance(exc, ProviderFailure) else str(exc)
             store.save(state)
             continue
-        exact = [row for row in minute_rows
-                 if sip._parse(str(row["t"])).astimezone(timezone.utc) == eligible]
-        if not exact:
+        if one is None:
+            signal["last_open_observation_error"] = "NO_OPEN_ELIGIBLE_IEX_TRADE_OBSERVED_WITHIN_DEADLINE"
             store.save(state)
-            return True
-        one = exact[0]
+            continue
+        execution_observed_at = datetime.fromisoformat(one["observed_at_utc"])
+        if not eligible <= execution_observed_at < eligible + timedelta(minutes=1):
+            raise RuntimeError("Authentic open observation outside execution minute.")
+        signal["authentic_open"] = one
+        store.save(state)
+        if not allow_execution:
+            signal["last_open_observation_error"] = "WAITING_FOR_ACCOUNT_OPEN_PHASE"
+            store.save(state)
+            continue
+        if datetime.now(timezone.utc) >= eligible + timedelta(minutes=1):
+            _expire_pending(state, store, symbol, signal, datetime.now(timezone.utc), "EXECUTION_DEADLINE_PASSED_BEFORE_ACCOUNT_COMMIT")
+            store.save(state)
+            continue
         positions = {name: sip._position(raw) for name, raw in state["positions"].items()}
         mark_symbols = tuple(dict.fromkeys(("QDTE", *positions)))
-        raw_marks = request_bars(mark_symbols, "15Min", eligible - timedelta(days=60), eligible)
-        marks: dict[str, float] = {}
-        for name in mark_symbols:
-            completed = sip._completed_15m(raw_marks.get(name, []), eligible)
-            if completed:
-                marks[name] = float(completed[-1]["close"])
+        marks = {name: float(mark["price"]) for name, mark in state.get("account_marks", {}).items()
+                 if datetime.fromisoformat(mark["market_data_timestamp"]) <= eligible}
         if any(name not in marks for name in mark_symbols):
             _expire_pending(state, store, symbol, signal, observed_at,
                             "MISSING_CAUSAL_ACCOUNT_VALUATION_MARK")
             store.save(state)
             continue
         execution_id = _entry_execution_id(state, symbol, signal)
+        if execution_id in state["completed_execution_ids"]:
+            state["pending"].pop(symbol, None)
+            store.save(state)
+            continue
         candidate_snapshot = sip.candidate_v1_config_from_snapshot(
             signal.get("candidate_v1_config_snapshot"),
             str(signal.get("candidate_v1_config_fingerprint", "")),
@@ -1501,6 +1647,10 @@ def process_pending_execution_clock(
             "candidate_v1_config_snapshot": candidate_snapshot.as_dict(),
         }
         state["positions"][symbol]["entry_semantic_snapshot"] = entry_snapshot
+        state.setdefault("account_marks", {})[symbol] = {
+            "price": open_price, "market_data_timestamp": str(one["trade"]["t"]),
+            "observed_at_utc": execution_observed_at.isoformat(), "source": one["price_source"],
+        }
         sip._persist_profit_runtime(state, profit_runtime)
         state["completed_execution_ids"].append(execution_id)
         state["pending"].pop(symbol, None)
@@ -1515,23 +1665,33 @@ def process_pending_execution_clock(
             "first_eligible_execution_minute_utc": signal["first_eligible_execution_minute_utc"],
             "execution_window_observed_at_utc": signal["execution_window_observed_at_utc"],
             "execution_observed_at_utc": execution_observed_at.isoformat(),
+            "authentic_open": one, "causal_status": one["causal_status"],
+            "signal_id": signal["signal_id"], "price_source": one["price_source"],
             "recycled_profit_consumed": used,
             "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint,
         })
         store.save(state)
-    return False
+    return bool(state["pending"])
 
 
 def process_open_phase_clock(
     state: dict[str, Any], store: IEXResearchStore, observed_at: datetime
 ) -> bool:
     """Process exact 15-minute opens before pending entries or close decisions."""
+    previous_error = state.get("last_open_phase_error")
+    if previous_error and datetime.fromisoformat(previous_error["minute"]) + timedelta(minutes=1) <= observed_at:
+        store.bind(state)
+        store.event("AUTHENTIC_OPEN_PHASE_MISSED", {
+            "bar": previous_error["minute"], **previous_error,
+            "recorded_at_utc": observed_at.isoformat(), "causal_status": "NO_RETROSPECTIVE_FILL",
+        })
+        state.pop("last_open_phase_error")
+        store.save(state)
     market = observed_at.astimezone(sip.NY)
-    wall = market.time().replace(tzinfo=None)
     if (
         not is_market_session(market.date())
-        or wall < clock_time(9, 30)
-        or wall >= clock_time(16, 0)
+        or market < market_session(market.date()).regular_open
+        or market >= market_session(market.date()).regular_close
         or market.minute % 15
     ):
         return False
@@ -1543,20 +1703,24 @@ def process_open_phase_clock(
     completed = state.setdefault("completed_open_phase_ids", [])
     if phase_id in completed:
         return False
+    store.bind(state)
 
     positions = {name: sip._position(raw) for name, raw in state["positions"].items()}
     symbols = tuple(dict.fromkeys(("QDTE", *positions)))
     start_utc = bar_open.astimezone(timezone.utc)
-    rows = request_bars(symbols, "1Min", start_utc, start_utc + timedelta(minutes=2))
     exact: dict[str, Mapping[str, Any]] = {}
     for symbol in symbols:
-        matches = [
-            row for row in rows.get(symbol, ())
-            if sip._parse(str(row["t"])).astimezone(timezone.utc) == start_utc
-        ]
-        if not matches:
+        try:
+            one = request_authentic_open(symbol, start_utc, observed_at)
+        except (ProviderFailure, RuntimeError) as exc:
+            state["last_open_phase_error"] = {"minute": start_utc.isoformat(), "symbol": symbol, "reason": str(exc)}
+            store.save(state)
             return True
-        exact[symbol] = matches[0]
+        if one is None:
+            state["last_open_phase_error"] = {"minute": start_utc.isoformat(), "symbol": symbol, "reason": "NO_OPEN_ELIGIBLE_IEX_TRADE"}
+            store.save(state)
+            return True
+        exact[symbol] = one
 
     # Eligible gap exits use the authentic open and release proceeds before
     # settlement/allocation and before any pending entries.
@@ -1595,6 +1759,7 @@ def process_open_phase_clock(
         store.event("SIMULATED_OPEN_EXIT_FILLED", {
             "symbol": symbol, "execution_id": execution_id, "shares": position.shares,
             "fill_price": fill, "reason": evaluation.reason,
+            "realized_pnl": pnl, "authentic_open": exact[symbol],
             "iex_1m_bar": str(exact[symbol]["t"]), "tax_reserved": tax_reserved,
             "tax_reserve_released": tax_reserve_released,
             "required_tax_reserve": state["tax_reserve_cash"],
@@ -1635,8 +1800,12 @@ def process_open_phase_clock(
             "shares_before": result.shares_before, "shares_after": result.shares_after,
             "target_income_weight": candidate_snapshot.bot_config.dividend_allocation_years_1_2,
             "iex_1m_bar": str(exact["QDTE"]["t"]),
+            "authentic_open": exact["QDTE"], "realized_pnl": result.realized_pnl,
         })
     completed.append(phase_id)
+    state["last_authentic_open_phase"] = {"minute": start_utc.isoformat(), "observations": exact}
+    state.pop("last_open_phase_error", None)
+    store.event("AUTHENTIC_OPEN_PHASE_OBSERVED", {"execution_id": phase_id, "minute": start_utc.isoformat(), "observations": exact})
     store.save(state)
     return False
 
@@ -1795,6 +1964,7 @@ def _cycle(
         store.save(state)
     if state.get("schema_version") != sip.SCHEMA or state.get("mode") != contract.get("runner_variant", VARIANT):
         raise RuntimeError("Persisted state is not the IEX forward-research schema.")
+    store.bind(state)
     _flush_pending_broker_reconciliation(state, store)
     _flush_pending_semantic_transition(state, store)
     if broker_reconciliation_enabled():
@@ -1810,10 +1980,12 @@ def _cycle(
         )
     _transition_semantic_contract_if_required(state, store, contract, observed_at)
     with _iex_request_scope():
-        if corporate_action_poll_due(state, observed_at):
-            sip.observe_qdte_corporate_actions(state, store, observed_at)
         waiting_for_open = process_open_phase_clock(state, store, observed_at)
-    if waiting_for_open or process_pending_execution_clock(state, store, observed_at):
+    waiting_for_pending = process_pending_execution_clock(state, store, observed_at, allow_execution=not waiting_for_open)
+    state["minute_observer"] = {"last_worker_poll_at_utc": observed_at.isoformat(),
+                                "session_state": market_session_state(observed_at),
+                                "execution_source": "ALPACA_IEX_FIRST_ELIGIBLE_TRADE"}
+    if waiting_for_open or waiting_for_pending:
         state["last_observed_at_utc"] = observed_at.astimezone(timezone.utc).isoformat()
         state["revision"] += 1
         store.save(state)
@@ -1824,9 +1996,13 @@ def _cycle(
                 else "WAITING_FOR_CAUSAL_MINUTE"
             ),
         })
+        store.publish_metrics(state, observed_at)
         return state
     with _iex_request_scope():
+        if corporate_action_poll_due(state, observed_at):
+            sip.observe_qdte_corporate_actions(state, store, observed_at)
         if not decision_processing_due(state, observed_at):
+            store.publish_metrics(state, observed_at)
             return state
         expected = expected_completed_decision_start(observed_at)
         previous_completed = state.get("last_decision_bar")
@@ -1852,7 +2028,7 @@ def _cycle(
                 datetime.now(timezone.utc).isoformat()
             )
             store.save(state)
-        if expected is not None and (
+        if not state["pending"] and expected is not None and (
             completed is None or datetime.fromisoformat(str(completed)) < expected
         ):
             raise _sparse_data_failure(
@@ -1872,6 +2048,7 @@ def _cycle(
     store.event("IEX_RESEARCH_PAPER_HEARTBEAT", {
         "revision": state["revision"], "live_broker_enabled": False,
     })
+    store.publish_metrics(state, datetime.now(timezone.utc))
     return state
 
 
@@ -1935,11 +2112,32 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-dir", type=Path, default=DEFAULT_RUNTIME)
     parser.add_argument("--daemon", action="store_true")
-    parser.add_argument("--poll-seconds", type=int, default=30)
+    parser.add_argument("--poll-seconds", type=int, default=5)
+    parser.add_argument("--refresh-account-metrics", action="store_true",
+                        help="Finite valuation-only migration; no decisions, fills or corporate-action mutation.")
     parser.add_argument("--broker-reconciliation-status", action="store_true")
     args = parser.parse_args(argv)
-    if args.poll_seconds < 15:
-        raise ValueError("Poll interval must be at least 15 seconds.")
+    if not 1 <= args.poll_seconds <= 15:
+        raise ValueError("Execution observer poll interval must be between 1 and 15 seconds.")
+    if args.refresh_account_metrics:
+        store = IEXResearchStore(args.runtime_dir)
+        with store.locked():
+            state = store.reconcile()
+            if state is None or state["contract_fingerprint"] != sip.fingerprint(load_contract()):
+                raise RuntimeError("Metrics refresh requires the existing matching account; initialization forbidden.")
+            store.bind(state)
+            observed = datetime.now(timezone.utc)
+            refresh_account_marks(state, observed)
+            store.publish_metrics(state, observed)
+            heartbeat = _heartbeat_payload(
+                daemon_started_at_utc=observed.isoformat(), state=state,
+                provider_state="HEALTHY", session_state=market_session_state(observed),
+                retry_count=0, backoff_seconds=0, last_successful_provider_contact_at_utc=observed.isoformat())
+            heartbeat.update(runtime_operation="VALUATION_ONLY_REFRESH_COMPLETED", session_worker_active=False,
+                             refresh_pid=os.getpid(), daemon_pid=None)
+            store.write_heartbeat(heartbeat)
+            print(json.dumps(state["account_metrics"], sort_keys=True))
+        return 0
     if args.broker_reconciliation_status:
         print(
             json.dumps(broker_reconciliation_status(args.runtime_dir), indent=2, sort_keys=True),
