@@ -1314,3 +1314,42 @@ Required deployment verification:
 The worktree contains unrelated dirty service edits, runtime state, prior
 journal material, and queue runtime artifacts. They remain excluded from the
 deployment commit.
+
+<!-- QPX_LIVE_PAPER_SIP_AUTHORITY_20260926 -->
+## Live-paper Alpaca SIP authority correction — 2026-09-26
+
+Current authorized task: commit, push, and deploy the live-paper feed correction
+from Alpaca IEX to profile-governed Alpaca SIP. Do not reset the account, touch
+historical replay runtime, place broker orders, or wait for market open.
+
+Root cause: the adapter overwrote the base contract with global `FEED="iex"`;
+that global controlled bars, trades, marks, and reporting. The generic decision
+engine also used `feed == "iex"` as an accidental proxy for the corrected
+real-time pending-entry lifecycle. The fix makes the profile authoritative,
+prohibits fallback, and keys the lifecycle to
+`AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1`.
+
+Pre-deploy preserved identity: state revision 1082; audit sequence 1362/hash
+`81b883868ff2d3dc9d1b290b0a986b40c44963e2fee60716efbfe2a0bc7d3631`;
+account fingerprint
+`b7b39cac1c3afbb8a22a6a93f07d00e5410d25a595212ce97c710bc4189747d1`;
+50 QDTE, cash 33.52655000000009, cost 1421.0649999999998, zero realized P&L,
+zero reserve, no swing positions, no pending entries. Candidate fingerprint is
+`347a2831e4f67ab4e7afd895430ef04b0503eb33b32e65a9aac9bf9a08fadf1f`.
+
+SIP entitlement probe passed against the Sep. 25 session: 27 QDTE completed
+15-minute bars and 100 trades from explicit `feed=sip` requests. Feed identity
+is `286377ed5ab5f10fdfc9a31a088134154260ddb1b6cd44153a4b58e5bf4854d9`.
+Implementation fingerprint is
+`8c432c0d1839d786af627fc883209e7ef19bca946de1a7923a2553b0950e17cc`;
+contract fingerprint is
+`2725b53986626b500d2a4e9eba7486a662b8ac372c8266cc1cfa88ccfb302842`.
+Focused tests passed 97/97.
+
+NEXT EXACT ACTION: inspect/diff-check the intended stage, commit and push with
+this recovery record plus the decision ledger and Sep. 26 journal, verify refs,
+build an isolated release from that commit, install the new truthful units,
+create a non-copying SIP runtime symlink to the existing account directory, run
+the finite `--migrate-market-data-authority`, enable the new supervisor while
+retiring the old one, and verify checksums, preserved account fingerprint,
+SIP authority/entitlement, inactive after-hours worker, and no stray process.

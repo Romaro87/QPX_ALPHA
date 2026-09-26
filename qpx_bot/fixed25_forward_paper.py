@@ -66,12 +66,19 @@ QUALIFIED_COMMIT = "bba0f48273815ede42374015db7c5770bf446962"
 DATASET_FINGERPRINT = "8a9b1786680fe09af35807a2e33417b16a2c7b1fdcb79ba999d1cba959d986f8"
 PROFIT_FINGERPRINT = "c8d634fcd6a5c1c9503f5dbe38de807b5ee607e21afbb6ea06d1903ba0b5c049"
 SCHEMA = 2
-DECISION_CYCLE_TELEMETRY_EVENT = "IEX_RESEARCH_DECISION_CYCLE_TELEMETRY"
+DECISION_CYCLE_TELEMETRY_EVENT = "LIVE_PAPER_DECISION_CYCLE_TELEMETRY"
 MISSING_SPARSE_BAR = "MISSING_SPARSE_EXACT_CAUSAL_BAR"
 INSUFFICIENT_INDICATOR_HISTORY = "INSUFFICIENT_INDICATOR_HISTORY"
 OPEN_POSITION = "OPEN_POSITION"
 PENDING_SIGNAL = "PENDING_SIGNAL"
 VIX_UNAVAILABLE = "VIX_UNAVAILABLE_FAIL_CLOSED"
+
+
+def _uses_realtime_causal_execution(state: Mapping[str, Any]) -> bool:
+    return (
+        state.get("contract", {}).get("execution_phase_semantics_version")
+        == "AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1"
+    )
 
 
 def canonical(value: Any) -> bytes:
@@ -993,7 +1000,7 @@ def _vix_previous_close(day) -> float:
 def process_latest_decision(state: dict[str, Any], store: Store, observed_at: datetime) -> None:
     """Process each newly completed 15-minute timestamp exactly once."""
     _flush_pending_candidate_v1_config_event(state, store)
-    if state["contract"].get("feed") == "iex":
+    if _uses_realtime_causal_execution(state):
         _flush_pending_decision_cycle_telemetry(state, store)
         flush_pending_event(state, store)
     symbols = tuple(state["contract"]["symbols"])
@@ -1019,7 +1026,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
     profit_runtime = _profit_runtime(state)
     broker_risk_block = (
         state.get("broker_reconciliation", {}).get("risk_block_reason")
-        if state["contract"].get("feed") == "iex"
+        if _uses_realtime_causal_execution(state)
         else None
     )
     candle_sets = {symbol: [Candle(date=row["start"].date(), open=row["open"], high=row["high"],
@@ -1055,7 +1062,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
 
         # Apply the governed Candidate V1 allocation at its configured weekday.
         if (
-            state["contract"].get("feed") != "iex"
+            not _uses_realtime_causal_execution(state)
             and
             broker_risk_block is None
             and bar_time.weekday() == candidate_snapshot.rebalance_weekday
@@ -1104,8 +1111,8 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
 
         # OPEN: execute only signals staged by an earlier completed 15-minute bar.
         for symbol, signal in sorted(list(state["pending"].items())):
-            if state["contract"].get("feed") == "iex":
-                # The IEX variant owns an independent real-time one-minute
+            if _uses_realtime_causal_execution(state):
+                # The live runner owns an independent real-time one-minute
                 # execution clock. Decision catch-up must never fill here.
                 continue
             if datetime.fromisoformat(signal["signal_bar"]) >= bar_time: continue
@@ -1131,7 +1138,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                 state["completed_execution_ids"].append(execution_id); state["pending"].pop(symbol, None); continue
             marks = {name: histories[name][indices[name][bar_time]]["open"] for name in positions if bar_time in indices.get(name, {})}
             swing_value = sum(pos.shares * marks.get(name, pos.entry_price) for name, pos in positions.items())
-            if state["contract"].get("feed") == "iex":
+            if _uses_realtime_causal_execution(state):
                 qdte_mark, qdte_source = _iex_qdte_sizing_mark(histories, indices, bar_time)
                 if qdte_mark is None or qdte_source is None:
                     store.event("PENDING_ENTRY_SKIPPED_MISSING_CAUSAL_QDTE_MARK", {
@@ -1266,7 +1273,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             store.event("ENTRY_EVALUATION_FAILED_CLOSED", {"bar": bar_time.isoformat(), "reason": str(exc)})
             vix = None
         decision_census = None
-        if state["contract"].get("feed") == "iex":
+        if _uses_realtime_causal_execution(state):
             qualifying, decision_census = _evaluate_candidate_v1_cycle(
                 symbols=symbols,
                 histories=histories,
@@ -1324,7 +1331,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             event_details = {"symbol": symbol, "signal_id": signal_id,
                              "bar": bar_time.isoformat(),
                              "candidate_v1_config_fingerprint": candidate_snapshot.fingerprint}
-            if state["contract"].get("feed") == "iex":
+            if _uses_realtime_causal_execution(state):
                 decision_observed = datetime.now(timezone.utc)
                 eligible = decision_observed.replace(second=0, microsecond=0) + timedelta(minutes=1)
                 pending_signal.update({
@@ -1345,7 +1352,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             store.event("ENTRY_STAGED_15M", event_details)
         state["positions"] = {symbol: _position_dict(value) for symbol, value in positions.items()}
         _persist_profit_runtime(state, profit_runtime)
-        if state["contract"].get("feed") == "iex":
+        if _uses_realtime_causal_execution(state):
             marks = state.setdefault("account_marks", {})
             for name in ("QDTE", *state["positions"]):
                 causal_rows = [row for row in histories.get(name, []) if row["start"] <= bar_time]
@@ -1353,20 +1360,23 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
                     row = causal_rows[-1]
                     marks[name] = {"price": row["close"],
                                    "market_data_timestamp": (row["start"] + timedelta(minutes=15)).astimezone(timezone.utc).isoformat(),
-                                   "observed_at_utc": observed_at.isoformat(), "source": "ALPACA_IEX_COMPLETED_15M_CLOSE"}
+                                   "observed_at_utc": observed_at.isoformat(),
+                                   "source": f"ALPACA_{str(state['contract'].get('feed', '')).upper()}_COMPLETED_15M_CLOSE",
+                                   "feed": state["contract"].get("feed"),
+                                   "feed_identity_fingerprint": state["contract"].get("feed_identity_fingerprint")}
         state["completed_execution_ids"].append(completed_id)
         state["last_decision_bar"] = bar_time.isoformat()
         state["revision"] += 1
-        if state["contract"].get("feed") == "iex":
+        if _uses_realtime_causal_execution(state):
             if decision_census is None:
-                raise RuntimeError("IEX decision-cycle telemetry census is missing.")
+                raise RuntimeError("Live-paper decision-cycle telemetry census is missing.")
             try:
                 state["decision_cycle_telemetry_pending"] = _decision_cycle_telemetry(
                     symbols=symbols,
                     bar_time=bar_time,
                     decision_id=completed_id,
                     state_revision=state["revision"],
-                    feed="iex",
+                    feed=str(state["contract"].get("feed")),
                     vix=vix,
                     census=decision_census,
                 )
@@ -1376,7 +1386,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
             except Exception as exc:
                 # Diagnostics are strictly additive; never change or block a
                 # strategy decision because telemetry cannot be serialized.
-                store.event("IEX_RESEARCH_DECISION_TELEMETRY_FAILED", {
+                store.event("LIVE_PAPER_DECISION_TELEMETRY_FAILED", {
                     "bar": bar_time.isoformat(),
                     "decision_id": completed_id,
                     "reason": f"{type(exc).__name__}: {exc}",
@@ -1398,7 +1408,7 @@ def process_latest_decision(state: dict[str, Any], store: Store, observed_at: da
         _flush_pending_decision_cycle_telemetry(state, store)
         if state.get("shadow_matrix_event_pending") is not None:
             flush_pending_event(state, store)
-        if state["contract"].get("feed") == "iex" and state["pending"]:
+        if _uses_realtime_causal_execution(state) and state["pending"]:
             # The newly staged minute has priority over additional catch-up work.
             store.save(state)
             break

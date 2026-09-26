@@ -2297,3 +2297,32 @@ synchronously for the final ten-year result.
   `origin/main`, and remote `main` agree; verify the implementation fingerprint,
   interval 32, bounded evidence, resource limits, inactive queue, and unchanged
   live-paper identities/restart counts. No replay launch or future-state wait.
+
+## Live-paper Alpaca SIP market-data authority — 2026-09-26
+
+- **DECISION:** Alpaca SIP is the sole governed live-paper market-data feed.
+  The deployed profile owns provider `alpaca`, feed `sip`, and null fallback.
+  IEX requests and silent substitution fail closed.
+- **CAUSAL CONTRACT:** SIP supplies completed 15-minute decision/exact-causal
+  bars, volume/indicators, authentic eligible-minute trades, and valuation
+  marks. `AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1` continues to own the
+  five-second causal execution lifecycle independently of feed naming.
+- **STATE:** Migrate the existing checksummed account in place only with no
+  pending IEX-derived signal. Preserve initialization/account identity, 50 QDTE
+  shares, cash, cost basis, dividends, P&L, positions, audit chain, Candidate
+  parameters, 90% cap, simulated-only authority, and broker prohibition.
+- **EVIDENCE:** Persist configured/effective feed, stable feed fingerprint,
+  entitlement result, timestamps, and explicit failure details in state,
+  heartbeat, performance, and append-only audit evidence.
+- **IDENTITY:** Feed fingerprint
+  `286377ed5ab5f10fdfc9a31a088134154260ddb1b6cd44153a4b58e5bf4854d9`;
+  implementation fingerprint
+  `8c432c0d1839d786af627fc883209e7ef19bca946de1a7923a2553b0950e17cc`;
+  contract fingerprint
+  `2725b53986626b500d2a4e9eba7486a662b8ac372c8266cc1cfa88ccfb302842`.
+- **DEPLOYMENT:** Replace false IEX-named worker/supervisor units with truthful
+  Alpaca-SIP/live-paper units from an isolated committed release. Preserve the
+  legacy runtime directory through a truthful path alias; do not recreate it.
+- **ACCEPTANCE:** Focused tests plus finite after-hours SIP entitlement and
+  deployment verification are implementation proof. Authentic market-session
+  behavior remains pending a later session and must not be claimed now.

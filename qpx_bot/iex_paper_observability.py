@@ -22,7 +22,10 @@ def event_totals(records: list[dict]) -> dict[str, Any]:
             losses += pnl < 0
             positive += max(0.0, pnl)
             negative += max(0.0, -pnl)
-        if kind == "IEX_RESEARCH_ENTRY_EXECUTION_MISSED":
+        if kind in {
+            "IEX_RESEARCH_ENTRY_EXECUTION_MISSED",
+            "LIVE_PAPER_ENTRY_EXECUTION_MISSED",
+        }:
             reason = str(details["reason"])
             rejections[reason] = rejections.get(reason, 0) + 1
     return {

@@ -1,10 +1,13 @@
 {
   "schema_version": 1,
-  "profile_identity": "VOLUME_CONFIRMATION_90_IEX_FORWARD_PAPER_V1",
+  "profile_identity": "VOLUME_CONFIRMATION_90_ALPACA_SIP_FORWARD_PAPER_V2",
   "candidate_v1_configuration_path": "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
   "contract": {
     "candidate_v1_configuration_path": "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
-    "runner_variant": "VOLUME_CONFIRMATION_25_IEX_FORWARD_RESEARCH_PAPER_ONLY",
+    "runner_variant": "VOLUME_CONFIRMATION_25_ALPACA_SIP_FORWARD_RESEARCH_PAPER_ONLY",
+    "market_data_provider": "alpaca",
+    "feed": "sip",
+    "market_data_fallback": null,
     "starting_equity": 1443.34,
     "qdte_starting_value": 1438.0,
     "swing_starting_cash": 5.34,

@@ -1,4 +1,4 @@
-"""Market-calendar lifecycle owner for the Clean-V2 IEX paper runner."""
+"""Market-calendar lifecycle owner for the governed live-paper runner."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from qpx_bot.market_calendar import (
 )
 
 
-TARGET_UNIT = "qpx-pr50-iex-forward-research-paper-clean-v2.service"
+TARGET_UNIT = "qpx-volume-confirmation-alpaca-sip-forward-paper.service"
 START_OFFSET = timedelta(minutes=5)
 STOP_OFFSET = timedelta(minutes=5)
 ACTIVE_RECONCILE_SECONDS = 300
@@ -279,7 +279,7 @@ def run_supervisor(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Market-aware lifecycle control for the Clean-V2 IEX paper runner."
+        description="Market-aware lifecycle control for the governed live-paper runner."
     )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--daemon", action="store_true")

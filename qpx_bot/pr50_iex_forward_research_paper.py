@@ -1,8 +1,8 @@
-"""IEX-only causal forward research adapter for the PR_FRACTION_50 paper model.
+"""Profile-governed Alpaca SIP forward-paper adapter.
 
 This process has no broker-order client.  An optional canonical read-only
-broker-account observer is configuration-gated.  The runner does not claim SIP
-parity, qualification, promotion, or production authority.
+broker-account observer is configuration-gated.  The runner does not claim
+qualification, promotion, or production authority.
 """
 from __future__ import annotations
 
@@ -42,14 +42,13 @@ from qpx_bot.broker_account_provider import (
     build_broker_account_provider,
     load_provider_selection,
 )
-from qpx_bot.market_calendar import is_market_session, market_session
+from qpx_bot.market_calendar import is_market_session, market_session, previous_market_session
 from qpx_bot.iex_paper_observability import performance
 from qpx_bot.paper_state import read_checksummed_state, write_checksummed_state
 
 
-FEED = "iex"
-VARIANT = "PR_FRACTION_50_IEX_FORWARD_RESEARCH_PAPER_ONLY"
-DEFAULT_RUNTIME = sip.ROOT / "runtime/qpx_pr50_iex_forward_research_paper"
+VARIANT = "VOLUME_CONFIRMATION_25_ALPACA_SIP_FORWARD_RESEARCH_PAPER_ONLY"
+DEFAULT_RUNTIME = sip.ROOT / "runtime/qpx_volume_confirmation_alpaca_sip_forward_paper"
 HEARTBEAT_SCHEMA_VERSION = 1
 CORPORATE_ACTION_POLL_SECONDS = 900
 STATUS_PRINT_SECONDS = 600
@@ -73,7 +72,7 @@ NEW_SEMANTIC_CONTRACT_FINGERPRINT = (
 )
 SEMANTIC_VERSION_OLD = "PR50_IEX_PRE_PARITY_V1"
 SEMANTIC_VERSION_PARITY = "PR50_IEX_HISTORICAL_CANDIDATE_V1_SPLIT_V2"
-SEMANTIC_VERSION_NEW = "PR50_IEX_CANDIDATE_V1_CONFIG_AUTHORITY_V3"
+SEMANTIC_VERSION_NEW = "PR50_ALPACA_SIP_CANDIDATE_V1_CONFIG_AUTHORITY_V4"
 ENTRY_SEMANTICS_VERSION = "CANDIDATE_V1_HISTORICAL_NINE_GATE_V1"
 ENTRY_SEMANTICS_FINGERPRINT = sip.fingerprint({
     "implementation": "qpx_bot.strategy.evaluate_entry",
@@ -84,10 +83,150 @@ ENTRY_SEMANTICS_FINGERPRINT = sip.fingerprint({
         "vix_filter", "rsi_not_overbought", "momentum_trigger",
     ),
 })
-PROVIDER_INPUT_SEMANTICS_VERSION = "ALPACA_IEX_15M_COMPLETED_SPLIT_V1"
+PROVIDER_INPUT_SEMANTICS_VERSION = "ALPACA_SIP_15M_COMPLETED_SPLIT_V1"
 EXECUTION_PHASE_SEMANTICS_VERSION = "AUTHENTIC_OPEN_THEN_COMPLETED_CLOSE_V1"
 BAR_ADJUSTMENT_MODE = "split"
 SEMANTIC_TRANSITION_EVENT = "CONFIGURATION_VERSION_CHANGED"
+MARKET_DATA_AUTHORITY_EVENT = "MARKET_DATA_AUTHORITY_CHANGED"
+SUPPORTED_MARKET_DATA_PROVIDER = "alpaca"
+REQUIRED_MARKET_DATA_FEED = "sip"
+NO_MARKET_DATA_FALLBACK = None
+DEFAULT_PAPER_PROFILE = (
+    sip.ROOT / "qpx_bot/paper_profiles/volume_confirmation_25_v1.json"
+)
+
+
+def _feed_identity(provider: str, feed: str) -> str:
+    return sip.fingerprint({
+        "provider": provider,
+        "feed": feed,
+        "bar_adjustment": BAR_ADJUSTMENT_MODE,
+        "decision_timeframe": "15Min",
+        "execution_timeframe": "1Min",
+        "fallback": NO_MARKET_DATA_FALLBACK,
+    })
+
+
+def _configured_market_data_authority() -> dict[str, Any]:
+    configured_path = os.environ.get("QPX_PAPER_PROFILE", "").strip()
+    profile_path = Path(configured_path) if configured_path else DEFAULT_PAPER_PROFILE
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    contract = profile.get("contract")
+    if not isinstance(contract, Mapping):
+        raise RuntimeError("Paper profile contract is missing.")
+    provider = str(contract.get("market_data_provider", "")).strip().lower()
+    feed = str(contract.get("feed", "")).strip().lower()
+    fallback = contract.get("market_data_fallback", "MISSING")
+    if provider != SUPPORTED_MARKET_DATA_PROVIDER:
+        raise RuntimeError("Live paper requires the profile-governed Alpaca market-data provider.")
+    if feed != REQUIRED_MARKET_DATA_FEED:
+        raise RuntimeError("Live paper requires profile-governed Alpaca SIP; IEX is prohibited.")
+    if fallback is not NO_MARKET_DATA_FALLBACK:
+        raise RuntimeError("Live-paper market-data fallback must be null; substitution is prohibited.")
+    return {
+        "configured_provider": provider,
+        "configured_feed": feed,
+        "fallback_feed": None,
+        "feed_identity_fingerprint": _feed_identity(provider, feed),
+    }
+
+
+def configured_feed() -> str:
+    return str(_configured_market_data_authority()["configured_feed"])
+
+
+def _preserved_account_payload(state: Mapping[str, Any]) -> dict[str, Any]:
+    keys = (
+        "initialization", "initialization_fingerprint", "contributed_capital",
+        "cash", "qdte_shares", "qdte_cost", "positions", "pending",
+        "tax_reserve_cash", "realized_pnl", "qdte_corporate_actions",
+        "invalid_qdte_corporate_actions", "qdte_open_share_snapshots",
+        "profit_recycling", "completed_execution_ids",
+    )
+    return {key: state.get(key) for key in keys}
+
+
+def _migrate_market_data_contract_if_required(
+    state: dict[str, Any], store: "IEXResearchStore",
+    contract: Mapping[str, Any], observed_at: datetime,
+) -> bool:
+    expected = sip.fingerprint(contract)
+    if state.get("contract_fingerprint") == expected:
+        return False
+    persisted = dict(state.get("contract") or {})
+    if persisted.get("feed") != "iex" or contract.get("feed") != "sip":
+        return False
+    if state.get("pending"):
+        raise RuntimeError(
+            "Market-data authority migration requires no pending IEX-derived signal."
+        )
+    allowed = {
+        "feed", "market_data_provider", "market_data_fallback",
+        "feed_identity_fingerprint", "runner_variant", "paper_profile_path",
+        "semantic_version", "provider_input_semantics_version",
+        "sip_parity_claimed",
+    }
+    old_comparable = {
+        key: (list(value) if key == "symbols" else value)
+        for key, value in persisted.items() if key not in allowed
+    }
+    new_comparable = {
+        key: (list(value) if key == "symbols" else value)
+        for key, value in contract.items() if key not in allowed
+    }
+    if old_comparable != new_comparable:
+        raise RuntimeError(
+            "SIP authority migration would alter non-feed strategy/account contract fields."
+        )
+    before = _preserved_account_payload(state)
+    before_fingerprint = sip.fingerprint(before)
+    old_contract_fingerprint = str(state.get("contract_fingerprint"))
+    old_mode = state.get("mode")
+    authority = {
+        **_configured_market_data_authority(),
+        "effective_provider_feed": None,
+        "sip_entitlement_result": "NOT_YET_VERIFIED",
+        "migrated_at_utc": observed_at.astimezone(timezone.utc).isoformat(),
+    }
+    state["contract"] = json.loads(sip.canonical(contract))
+    state["contract_fingerprint"] = expected
+    state["semantic_contract_version"] = SEMANTIC_VERSION_NEW
+    state["mode"] = str(contract.get("runner_variant", VARIANT))
+    state["sip_parity_claimed"] = True
+    state["market_data_authority"] = authority
+    state["revision"] = int(state["revision"]) + 1
+    details = {
+        "old_provider": persisted.get("market_data_provider", "alpaca"),
+        "old_feed": persisted.get("feed"),
+        "new_provider": authority["configured_provider"],
+        "new_feed": authority["configured_feed"],
+        "fallback_feed": None,
+        "old_contract_fingerprint": old_contract_fingerprint,
+        "new_contract_fingerprint": expected,
+        "old_runner_variant": old_mode,
+        "new_runner_variant": state["mode"],
+        "account_preservation_fingerprint": before_fingerprint,
+        "initialization_fingerprint": state.get("initialization_fingerprint"),
+        "candidate_v1_config_fingerprint": state.get("candidate_v1_config_fingerprint"),
+        "effective_at_utc": authority["migrated_at_utc"],
+        "reason": "HISTORICAL_STRATEGY_MARKET_DATA_AUTHORITY_PARITY",
+    }
+    store.bind(state)
+    store.event(MARKET_DATA_AUTHORITY_EVENT, details)
+    store.save(state)
+    if _preserved_account_payload(state) != before:
+        raise RuntimeError("Account state changed during market-data authority migration.")
+    return True
+
+
+def _sync_effective_market_data_authority(state: dict[str, Any]) -> None:
+    configured = _configured_market_data_authority()
+    current = dict(state.get("market_data_authority") or {})
+    state["market_data_authority"] = {
+        **current,
+        **configured,
+        **dict(_last_effective_market_data_authority or {}),
+    }
 
 
 @contextmanager
@@ -146,11 +285,27 @@ class ProviderFailure(Exception):
 
 
 _last_successful_provider_contact_utc: str | None = None
+_last_effective_market_data_authority: dict[str, Any] | None = None
 
 
-def _record_provider_contact() -> None:
-    global _last_successful_provider_contact_utc
+def _record_provider_contact(
+    *, provider: str | None = None, parameters: Mapping[str, Any] | None = None,
+    endpoint: str | None = None,
+) -> None:
+    global _last_successful_provider_contact_utc, _last_effective_market_data_authority
     _last_successful_provider_contact_utc = datetime.now(timezone.utc).isoformat()
+    if provider == "alpaca" and parameters and parameters.get("feed") is not None:
+        configured = _configured_market_data_authority()
+        effective = str(parameters["feed"]).strip().lower()
+        if effective != configured["configured_feed"]:
+            raise RuntimeError("Alpaca returned data for an unauthorized feed request.")
+        _last_effective_market_data_authority = {
+            **configured,
+            "effective_provider_feed": effective,
+            "sip_entitlement_result": "AVAILABLE",
+            "last_successful_feed_response_at_utc": _last_successful_provider_contact_utc,
+            "last_successful_feed_endpoint": endpoint,
+        }
 
 
 def _request_context(parameters: Mapping[str, Any]) -> dict[str, Any]:
@@ -260,6 +415,23 @@ def _request_json(
     timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
     attempts: int = MAX_REQUEST_ATTEMPTS,
 ) -> Mapping[str, Any]:
+    if provider == "alpaca" and parameters.get("feed") is not None:
+        configured = _configured_market_data_authority()
+        requested = str(parameters["feed"]).strip().lower()
+        if requested != configured["configured_feed"]:
+            raise ProviderFailure(
+                failure_class="MARKET_DATA_AUTHORITY_MISMATCH",
+                provider=provider,
+                operation=operation,
+                endpoint=endpoint,
+                recoverable=False,
+                exception_type="ConfiguredFeedMismatch",
+                message=(
+                    f"Requested feed {requested!r} differs from governed feed "
+                    f"{configured['configured_feed']!r}; fallback is prohibited."
+                ),
+                request_parameters=_request_context(parameters),
+            )
     try:
         key, secret = sip.credentials()
     except RuntimeError as exc:
@@ -304,7 +476,9 @@ def _request_json(
                     message="Provider JSON root is not an object.",
                     request_parameters=_request_context(parameters),
                 )
-            _record_provider_contact()
+            _record_provider_contact(
+                provider=provider, parameters=parameters, endpoint=endpoint
+            )
             return payload
         except ProviderFailure as exc:
             failure = exc
@@ -332,11 +506,20 @@ def _request_json(
 
 def load_contract() -> dict[str, Any]:
     contract = dict(sip.load_contract())
+    configured_path = os.environ.get("QPX_PAPER_PROFILE", "").strip()
+    profile_path = Path(configured_path) if configured_path else DEFAULT_PAPER_PROFILE
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    contract.update(profile.get("contract", {}))
+    contract["paper_profile_path"] = str(profile_path.resolve())
+    authority = _configured_market_data_authority()
     contract.update({
-        "feed": FEED,
+        "market_data_provider": authority["configured_provider"],
+        "feed": authority["configured_feed"],
+        "market_data_fallback": authority["fallback_feed"],
+        "feed_identity_fingerprint": authority["feed_identity_fingerprint"],
         "runner_variant": contract.get("runner_variant", VARIANT),
         "research_only": True,
-        "sip_parity_claimed": False,
+        "sip_parity_claimed": True,
         "qualified": False,
         "promoted": False,
         "semantic_version": SEMANTIC_VERSION_NEW,
@@ -352,13 +535,14 @@ def load_contract() -> dict[str, Any]:
 def request_bars(
     symbols: tuple[str, ...], timeframe: str, start: datetime, end: datetime
 ) -> dict[str, list[dict[str, Any]]]:
+    feed = configured_feed()
     params = {
         "symbols": ",".join(symbols), "timeframe": timeframe,
         "start": start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "end": end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         # The frozen qualified dataset is explicitly split-adjusted.  Keep
         # the forward input on the same Alpaca adjustment basis.
-        "feed": FEED, "adjustment": "split", "limit": "10000", "sort": "asc",
+        "feed": feed, "adjustment": "split", "limit": "10000", "sort": "asc",
     }
     collected: dict[str, list[dict[str, Any]]] = {symbol: [] for symbol in symbols}
     seen_tokens: set[str] = set()
@@ -381,7 +565,7 @@ def request_bars(
             operation="market_bars",
             endpoint=sip.DATA_URL,
             parameters=params,
-            user_agent="QPX-PR50-IEX-FORWARD-RESEARCH-PAPER/1",
+            user_agent="QPX-LIVE-PAPER-ALPACA-SIP/1",
         )
         bars = payload.get("bars", {})
         if not isinstance(bars, Mapping):
@@ -409,7 +593,25 @@ def request_bars(
                     message=f"The bars value for {symbol} is not a list.",
                     request_parameters=_request_context(params),
                 )
-            collected[symbol].extend(rows)
+            for row in rows:
+                if not isinstance(row, Mapping):
+                    raise ProviderFailure(
+                        failure_class="MALFORMED_PROVIDER_RESPONSE",
+                        provider="alpaca",
+                        operation="market_bars",
+                        endpoint=sip.DATA_URL,
+                        recoverable=True,
+                        exception_type=type(row).__name__,
+                        message=f"The bars row for {symbol} is not an object.",
+                        request_parameters=_request_context(params),
+                    )
+                labeled = dict(row)
+                labeled["qpx_market_data_provider"] = SUPPORTED_MARKET_DATA_PROVIDER
+                labeled["qpx_market_data_feed"] = feed
+                labeled["qpx_feed_identity_fingerprint"] = _feed_identity(
+                    SUPPORTED_MARKET_DATA_PROVIDER, feed
+                )
+                collected[symbol].append(labeled)
         token = payload.get("next_page_token")
         if not token:
             return collected
@@ -461,7 +663,7 @@ def request_qdte_corporate_actions(start: date, end: date) -> list[dict[str, Any
             operation="qdte_corporate_actions",
             endpoint=sip.CORPORATE_ACTION_URL,
             parameters=params,
-            user_agent="QPX-PR50-IEX-FORWARD-RESEARCH-PAPER/1",
+            user_agent="QPX-LIVE-PAPER-ALPACA-SIP/1",
         )
         sip._find_action_records(payload, records)
         token = payload.get("next_page_token")
@@ -493,8 +695,8 @@ def configured_broker_account_provider(
     if not raw_path:
         raise RuntimeError("Broker-account provider configuration is not enabled.")
     selection = load_provider_selection(raw_path)
-    if selection.market_data_provider != "ALPACA_IEX":
-        raise RuntimeError("Clean-V2 requires the ALPACA_IEX market-data provider.")
+    if selection.market_data_provider != "ALPACA_SIP":
+        raise RuntimeError("Live paper requires the ALPACA_SIP market-data provider.")
     if selection.order_execution_provider != "SIMULATED":
         raise RuntimeError("Clean-V2 permits only the SIMULATED execution provider.")
     return selection, build_broker_account_provider(selection)
@@ -619,8 +821,7 @@ def _transition_semantic_contract_if_required(
     }:
         raise RuntimeError("Persisted semantic contract is not an allowlisted predecessor.")
     if (
-        expected != NEW_SEMANTIC_CONTRACT_FINGERPRINT
-        or str(contract.get("semantic_version")) != SEMANTIC_VERSION_NEW
+        str(contract.get("semantic_version")) != SEMANTIC_VERSION_NEW
         or contract.get("entry_semantics_version") != ENTRY_SEMANTICS_VERSION
         or contract.get("entry_semantics_fingerprint") != ENTRY_SEMANTICS_FINGERPRINT
         or contract.get("bar_adjustment") != BAR_ADJUSTMENT_MODE
@@ -1097,6 +1298,14 @@ class IEXResearchStore(sip.Store):
         self.save(state)
         records = [json.loads(line) for line in self.journal.read_text().splitlines() if line.strip()]
         report = performance(state, records, observed_at, sip.NY)
+        authority = dict(state.get("market_data_authority") or {})
+        report["market_data_authority"] = authority
+        report["current"].update({
+            "configured_market_data_feed": authority.get("configured_feed"),
+            "effective_provider_feed": authority.get("effective_provider_feed"),
+            "feed_identity_fingerprint": authority.get("feed_identity_fingerprint"),
+            "sip_entitlement_result": authority.get("sip_entitlement_result"),
+        })
         if "profit_recycling" in state and "contributed_capital" in state:
             runtime = sip._profit_runtime(state)
             sequence = state["profit_recycling"]["current_event_sequence"]
@@ -1115,11 +1324,14 @@ class IEXResearchStore(sip.Store):
         )
 
     def event(self, event_type: str, details: Mapping[str, Any]) -> bool:
-        labeled = {
-            ("iex_1m_bar" if key == "sip_1m_bar" else key): value
-            for key, value in details.items()
-        }
-        labeled.update({"runner_variant": VARIANT, "market_data_feed": FEED})
+        labeled = dict(details)
+        authority = _configured_market_data_authority()
+        labeled.update({
+            "runner_variant": VARIANT,
+            "configured_market_data_feed": authority["configured_feed"],
+            "market_data_feed": authority["configured_feed"],
+            "feed_identity_fingerprint": authority["feed_identity_fingerprint"],
+        })
         if self.bound_state is not None:
             item = {"event_type": event_type, "details": labeled}
             outbox = self.bound_state.setdefault("audit_outbox", [])
@@ -1132,17 +1344,17 @@ class IEXResearchStore(sip.Store):
         if not self.heartbeat.exists():
             if self.heartbeat_checksum.exists():
                 raise RuntimeError(
-                    "IEX research heartbeat is missing while its checksum exists."
+                    "Live-paper heartbeat is missing while its checksum exists."
                 )
             return None
         encoded = read_checksummed_state(
             self.heartbeat,
             self.heartbeat_checksum,
-            label="IEX research heartbeat",
+            label="live-paper heartbeat",
         )
         payload = json.loads(encoded)
         if not isinstance(payload, dict):
-            raise RuntimeError("IEX research heartbeat root must be an object.")
+            raise RuntimeError("Live-paper heartbeat root must be an object.")
         return payload
 
     def write_heartbeat(self, payload: Mapping[str, Any]) -> None:
@@ -1169,7 +1381,7 @@ def implementation_fingerprint() -> str:
 
 
 def request_authentic_open(symbol: str, eligible: datetime, observed_at: datetime) -> dict[str, Any] | None:
-    """First minute-open-eligible IEX trade, acquired during that same minute.
+    """First minute-open-eligible SIP trade, acquired during that same minute.
 
     Alpaca market-data FAQ: most restrictive condition wins; unknown conditions
     fail closed. Never use a completed bar obtained after the execution window.
@@ -1177,13 +1389,14 @@ def request_authentic_open(symbol: str, eligible: datetime, observed_at: datetim
     end = eligible + timedelta(minutes=1)
     if not eligible <= observed_at < end:
         return None
+    feed = configured_feed()
     parameters = {"start": eligible.isoformat(), "end": observed_at.isoformat(),
-                  "feed": FEED, "sort": "asc", "limit": 10000}
+                  "feed": feed, "sort": "asc", "limit": 10000}
     allowed = {"A": set(" EFKLOTX56"), "B": set(" EFKLOTX56"), "C": set("@ABDFKLOTXY56")}
     for _ in range(3):
-        payload = _request_json(provider="ALPACA_IEX", operation="authentic_minute_open",
+        payload = _request_json(provider="alpaca", operation="authentic_minute_open",
                                 endpoint=f"https://data.alpaca.markets/v2/stocks/{urllib.parse.quote(symbol, safe='')}/trades",
-                                parameters=parameters, user_agent="QPX-IEX-causal-open",
+                                parameters=parameters, user_agent="QPX-SIP-causal-open",
                                 timeout_seconds=2, attempts=1)
         received = datetime.now(timezone.utc)
         if received >= end:
@@ -1193,7 +1406,7 @@ def request_authentic_open(symbol: str, eligible: datetime, observed_at: datetim
         for trade in trades:
             timestamp = sip._parse(str(trade["t"])).astimezone(timezone.utc)
             if timestamp < prior or timestamp > observed_at:
-                raise RuntimeError("IEX trade sequence violates causal request bounds.")
+                raise RuntimeError("SIP trade sequence violates causal request bounds.")
             prior = timestamp
             conditions = trade.get("c")
             tape = str(trade.get("z", ""))
@@ -1201,17 +1414,18 @@ def request_authentic_open(symbol: str, eligible: datetime, observed_at: datetim
                 continue
             price = float(trade["p"])
             if not math.isfinite(price) or price <= 0 or float(trade["s"]) <= 0:
-                raise RuntimeError("Invalid IEX open trade price/size.")
-            if trade.get("x") != "V":
-                raise RuntimeError("Non-IEX execution observation.")
+                raise RuntimeError("Invalid SIP open trade price/size.")
             return {"t": eligible.isoformat(), "o": price, "trade": trade,
                     "observed_at_utc": received.isoformat(),
-                    "price_source": "ALPACA_IEX_FIRST_ELIGIBLE_TRADE", "causal_status": "OBSERVED_WITHIN_ELIGIBLE_MINUTE"}
+                    "market_data_provider": SUPPORTED_MARKET_DATA_PROVIDER,
+                    "feed": feed,
+                    "feed_identity_fingerprint": _feed_identity(SUPPORTED_MARKET_DATA_PROVIDER, feed),
+                    "price_source": "ALPACA_SIP_FIRST_ELIGIBLE_TRADE", "causal_status": "OBSERVED_WITHIN_ELIGIBLE_MINUTE"}
         token = payload.get("next_page_token")
         if not token:
             return None
         parameters["page_token"] = token
-    raise RuntimeError("IEX open trade pagination bound exceeded; no open assumed.")
+    raise RuntimeError("SIP open trade pagination bound exceeded; no open assumed.")
 
 
 def refresh_account_marks(state: dict[str, Any], observed_at: datetime) -> None:
@@ -1223,7 +1437,9 @@ def refresh_account_marks(state: dict[str, Any], observed_at: datetime) -> None:
         if rows:
             row = rows[-1]
             marks[symbol] = {"price": row["close"], "market_data_timestamp": (row["start"] + timedelta(minutes=15)).astimezone(timezone.utc).isoformat(),
-                             "observed_at_utc": observed_at.isoformat(), "source": "ALPACA_IEX_COMPLETED_15M_CLOSE"}
+                             "observed_at_utc": observed_at.isoformat(), "source": "ALPACA_SIP_COMPLETED_15M_CLOSE",
+                             "feed": configured_feed(),
+                             "feed_identity_fingerprint": _feed_identity(SUPPORTED_MARKET_DATA_PROVIDER, configured_feed())}
     state["last_account_mark_refresh_at_utc"] = observed_at.isoformat()
 
 
@@ -1231,7 +1447,7 @@ def select_causal_execution_bar(
     rows: list[dict[str, Any]], observed_at: datetime
 ) -> dict[str, Any]:
     result = dict(sip.select_causal_execution_bar(rows, observed_at))
-    result["feed"] = FEED
+    result["feed"] = configured_feed()
     result["research_only"] = True
     return result
 
@@ -1331,9 +1547,9 @@ def _sparse_data_failure(
         operation=operation,
         endpoint=sip.DATA_URL,
         recoverable=True,
-        exception_type="SparseIEXData",
+        exception_type="SparseSIPData",
         message=message,
-        request_parameters={"feed": FEED, **dict(parameters)},
+        request_parameters={"feed": configured_feed(), **dict(parameters)},
     )
 
 
@@ -1351,6 +1567,23 @@ def _heartbeat_payload(
 ) -> dict[str, Any]:
     broker = state.get("broker_reconciliation", {}) if state else {}
     broker_snapshot = broker.get("last_snapshot") or {}
+    configured_authority = _configured_market_data_authority()
+    effective_authority = dict(_last_effective_market_data_authority or {})
+    persisted_authority = dict(state.get("market_data_authority") or {}) if state else {}
+    market_data_authority = {
+        **configured_authority,
+        **persisted_authority,
+        **effective_authority,
+    }
+    if failure and failure.request_parameters.get("feed") == REQUIRED_MARKET_DATA_FEED:
+        market_data_authority.update({
+            "effective_provider_feed": None,
+            "sip_entitlement_result": (
+                "UNAVAILABLE_PERMISSION" if failure.failure_class == "AUTHENTICATION_PERMISSION_FAILURE"
+                else "UNAVAILABLE_PROVIDER"
+            ),
+            "availability_failure": failure.as_dict(),
+        })
     return {
         "schema_version": HEARTBEAT_SCHEMA_VERSION,
         "implementation_fingerprint": implementation_fingerprint(),
@@ -1360,7 +1593,13 @@ def _heartbeat_payload(
         "last_authentic_open_phase": state.get("last_authentic_open_phase") if state else None,
         "last_open_phase_error": state.get("last_open_phase_error") if state else None,
         "runner_variant": state.get("mode", VARIANT) if state else VARIANT,
-        "market_data_feed": FEED,
+        "market_data_provider": configured_authority["configured_provider"],
+        "configured_market_data_feed": configured_authority["configured_feed"],
+        "effective_provider_feed": market_data_authority.get("effective_provider_feed"),
+        "feed_identity_fingerprint": configured_authority["feed_identity_fingerprint"],
+        "sip_entitlement_result": market_data_authority.get("sip_entitlement_result", "NOT_YET_VERIFIED"),
+        "market_data_authority": market_data_authority,
+        "market_data_feed": configured_authority["configured_feed"],
         "research_only": True,
         "live_broker_enabled": False,
         "simulated_fills_only": True,
@@ -1453,7 +1692,7 @@ def _expire_pending(
 ) -> None:
     execution_id = _entry_execution_id(state, symbol, signal)
     store.bind(state)
-    store.event("IEX_RESEARCH_ENTRY_EXECUTION_MISSED", {
+    store.event("LIVE_PAPER_ENTRY_EXECUTION_MISSED", {
         "symbol": symbol, "signal_id": signal["signal_id"],
         "execution_id": execution_id, "reason": reason,
         "decision_observed_at_utc": signal["decision_observed_at_utc"],
@@ -1522,7 +1761,7 @@ def process_pending_execution_clock(
             signal["execution_window_observed_at_utc"] = (
                 observed_at.astimezone(timezone.utc).isoformat()
             )
-            store.event("IEX_RESEARCH_EXECUTION_WINDOW_OBSERVED", {
+            store.event("LIVE_PAPER_EXECUTION_WINDOW_OBSERVED", {
                 "symbol": symbol, "signal_id": signal["signal_id"],
                 "decision_observed_at_utc": signal["decision_observed_at_utc"],
                 "first_eligible_execution_minute_utc": signal["first_eligible_execution_minute_utc"],
@@ -1544,7 +1783,7 @@ def process_pending_execution_clock(
             store.save(state)
             continue
         if one is None:
-            signal["last_open_observation_error"] = "NO_OPEN_ELIGIBLE_IEX_TRADE_OBSERVED_WITHIN_DEADLINE"
+            signal["last_open_observation_error"] = "NO_OPEN_ELIGIBLE_SIP_TRADE_OBSERVED_WITHIN_DEADLINE"
             store.save(state)
             continue
         execution_observed_at = datetime.fromisoformat(one["observed_at_utc"])
@@ -1659,7 +1898,7 @@ def process_pending_execution_clock(
         )
         store.event("SIMULATED_ENTRY_FILLED", {
             "symbol": symbol, "execution_id": execution_id, "shares": shares,
-            "fill_price": sizing.entry_fill, "iex_1m_bar": str(one["t"]),
+            "fill_price": sizing.entry_fill, "sip_1m_trade_minute": str(one["t"]),
             "decision_bar_interval": signal["decision_bar_interval"],
             "decision_observed_at_utc": signal["decision_observed_at_utc"],
             "first_eligible_execution_minute_utc": signal["first_eligible_execution_minute_utc"],
@@ -1697,7 +1936,7 @@ def process_open_phase_clock(
         return False
     bar_open = market.replace(second=0, microsecond=0)
     phase_id = sip.fingerprint({
-        "kind": "IEX_AUTHENTIC_OPEN_PHASE", "bar_open": bar_open.isoformat(),
+        "kind": "SIP_AUTHENTIC_OPEN_PHASE", "bar_open": bar_open.isoformat(),
         "contract": state["contract_fingerprint"],
     })
     completed = state.setdefault("completed_open_phase_ids", [])
@@ -1717,7 +1956,7 @@ def process_open_phase_clock(
             store.save(state)
             return True
         if one is None:
-            state["last_open_phase_error"] = {"minute": start_utc.isoformat(), "symbol": symbol, "reason": "NO_OPEN_ELIGIBLE_IEX_TRADE"}
+            state["last_open_phase_error"] = {"minute": start_utc.isoformat(), "symbol": symbol, "reason": "NO_OPEN_ELIGIBLE_SIP_TRADE"}
             store.save(state)
             return True
         exact[symbol] = one
@@ -1760,7 +1999,7 @@ def process_open_phase_clock(
             "symbol": symbol, "execution_id": execution_id, "shares": position.shares,
             "fill_price": fill, "reason": evaluation.reason,
             "realized_pnl": pnl, "authentic_open": exact[symbol],
-            "iex_1m_bar": str(exact[symbol]["t"]), "tax_reserved": tax_reserved,
+            "sip_1m_trade_minute": str(exact[symbol]["t"]), "tax_reserved": tax_reserved,
             "tax_reserve_released": tax_reserve_released,
             "required_tax_reserve": state["tax_reserve_cash"],
         })
@@ -1799,7 +2038,7 @@ def process_open_phase_clock(
             "week": week, "action": result.action,
             "shares_before": result.shares_before, "shares_after": result.shares_after,
             "target_income_weight": candidate_snapshot.bot_config.dividend_allocation_years_1_2,
-            "iex_1m_bar": str(exact["QDTE"]["t"]),
+            "sip_1m_trade_minute": str(exact["QDTE"]["t"]),
             "authentic_open": exact["QDTE"], "realized_pnl": result.realized_pnl,
         })
     completed.append(phase_id)
@@ -1842,7 +2081,7 @@ def initialize(
     profit_runtime = ProfitRecyclingRuntime(profit_config, starting_capital)
     state = {
         "schema_version": sip.SCHEMA, "mode": contract.get("runner_variant", VARIANT),
-        "research_only": True, "sip_parity_claimed": False,
+        "research_only": True, "sip_parity_claimed": True,
         "semantic_contract_version": contract.get("semantic_version"),
         "qualified": False, "promoted": False,
         "live_broker_enabled": False, "simulated_fills_only": True,
@@ -1868,13 +2107,13 @@ def initialize(
         "qdte_open_share_snapshots": {},
         "last_corporate_action_observation_at_utc": None, "revision": 1,
     }
-    store.event("IEX_RESEARCH_ACCOUNT_INITIALIZED_SIMULATED_QDTE", identity)
+    store.event("LIVE_PAPER_ACCOUNT_INITIALIZED_SIMULATED_QDTE", identity)
     store.save(state)
     return state
 
 
 @contextmanager
-def _iex_request_scope() -> Iterator[None]:
+def _market_data_request_scope() -> Iterator[None]:
     original_bars = sip.request_bars
     original_actions = sip.request_qdte_corporate_actions
     original_vix = sip._vix_previous_close
@@ -1938,7 +2177,11 @@ def _cycle(
                     parameters={"symbol": "QDTE", "timeframe": "1Min"},
                 ) from exc
             raise
-    elif state.get("contract_fingerprint") not in {
+    else:
+        _migrate_market_data_contract_if_required(
+            state, store, contract, observed_at
+        )
+    if state.get("contract_fingerprint") not in {
         OLD_SEMANTIC_CONTRACT_FINGERPRINT,
         PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT,
         sip.fingerprint(contract),
@@ -1949,7 +2192,7 @@ def _cycle(
         comparable_old = {k: (list(v) if k == "symbols" else v) for k, v in persisted.items() if k not in reloadable}
         comparable_new = {k: (list(v) if k == "symbols" else v) for k, v in contract.items() if k not in reloadable}
         if comparable_old != comparable_new:
-            raise RuntimeError("Persisted IEX research strategy identity differs from its contract.")
+            raise RuntimeError("Persisted live-paper strategy identity differs from its contract.")
         if state.get("positions") or state.get("pending"):
             raise RuntimeError("Execution-phase transition requires no open positions or pending actions.")
         state["contract"] = json.loads(sip.canonical(contract))
@@ -1963,7 +2206,7 @@ def _cycle(
         })
         store.save(state)
     if state.get("schema_version") != sip.SCHEMA or state.get("mode") != contract.get("runner_variant", VARIANT):
-        raise RuntimeError("Persisted state is not the IEX forward-research schema.")
+        raise RuntimeError("Persisted state is not the live-paper forward-research schema.")
     store.bind(state)
     _flush_pending_broker_reconciliation(state, store)
     _flush_pending_semantic_transition(state, store)
@@ -1979,17 +2222,18 @@ def _cycle(
             ),
         )
     _transition_semantic_contract_if_required(state, store, contract, observed_at)
-    with _iex_request_scope():
+    with _market_data_request_scope():
         waiting_for_open = process_open_phase_clock(state, store, observed_at)
     waiting_for_pending = process_pending_execution_clock(state, store, observed_at, allow_execution=not waiting_for_open)
+    _sync_effective_market_data_authority(state)
     state["minute_observer"] = {"last_worker_poll_at_utc": observed_at.isoformat(),
                                 "session_state": market_session_state(observed_at),
-                                "execution_source": "ALPACA_IEX_FIRST_ELIGIBLE_TRADE"}
+                                "execution_source": "ALPACA_SIP_FIRST_ELIGIBLE_TRADE"}
     if waiting_for_open or waiting_for_pending:
         state["last_observed_at_utc"] = observed_at.astimezone(timezone.utc).isoformat()
         state["revision"] += 1
         store.save(state)
-        store.event("IEX_RESEARCH_PAPER_HEARTBEAT", {
+        store.event("LIVE_PAPER_HEARTBEAT", {
             "revision": state["revision"], "live_broker_enabled": False,
             "execution_clock": (
                 "WAITING_FOR_AUTHENTIC_OPEN_MINUTE" if waiting_for_open
@@ -1998,7 +2242,7 @@ def _cycle(
         })
         store.publish_metrics(state, observed_at)
         return state
-    with _iex_request_scope():
+    with _market_data_request_scope():
         if corporate_action_poll_due(state, observed_at):
             sip.observe_qdte_corporate_actions(state, store, observed_at)
         if not decision_processing_due(state, observed_at):
@@ -2022,6 +2266,7 @@ def _cycle(
                     parameters={"timeframe": "1Min"},
                 ) from exc
             raise
+        _sync_effective_market_data_authority(state)
         completed = state.get("last_decision_bar")
         if completed != previous_completed:
             state["last_completed_decision_observed_at_utc"] = (
@@ -2034,7 +2279,7 @@ def _cycle(
             raise _sparse_data_failure(
                 operation="completed_15m_decision_data",
                 message=(
-                    "No IEX bar established the expected completed decision boundary."
+                    "No SIP bar established the expected completed decision boundary."
                 ),
                 parameters={
                     "timeframe": "15Min",
@@ -2045,7 +2290,7 @@ def _cycle(
     state["last_observed_at_utc"] = observed_at.astimezone(timezone.utc).isoformat()
     state["revision"] += 1
     store.save(state)
-    store.event("IEX_RESEARCH_PAPER_HEARTBEAT", {
+    store.event("LIVE_PAPER_HEARTBEAT", {
         "revision": state["revision"], "live_broker_enabled": False,
     })
     store.publish_metrics(state, datetime.now(timezone.utc))
@@ -2108,6 +2353,124 @@ def broker_reconciliation_status(runtime: Path) -> dict[str, Any]:
     }
 
 
+def _verify_sip_entitlement(observed_at: datetime) -> dict[str, Any]:
+    authority = _configured_market_data_authority()
+    market_day = previous_market_session(
+        observed_at.astimezone(sip.NY).date(), include_day=True
+    )
+    session = market_session(market_day)
+    bars = request_bars(
+        ("QDTE",), "15Min", session.regular_open, session.regular_close
+    ).get("QDTE", [])
+    trade_parameters = {
+        "start": session.regular_open.astimezone(timezone.utc).isoformat(),
+        "end": session.regular_close.astimezone(timezone.utc).isoformat(),
+        "feed": authority["configured_feed"],
+        "sort": "asc",
+        "limit": 100,
+    }
+    trade_payload = _request_json(
+        provider="alpaca",
+        operation="sip_entitlement_probe_trades",
+        endpoint="https://data.alpaca.markets/v2/stocks/QDTE/trades",
+        parameters=trade_parameters,
+        user_agent="QPX-LIVE-PAPER-SIP-ENTITLEMENT-PROBE/1",
+        attempts=1,
+    )
+    trades = trade_payload.get("trades")
+    if not bars or not isinstance(trades, list) or not trades:
+        raise ProviderFailure(
+            failure_class="SIP_DATA_UNAVAILABLE",
+            provider="alpaca",
+            operation="sip_entitlement_probe",
+            endpoint=sip.DATA_URL,
+            recoverable=False,
+            exception_type="EmptySIPProbeResult",
+            message="SIP entitlement probe returned no completed QDTE bars or trades.",
+            request_parameters={
+                "feed": authority["configured_feed"],
+                "session": market_day.isoformat(),
+            },
+        )
+    return {
+        **authority,
+        "effective_provider_feed": authority["configured_feed"],
+        "sip_entitlement_result": "AVAILABLE",
+        "verified_at_utc": observed_at.astimezone(timezone.utc).isoformat(),
+        "verified_session": market_day.isoformat(),
+        "completed_15m_bar_count": len(bars),
+        "trade_sample_count": len(trades),
+        "bar_feed_attestation": bars[0].get("qpx_market_data_feed"),
+        "trade_request_feed": trade_parameters["feed"],
+    }
+
+
+def migrate_market_data_authority(runtime: Path) -> dict[str, Any]:
+    observed = datetime.now(timezone.utc)
+    store = IEXResearchStore(runtime)
+    with store.locked():
+        state = store.reconcile()
+        if state is None:
+            raise RuntimeError("Market-data authority migration requires the existing account state.")
+        before = _preserved_account_payload(state)
+        contract = load_contract()
+        _migrate_market_data_contract_if_required(state, store, contract, observed)
+        store.bind(state)
+        try:
+            verification = _verify_sip_entitlement(observed)
+        except ProviderFailure as failure:
+            state["market_data_authority"] = {
+                **_configured_market_data_authority(),
+                "effective_provider_feed": None,
+                "sip_entitlement_result": (
+                    "UNAVAILABLE_PERMISSION"
+                    if failure.failure_class == "AUTHENTICATION_PERMISSION_FAILURE"
+                    else "UNAVAILABLE_PROVIDER"
+                ),
+                "verified_at_utc": observed.isoformat(),
+                "availability_failure": failure.as_dict(),
+            }
+            store.event("MARKET_DATA_AUTHORITY_VERIFICATION_FAILED", {
+                "configured_feed": configured_feed(),
+                "fallback_feed": None,
+                "failure": failure.as_dict(),
+            })
+            store.save(state)
+            heartbeat = _heartbeat_payload(
+                daemon_started_at_utc=observed.isoformat(), state=state,
+                provider_state="BLOCKED_SIP_AUTHORITY",
+                session_state=market_session_state(observed), retry_count=1,
+                backoff_seconds=0,
+                last_successful_provider_contact_at_utc=_last_successful_provider_contact_utc,
+                failure=failure,
+            )
+            heartbeat.update(
+                runtime_operation="MARKET_DATA_AUTHORITY_MIGRATION_BLOCKED",
+                session_worker_active=False, daemon_pid=None,
+            )
+            store.write_heartbeat(heartbeat)
+            raise
+        state["market_data_authority"] = verification
+        store.event("MARKET_DATA_AUTHORITY_VERIFIED", verification)
+        store.save(state)
+        store.publish_metrics(state, observed)
+        if _preserved_account_payload(state) != before:
+            raise RuntimeError("Account state changed during SIP authority verification.")
+        heartbeat = _heartbeat_payload(
+            daemon_started_at_utc=observed.isoformat(), state=state,
+            provider_state="SIP_AUTHORITY_VERIFIED",
+            session_state=market_session_state(observed), retry_count=0,
+            backoff_seconds=0,
+            last_successful_provider_contact_at_utc=_last_successful_provider_contact_utc,
+        )
+        heartbeat.update(
+            runtime_operation="MARKET_DATA_AUTHORITY_MIGRATION_COMPLETED",
+            session_worker_active=False, daemon_pid=None,
+        )
+        store.write_heartbeat(heartbeat)
+        return verification
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-dir", type=Path, default=DEFAULT_RUNTIME)
@@ -2116,6 +2479,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--refresh-account-metrics", action="store_true",
                         help="Finite valuation-only migration; no decisions, fills or corporate-action mutation.")
     parser.add_argument("--broker-reconciliation-status", action="store_true")
+    parser.add_argument("--migrate-market-data-authority", action="store_true")
     args = parser.parse_args(argv)
     if not 1 <= args.poll_seconds <= 15:
         raise ValueError("Execution observer poll interval must be between 1 and 15 seconds.")
@@ -2144,11 +2508,14 @@ def main(argv: list[str] | None = None) -> int:
             flush=True,
         )
         return 0
+    if args.migrate_market_data_authority:
+        print(json.dumps(migrate_market_data_authority(args.runtime_dir), indent=2, sort_keys=True))
+        return 0
     if not args.daemon:
         state = cycle(args.runtime_dir)
         print(json.dumps({
-            "status": VARIANT, "feed": FEED, "revision": state["revision"],
-            "live_broker_enabled": False, "sip_parity_claimed": False,
+            "status": VARIANT, "feed": configured_feed(), "revision": state["revision"],
+            "live_broker_enabled": False, "sip_parity_claimed": True,
         }, sort_keys=True), flush=True)
         return 0
     store = IEXResearchStore(args.runtime_dir)
@@ -2242,7 +2609,7 @@ def main(argv: list[str] | None = None) -> int:
                         "failure_class": failure.failure_class,
                         "operation": failure.operation,
                     })
-                    store.event("IEX_RESEARCH_PROVIDER_DEGRADED", {
+                    store.event("LIVE_PAPER_PROVIDER_DEGRADED", {
                         "event_id": transition_id,
                         "revision": reconciled.get("revision") if reconciled else None,
                         "retry_count": consecutive_failures,
@@ -2252,13 +2619,13 @@ def main(argv: list[str] | None = None) -> int:
                 if new_degradation or consecutive_failures % 10 == 0:
                     print(json.dumps({
                         "status": provider_state,
-                        "feed": FEED,
+                        "feed": configured_feed(),
                         "revision": reconciled.get("revision") if reconciled else None,
                         "retry_count": consecutive_failures,
                         "backoff_seconds": backoff,
                         "failure": failure.as_dict(),
                         "live_broker_enabled": False,
-                        "sip_parity_claimed": False,
+                        "sip_parity_claimed": True,
                     }, sort_keys=True), flush=True)
                 _sleep_with_heartbeat(
                     store,
@@ -2294,7 +2661,7 @@ def main(argv: list[str] | None = None) -> int:
                 _last_successful_provider_contact_utc or last_provider_contact
             )
             if consecutive_failures:
-                store.event("IEX_RESEARCH_PROVIDER_RECOVERED", {
+                store.event("LIVE_PAPER_PROVIDER_RECOVERED", {
                     "event_id": sip.fingerprint({
                         "kind": "provider_recovered",
                         "degraded_since_at_utc": degraded_since,
@@ -2333,11 +2700,11 @@ def main(argv: list[str] | None = None) -> int:
             ).total_seconds() >= STATUS_PRINT_SECONDS:
                 print(json.dumps({
                     "status": provider_state,
-                    "feed": FEED,
+                    "feed": configured_feed(),
                     "revision": state["revision"],
                     "market_session_state": session_state,
                     "live_broker_enabled": False,
-                    "sip_parity_claimed": False,
+                    "sip_parity_claimed": True,
                 }, sort_keys=True), flush=True)
                 last_status_print = now
             _sleep_with_heartbeat(

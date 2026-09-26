@@ -47,7 +47,7 @@ class LiveExecutionRepairTests(unittest.TestCase):
 
     def open(self):
         return {"t": ELIGIBLE.isoformat(), "o": 10.0, "observed_at_utc": NOW.isoformat(),
-                "price_source": "ALPACA_IEX_FIRST_ELIGIBLE_TRADE", "causal_status": "OBSERVED_WITHIN_ELIGIBLE_MINUTE",
+                "price_source": "ALPACA_SIP_FIRST_ELIGIBLE_TRADE", "causal_status": "OBSERVED_WITHIN_ELIGIBLE_MINUTE",
                 "trade": {"t": (ELIGIBLE + timedelta(seconds=1)).isoformat(), "p": 10.0, "s": 100, "x": "V", "z": "C", "c": ["@"]}}
 
     def events(self, kind):
@@ -80,7 +80,7 @@ class LiveExecutionRepairTests(unittest.TestCase):
             Clock.current += timedelta(minutes=1)
             runner.process_pending_execution_clock(self.state, self.store, Clock.current)
             runner.process_pending_execution_clock(self.state, self.store, Clock.current)
-        missed = self.events("IEX_RESEARCH_ENTRY_EXECUTION_MISSED")
+        missed = self.events("LIVE_PAPER_ENTRY_EXECUTION_MISSED")
         self.assertEqual(len(missed), 1)
         self.assertEqual(missed[0]["details"]["reason"], "AUTHENTIC_OPEN_UNAVAILABLE_DURING_ELIGIBLE_MINUTE")
         self.assertIsNotNone(missed[0]["details"]["last_open_attempt_at_utc"])
@@ -153,14 +153,14 @@ class LiveExecutionRepairTests(unittest.TestCase):
         self.assertEqual(runner.market_session_state(datetime(2026, 12, 1, 14, 29, tzinfo=timezone.utc)), "PRE_MARKET")
         self.state["pending"]["TSLL"]["first_eligible_execution_minute_utc"] = "2026-09-24T20:00:00+00:00"
         runner.process_pending_execution_clock(self.state, self.store, datetime(2026, 9, 24, 20, 0, 5, tzinfo=timezone.utc))
-        self.assertEqual(self.events("IEX_RESEARCH_ENTRY_EXECUTION_MISSED")[0]["details"]["reason"], "ELIGIBLE_MINUTE_OUTSIDE_REGULAR_SESSION")
+        self.assertEqual(self.events("LIVE_PAPER_ENTRY_EXECUTION_MISSED")[0]["details"]["reason"], "ELIGIBLE_MINUTE_OUTSIDE_REGULAR_SESSION")
 
     def test_worker_does_not_terminate_between_close_and_eligible_minute(self):
         before = ELIGIBLE - timedelta(seconds=1)
         with patch.object(runner, "request_authentic_open") as request:
             self.assertTrue(runner.process_pending_execution_clock(self.state, self.store, before))
             request.assert_not_called()
-        unit = (Path(__file__).parents[1] / "deploy/qpx-pr50-iex-forward-research-paper-clean-v2.service").read_text()
+        unit = (Path(__file__).parents[1] / "deploy/qpx-volume-confirmation-alpaca-sip-forward-paper.service").read_text()
         self.assertIn("--daemon --poll-seconds 5", unit)
         self.assertNotIn("RuntimeMaxSec", unit)
 
@@ -170,7 +170,7 @@ class LiveExecutionRepairTests(unittest.TestCase):
         Clock.current = ELIGIBLE - timedelta(seconds=30)
         row = {"t": "2026-09-24T13:45:00Z", "o": 10.0, "h": 11.0, "l": 9.0, "c": 10.0, "v": 100000}
         self.store.bind(self.state)
-        with patch.object(sip, "datetime", Clock), patch.object(sip, "request_bars", side_effect=lambda symbols, *_: {s: [row] for s in symbols}), patch.object(sip, "_vix_previous_close", return_value=18.0), patch.object(sip, "_evaluate_candidate_v1_cycle", return_value=([("rank", "TSLL", 1.0, 10.0)], {})), patch.object(sip, "_decision_cycle_telemetry", return_value={"decision_id": "test-cycle"}):
+        with patch.object(sip, "datetime", Clock), patch.object(sip, "request_bars", side_effect=lambda symbols, *_: {s: [row] for s in symbols}), patch.object(sip, "_vix_previous_close", return_value=18.0), patch.object(sip, "_evaluate_candidate_v1_cycle", return_value=([("rank", "TSLL", 1.0, 10.0)], {})), patch.object(sip, "_capacity_selected_symbols", return_value=(("TSLL",), None)), patch.object(sip, "_decision_cycle_telemetry", return_value={"decision_id": "test-cycle"}):
             sip.process_latest_decision(self.state, self.store, Clock.current)
             sip.process_latest_decision(self.state, self.store, Clock.current)
         self.assertEqual(set(self.state["pending"]), {"TSLL"})
@@ -204,7 +204,7 @@ class LiveExecutionRepairTests(unittest.TestCase):
     def test_open_trade_provider_remains_get_only(self):
         import io
         with patch.object(sip, "credentials", return_value=("test", "test")), patch.object(runner.urllib.request, "urlopen", return_value=io.BytesIO(b'{"trades":[]}')) as opened:
-            runner._request_json(provider="ALPACA_IEX", operation="authentic_minute_open", endpoint="https://data.alpaca.markets/v2/stocks/TSLL/trades", parameters={"feed": "iex"}, user_agent="test", attempts=1)
+            runner._request_json(provider="alpaca", operation="authentic_minute_open", endpoint="https://data.alpaca.markets/v2/stocks/TSLL/trades", parameters={"feed": "sip"}, user_agent="test", attempts=1)
         request = opened.call_args.args[0]
         self.assertEqual(request.get_method(), "GET")
         self.assertIsNone(request.data)

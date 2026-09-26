@@ -133,11 +133,14 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
 
     def test_contract_and_runtime_are_isolated_and_explicit(self):
         contract = load_contract()
-        self.assertEqual(contract["feed"], "iex")
-        self.assertEqual(contract["profit_recycling_policy"], "PR_FRACTION_50")
+        self.assertEqual(contract["feed"], "sip")
+        self.assertEqual(contract["market_data_provider"], "alpaca")
+        self.assertIsNone(contract["market_data_fallback"])
+        self.assertIsNone(contract["profit_recycling_policy"])
+        self.assertFalse(contract["profit_recycling_enabled"])
         self.assertEqual(
             contract["candidate_v1_configuration_authority"],
-            "QPX_CANDIDATE_V1.json",
+            "qpx_bot/paper_profiles/candidate_v1_volume_confirmation_25.json",
         )
         self.assertEqual(
             sip.load_candidate_v1_config().maximum_position_notional_fraction,
@@ -145,7 +148,7 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         )
         self.assertEqual(sip.load_qualified_fixed25_notional_fraction(), 0.25)
         self.assertFalse(contract["pyramiding_enabled"])
-        self.assertFalse(contract["sip_parity_claimed"])
+        self.assertTrue(contract["sip_parity_claimed"])
         self.assertNotEqual(DEFAULT_RUNTIME, sip.DEFAULT_RUNTIME)
 
     def test_authentic_open_phase_settles_then_rebalances_once(self):
@@ -258,7 +261,7 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         restored = sip._position(sip._position_dict(position))
         self.assertEqual(restored.entry_semantic_snapshot, snapshot)
 
-    def test_market_request_uses_iex_without_mutating_sip_provider(self):
+    def test_market_request_uses_profile_sip_without_mutating_base_provider(self):
         class Response:
             def __enter__(self): return self
             def __exit__(self, *args): return False
@@ -268,7 +271,7 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
         ) as opened:
             request_bars(("QDTE",), "1Min", datetime(2026, 8, 31, tzinfo=timezone.utc),
                          datetime(2026, 8, 31, 1, tzinfo=timezone.utc))
-        self.assertIn("feed=iex", opened.call_args.args[0].full_url)
+        self.assertIn("feed=sip", opened.call_args.args[0].full_url)
         self.assertIsNot(request_bars, sip.request_bars)
 
     def test_initialization_uses_separate_iex_labeled_state_and_journal(self):
@@ -280,8 +283,8 @@ class PR50IEXForwardResearchPaperTests(unittest.TestCase):
             store = IEXResearchStore(Path(folder))
             state = initialize(store, load_contract(), observed)
             self.assertEqual(state["mode"], VARIANT)
-            self.assertEqual(state["initialization"]["feed"], "iex")
-            self.assertFalse(state["sip_parity_claimed"])
+            self.assertEqual(state["initialization"]["feed"], "sip")
+            self.assertTrue(state["sip_parity_claimed"])
             self.assertTrue(store.state.name.startswith("iex_research_"))
             self.assertTrue(store.journal.name.startswith("iex_research_"))
             self.assertEqual(store.load(), state)
@@ -390,7 +393,7 @@ class BrokerAccountReconciliationTests(unittest.TestCase):
     def selection(state_path: Path) -> ProviderSelection:
         return ProviderSelection(
             schema_version=1,
-            market_data_provider="ALPACA_IEX",
+            market_data_provider="ALPACA_SIP",
             broker_account_provider="DUMMY",
             order_execution_provider="SIMULATED",
             broker_account_configuration={"state_path": str(state_path)},
@@ -814,7 +817,7 @@ class BrokerAccountReconciliationTests(unittest.TestCase):
             ]
             missed = [
                 item for item in records
-                if item["event_type"] == "IEX_RESEARCH_ENTRY_EXECUTION_MISSED"
+                if item["event_type"] == "LIVE_PAPER_ENTRY_EXECUTION_MISSED"
             ]
             self.assertEqual(len(missed), 1)
             self.assertIn(
@@ -883,7 +886,7 @@ class BrokerAccountReconciliationTests(unittest.TestCase):
                 "policy_identity": "BROKER_ANCHORED_SIMULATION_V1",
                 "configuration_fingerprint": _broker_configuration_fingerprint(selection),
                 "mode": BROKER_RECONCILIATION_MODE,
-                "market_data_provider": "ALPACA_IEX",
+                "market_data_provider": "ALPACA_SIP",
                 "broker_account_provider": "DUMMY",
                 "order_execution_provider": "SIMULATED",
                 "poll_seconds": BROKER_RECONCILIATION_POLL_SECONDS,
@@ -1047,7 +1050,7 @@ class DecisionCycleTelemetryTests(unittest.TestCase):
             bar_time=bar_time,
             decision_id="d" * 64,
             state_revision=44,
-            feed="iex",
+            feed="sip",
             vix=18.25,
             census=census,
         )
@@ -1107,7 +1110,7 @@ class DecisionCycleTelemetryTests(unittest.TestCase):
             bar_time=bar_time,
             decision_id="d" * 64,
             state_revision=44,
-            feed="iex",
+            feed="sip",
             vix=None,
             census=census,
         )
@@ -1127,7 +1130,7 @@ class DecisionCycleTelemetryTests(unittest.TestCase):
             bar_time=bar_time,
             decision_id="d" * 64,
             state_revision=44,
-            feed="iex",
+            feed="sip",
             vix=18.25,
             census={
                 "usable": list(symbols),
@@ -1258,7 +1261,7 @@ class OutageRecoveryTests(unittest.TestCase):
                         recoverable=True,
                         exception_type="URLError",
                         message="temporary socket disconnect",
-                        request_parameters={"feed": "iex", "timeframe": "15Min"},
+                        request_parameters={"feed": "sip", "timeframe": "15Min"},
                     )
                 if calls == 2:
                     return recovered
@@ -1282,8 +1285,8 @@ class OutageRecoveryTests(unittest.TestCase):
                 json.loads(line)["event_type"]
                 for line in initial_store.journal.read_text(encoding="utf-8").splitlines()
             ]
-            self.assertIn("IEX_RESEARCH_PROVIDER_DEGRADED", event_types)
-            self.assertIn("IEX_RESEARCH_PROVIDER_RECOVERED", event_types)
+            self.assertIn("LIVE_PAPER_PROVIDER_DEGRADED", event_types)
+            self.assertIn("LIVE_PAPER_PROVIDER_RECOVERED", event_types)
             heartbeat = initial_store.read_heartbeat()
             self.assertEqual(heartbeat["provider_state"], "HEALTHY")
 
@@ -1315,7 +1318,7 @@ class OutageRecoveryTests(unittest.TestCase):
                 recoverable=True,
                 exception_type="URLError",
                 message="timed out",
-                request_parameters={"feed": "iex", "timeframe": "15Min"},
+                request_parameters={"feed": "sip", "timeframe": "15Min"},
             )
             heartbeat = _heartbeat_payload(
                 daemon_started_at_utc="2026-09-01T10:00:00+00:00",
@@ -1344,7 +1347,7 @@ class OutageRecoveryTests(unittest.TestCase):
             ]
             recovered = [
                 record for record in records
-                if record["event_type"] == "IEX_RESEARCH_PROVIDER_RECOVERED"
+                if record["event_type"] == "LIVE_PAPER_PROVIDER_RECOVERED"
             ]
             self.assertEqual(len(recovered), 1)
             self.assertEqual(
@@ -1370,7 +1373,7 @@ class ProviderFailureClassificationTests(unittest.TestCase):
             provider="alpaca",
             operation="market_bars",
             endpoint=sip.DATA_URL,
-            parameters={"feed": "iex", "symbols": "QDTE", "timeframe": "1Min"},
+            parameters={"feed": "sip", "symbols": "QDTE", "timeframe": "1Min"},
         )
 
     def test_timeout_and_connectivity_are_distinguished(self):
@@ -1441,7 +1444,7 @@ class ProviderFailureClassificationTests(unittest.TestCase):
                 provider="alpaca",
                 operation="market_bars",
                 endpoint=sip.DATA_URL,
-                parameters={"feed": "iex", "symbols": "QDTE", "timeframe": "1Min"},
+                parameters={"feed": "sip", "symbols": "QDTE", "timeframe": "1Min"},
                 user_agent="test",
             )
         self.assertEqual(payload, {"bars": {}})
@@ -1473,7 +1476,7 @@ class ProviderFailureClassificationTests(unittest.TestCase):
                     provider="alpaca",
                     operation="market_bars",
                     endpoint=sip.DATA_URL,
-                    parameters={"feed": "iex", "symbols": "QDTE", "timeframe": "1Min"},
+                    parameters={"feed": "sip", "symbols": "QDTE", "timeframe": "1Min"},
                     user_agent="test",
                 )
         self.assertEqual(raised.exception.failure_class, "ALPACA_PROVIDER_5XX")

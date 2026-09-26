@@ -257,7 +257,7 @@ class CandidateV1ConfigTests(unittest.TestCase):
             contract["candidate_v1_configuration_reload_boundary"],
             "COMPLETED_15M_DECISION_BOUNDARY",
         )
-        self.assertNotIn("maximum_position_notional_fraction", contract)
+        self.assertEqual(contract["maximum_position_notional_fraction"], 0.90)
         self.assertFalse(contract["live_broker_enabled"])
         self.assertTrue(contract["simulated_fills_only"])
 

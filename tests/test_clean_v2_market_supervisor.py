@@ -115,11 +115,11 @@ class CleanV2MarketSupervisorTests(unittest.TestCase):
 
     def test_target_has_no_boot_owner_and_supervisor_is_enableable(self):
         target = (
-            ROOT / "deploy/qpx-pr50-iex-forward-research-paper-clean-v2.service"
+            ROOT / "deploy/qpx-volume-confirmation-alpaca-sip-forward-paper.service"
         ).read_text(encoding="utf-8")
         supervisor = (
             ROOT
-            / "deploy/qpx-pr50-iex-forward-research-paper-clean-v2-supervisor.service"
+            / "deploy/qpx-live-paper-market-supervisor.service"
         ).read_text(encoding="utf-8")
         self.assertNotIn("[Install]", target)
         self.assertIn("TimeoutStopSec=360", target)
