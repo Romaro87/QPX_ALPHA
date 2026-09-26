@@ -2326,3 +2326,11 @@ synchronously for the final ten-year result.
 - **ACCEPTANCE:** Focused tests plus finite after-hours SIP entitlement and
   deployment verification are implementation proof. Authentic market-session
   behavior remains pending a later session and must not be claimed now.
+- **FOLLOW-UP IDENTITY CORRECTION:** The initial deployment revealed that the
+  resolved release symlink path entered the contract fingerprint. Normalize it
+  to the stable logical profile identity in a follow-up commit and append an
+  auditable SIP-to-SIP transition without changing account fields. Corrected
+  implementation fingerprint is
+  `c808fe7bfa7db16c1815527edce9f43a6cf942053686451931e6cdd3bb18ef25`;
+  stable contract fingerprint is
+  `3ad8667da99040ba9777163474fe9b475e9992db79a861165ce32beb7c8a6ff7`.

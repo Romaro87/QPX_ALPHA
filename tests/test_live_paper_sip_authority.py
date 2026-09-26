@@ -35,6 +35,10 @@ class LivePaperSIPAuthorityTests(unittest.TestCase):
         self.assertEqual(contract["market_data_provider"], "alpaca")
         self.assertEqual(contract["feed"], "sip")
         self.assertIsNone(contract["market_data_fallback"])
+        self.assertEqual(
+            contract["paper_profile_path"],
+            "qpx_bot/paper_profiles/volume_confirmation_25_v1.json",
+        )
         with patch.object(runner.urllib.request, "urlopen") as opened:
             with self.assertRaises(runner.ProviderFailure) as raised:
                 runner._request_json(
@@ -103,6 +107,12 @@ class LivePaperSIPAuthorityTests(unittest.TestCase):
             before = runner._preserved_account_payload(state)
             store.save(state)
             self.assertTrue(runner._migrate_market_data_contract_if_required(state, store, contract, NOW))
+            state["contract"]["paper_profile_path"] = "/release-dependent/profile.json"
+            state["contract_fingerprint"] = engine.fingerprint(state["contract"])
+            store.save(state)
+            self.assertTrue(runner._normalize_sip_contract_identity_if_required(
+                state, store, contract, NOW
+            ))
             state["market_data_authority"].update({
                 "effective_provider_feed": "sip",
                 "sip_entitlement_result": "AVAILABLE",

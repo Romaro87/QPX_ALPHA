@@ -35,3 +35,14 @@ passed 97/97. No historical replay or broad suite ran. Next: finish diff and
 continuity validation, commit/push explicitly staged files, deploy an isolated
 committed release, run the finite in-place authority migration, replace the
 old IEX-named supervisor/worker units, and verify after-hours fail-closed state.
+
+POST-DEPLOYMENT CORRECTION: finite verification found that the first SIP
+contract fingerprint included the resolved `current` release path. Account
+preservation still passed, but future identical releases would receive a false
+contract change. A focused follow-up uses stable logical profile identity
+`qpx_bot/paper_profiles/volume_confirmation_25_v1.json` and appends one
+`PAPER_PROFILE_IDENTITY_NORMALIZED` audit event. Corrected implementation
+fingerprint: `c808fe7bfa7db16c1815527edce9f43a6cf942053686451931e6cdd3bb18ef25`;
+stable contract fingerprint:
+`3ad8667da99040ba9777163474fe9b475e9992db79a861165ce32beb7c8a6ff7`.
+The same 97 focused tests pass.

@@ -94,6 +94,7 @@ NO_MARKET_DATA_FALLBACK = None
 DEFAULT_PAPER_PROFILE = (
     sip.ROOT / "qpx_bot/paper_profiles/volume_confirmation_25_v1.json"
 )
+PAPER_PROFILE_IDENTITY = "qpx_bot/paper_profiles/volume_confirmation_25_v1.json"
 
 
 def _feed_identity(provider: str, feed: str) -> str:
@@ -227,6 +228,48 @@ def _sync_effective_market_data_authority(state: dict[str, Any]) -> None:
         **configured,
         **dict(_last_effective_market_data_authority or {}),
     }
+
+
+def _normalize_sip_contract_identity_if_required(
+    state: dict[str, Any], store: "IEXResearchStore",
+    contract: Mapping[str, Any], observed_at: datetime,
+) -> bool:
+    expected = sip.fingerprint(contract)
+    if state.get("contract_fingerprint") == expected:
+        return False
+    persisted = dict(state.get("contract") or {})
+    if persisted.get("feed") != "sip" or contract.get("feed") != "sip":
+        return False
+    old_comparable = {
+        key: (list(value) if key == "symbols" else value)
+        for key, value in persisted.items()
+        if key != "paper_profile_path"
+    }
+    new_comparable = {
+        key: (list(value) if key == "symbols" else value)
+        for key, value in contract.items()
+        if key != "paper_profile_path"
+    }
+    if old_comparable != new_comparable:
+        return False
+    before = _preserved_account_payload(state)
+    old_fingerprint = str(state.get("contract_fingerprint"))
+    state["contract"] = json.loads(sip.canonical(contract))
+    state["contract_fingerprint"] = expected
+    state["revision"] = int(state["revision"]) + 1
+    store.bind(state)
+    store.event("PAPER_PROFILE_IDENTITY_NORMALIZED", {
+        "old_contract_fingerprint": old_fingerprint,
+        "new_contract_fingerprint": expected,
+        "old_paper_profile_path": persisted.get("paper_profile_path"),
+        "new_paper_profile_identity": contract.get("paper_profile_path"),
+        "effective_at_utc": observed_at.astimezone(timezone.utc).isoformat(),
+        "account_preservation_fingerprint": sip.fingerprint(before),
+    })
+    store.save(state)
+    if _preserved_account_payload(state) != before:
+        raise RuntimeError("Account state changed during profile identity normalization.")
+    return True
 
 
 @contextmanager
@@ -510,7 +553,7 @@ def load_contract() -> dict[str, Any]:
     profile_path = Path(configured_path) if configured_path else DEFAULT_PAPER_PROFILE
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
     contract.update(profile.get("contract", {}))
-    contract["paper_profile_path"] = str(profile_path.resolve())
+    contract["paper_profile_path"] = PAPER_PROFILE_IDENTITY
     authority = _configured_market_data_authority()
     contract.update({
         "market_data_provider": authority["configured_provider"],
@@ -2181,6 +2224,9 @@ def _cycle(
         _migrate_market_data_contract_if_required(
             state, store, contract, observed_at
         )
+        _normalize_sip_contract_identity_if_required(
+            state, store, contract, observed_at
+        )
     if state.get("contract_fingerprint") not in {
         OLD_SEMANTIC_CONTRACT_FINGERPRINT,
         PRE_CONFIG_AUTHORITY_CONTRACT_FINGERPRINT,
@@ -2415,6 +2461,7 @@ def migrate_market_data_authority(runtime: Path) -> dict[str, Any]:
         before = _preserved_account_payload(state)
         contract = load_contract()
         _migrate_market_data_contract_if_required(state, store, contract, observed)
+        _normalize_sip_contract_identity_if_required(state, store, contract, observed)
         store.bind(state)
         try:
             verification = _verify_sip_entitlement(observed)

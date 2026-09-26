@@ -1353,3 +1353,18 @@ create a non-copying SIP runtime symlink to the existing account directory, run
 the finite `--migrate-market-data-authority`, enable the new supervisor while
 retiring the old one, and verify checksums, preserved account fingerprint,
 SIP authority/entitlement, inactive after-hours worker, and no stray process.
+
+POST-DEPLOYMENT FOLLOW-UP: commit `93779d3c06e2f0eb60f394e3f4e81da6b1fa25e5`
+was pushed and deployed. SIP entitlement/migration passed and account
+fingerprint `b7b39c...747d1` was preserved, but finite verification found the
+contract fingerprint depended on the resolved release path. The follow-up
+normalizes `paper_profile_path` to stable logical identity
+`qpx_bot/paper_profiles/volume_confirmation_25_v1.json`; it does not alter feed,
+strategy, or account fields. Corrected implementation fingerprint is
+`c808fe7bfa7db16c1815527edce9f43a6cf942053686451931e6cdd3bb18ef25`;
+stable contract fingerprint is
+`3ad8667da99040ba9777163474fe9b475e9992db79a861165ce32beb7c8a6ff7`.
+Focused tests remain 97/97. Next: commit/push only the two code/test changes and
+these continuity updates, deploy that exact follow-up commit, rerun the finite
+authority command to append the normalization event, restart only the new
+supervisor, and reverify preservation/checksums/inactive worker.
